@@ -7,26 +7,23 @@ namespace PredatorLite.App.Services;
 
 public interface IUserInteraction
 {
-    bool Confirm(string message, string title);
+    Task<bool> ConfirmAsync(string message, string title);
 
-    void ShowMessage(string message, string title, bool isError = false);
+    Task<string?> ChooseDiagnosticsPathAsync();
 
-    string? ChooseDiagnosticsPath();
-
-    string? PickColor(string currentColor);
+    Task<string?> PickColorAsync(string currentColor);
 
     void OpenFolder(string path);
 }
 
 public sealed class DesktopUserInteraction : IUserInteraction
 {
-    public bool Confirm(string message, string title) =>
-        System.Windows.MessageBox.Show(message, title, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+    public Task<bool> ConfirmAsync(string message, string title) =>
+        Task.FromResult(
+            System.Windows.MessageBox.Show(message, title, MessageBoxButton.YesNo, MessageBoxImage.Question) ==
+            MessageBoxResult.Yes);
 
-    public void ShowMessage(string message, string title, bool isError = false) =>
-        System.Windows.MessageBox.Show(message, title, MessageBoxButton.OK, isError ? MessageBoxImage.Error : MessageBoxImage.Information);
-
-    public string? ChooseDiagnosticsPath()
+    public Task<string?> ChooseDiagnosticsPathAsync()
     {
         Microsoft.Win32.SaveFileDialog dialog = new()
         {
@@ -37,10 +34,10 @@ public sealed class DesktopUserInteraction : IUserInteraction
             AddExtension = true,
             OverwritePrompt = true
         };
-        return dialog.ShowDialog() == true ? dialog.FileName : null;
+        return Task.FromResult(dialog.ShowDialog() == true ? dialog.FileName : null);
     }
 
-    public string? PickColor(string currentColor)
+    public Task<string?> PickColorAsync(string currentColor)
     {
         using System.Windows.Forms.ColorDialog dialog = new()
         {
@@ -56,9 +53,10 @@ public sealed class DesktopUserInteraction : IUserInteraction
             dialog.Color = System.Drawing.Color.DeepSkyBlue;
         }
 
-        return dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK
+        string? result = dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK
             ? $"#{dialog.Color.R:X2}{dialog.Color.G:X2}{dialog.Color.B:X2}"
             : null;
+        return Task.FromResult(result);
     }
 
     public void OpenFolder(string path)

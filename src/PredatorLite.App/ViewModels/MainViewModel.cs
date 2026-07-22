@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
-using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PredatorLite.App.Services;
@@ -31,6 +30,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     private readonly DiagnosticsExporter _diagnosticsExporter;
     private readonly LocalizationService _localization;
     private readonly IUserInteraction _interaction;
+    private readonly IUiDispatcher _uiDispatcher;
     private readonly SemaphoreSlim _hardwareGate = new(1, 1);
     private readonly CancellationTokenSource _lifetime = new();
 
@@ -59,7 +59,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         ElevatedHelperLauncher elevatedHelper,
         DiagnosticsExporter diagnosticsExporter,
         LocalizationService localization,
-        IUserInteraction interaction)
+        IUserInteraction interaction,
+        IUiDispatcher uiDispatcher)
     {
         _platform = platform;
         _settingsStore = settingsStore;
@@ -72,6 +73,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         _diagnosticsExporter = diagnosticsExporter;
         _localization = localization;
         _interaction = interaction;
+        _uiDispatcher = uiDispatcher;
         statusMessage = "PredatorLite";
     }
 
@@ -537,7 +539,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             CultureInfo.CurrentCulture,
             _localization.Get("Confirm.Mux"),
             LocalizeMuxMode(mode));
-        if (!_interaction.Confirm(confirmation, _localization.Get("App.Name")))
+        if (!await _interaction.ConfirmAsync(confirmation, _localization.Get("App.Name")))
         {
             return;
         }
@@ -623,9 +625,9 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     }
 
     [RelayCommand]
-    private void PickPrimaryColor()
+    private async Task PickPrimaryColorAsync()
     {
-        string? selected = _interaction.PickColor(LightingPrimaryColor);
+        string? selected = await _interaction.PickColorAsync(LightingPrimaryColor);
         if (selected is not null)
         {
             LightingPrimaryColor = selected;
@@ -633,9 +635,9 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     }
 
     [RelayCommand]
-    private void PickZoneColor(LightingZoneViewModel zone)
+    private async Task PickZoneColorAsync(LightingZoneViewModel zone)
     {
-        string? selected = _interaction.PickColor(zone.Color);
+        string? selected = await _interaction.PickColorAsync(zone.Color);
         if (selected is not null)
         {
             zone.Color = selected;
@@ -773,7 +775,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     [RelayCommand]
     private async Task DisableConflictingServicesAsync()
     {
-        if (!_interaction.Confirm(
+        if (!await _interaction.ConfirmAsync(
                 _localization.Get("Confirm.DisableServices"),
                 _localization.Get("App.Name")))
         {
@@ -817,7 +819,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             return;
         }
 
-        string? path = _interaction.ChooseDiagnosticsPath();
+        string? path = await _interaction.ChooseDiagnosticsPathAsync();
         if (path is null)
         {
             return;
@@ -1332,16 +1334,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     private void OnModeKeyPressed(object? sender, EventArgs e)
     {
-        System.Windows.Application.Current.Dispatcher.BeginInvoke(async () =>
-        {
-            try
-            {
-                await CycleOperatingModeCoreAsync();
-            }
-            catch (Exception exception)
-            {
-                _logger.Error("Mode key action failed", exception);
-            }
-        });
+        _uiDispatcher.Post(CycleOperatingModeCoreAsync);
     }
 }

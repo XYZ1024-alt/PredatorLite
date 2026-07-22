@@ -53,7 +53,8 @@ public partial class App : System.Windows.Application
                 new ElevatedHelperLauncher(),
                 new DiagnosticsExporter(),
                 localization,
-                new DesktopUserInteraction());
+                new DesktopUserInteraction(),
+                new WpfUiDispatcher(Dispatcher, _logger));
 
             await _viewModel.InitializeAsync();
             MainWindow window = new(_viewModel, _logger);
