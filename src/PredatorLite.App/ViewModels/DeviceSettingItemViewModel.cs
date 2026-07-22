@@ -11,7 +11,7 @@ public partial class DeviceSettingItemViewModel : ObservableObject
         Name = name;
         IsSupported = state.IsSupported;
         IsWritable = state.IsWritable;
-        enabled = state.Enabled == true;
+        Enabled = state.Enabled == true;
         Detail = detail;
     }
 
@@ -26,5 +26,5 @@ public partial class DeviceSettingItemViewModel : ObservableObject
     public string Detail { get; }
 
     [ObservableProperty]
-    private bool enabled;
+    public partial bool Enabled { get; set; }
 }

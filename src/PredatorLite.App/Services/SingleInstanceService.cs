@@ -58,6 +58,13 @@ public sealed class SingleInstanceService : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         _lifetime.Cancel();
+        if (IsPrimary)
+        {
+            // Named mutex ownership is thread-affine, so release before the first await.
+            _mutex.ReleaseMutex();
+        }
+
+        _mutex.Dispose();
         if (_listener is not null)
         {
             try
@@ -69,12 +76,6 @@ public sealed class SingleInstanceService : IAsyncDisposable
             }
         }
 
-        if (IsPrimary)
-        {
-            _mutex.ReleaseMutex();
-        }
-
-        _mutex.Dispose();
         _lifetime.Dispose();
     }
 

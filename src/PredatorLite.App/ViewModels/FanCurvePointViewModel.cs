@@ -7,15 +7,15 @@ public partial class FanCurvePointViewModel : ObservableObject
 {
     public FanCurvePointViewModel(FanCurvePoint point)
     {
-        temperatureC = point.TemperatureC;
-        speedPercent = point.SpeedPercent;
+        TemperatureC = point.TemperatureC;
+        SpeedPercent = point.SpeedPercent;
     }
 
     [ObservableProperty]
-    private int temperatureC;
+    public partial int TemperatureC { get; set; }
 
     [ObservableProperty]
-    private int speedPercent;
+    public partial int SpeedPercent { get; set; }
 
     public FanCurvePoint ToModel() => new(TemperatureC, SpeedPercent);
 }

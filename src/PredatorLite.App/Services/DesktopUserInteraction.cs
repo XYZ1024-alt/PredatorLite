@@ -1,7 +1,10 @@
 using System.Diagnostics;
-using System.IO;
-using System.Windows;
-using Microsoft.Win32;
+using System.Globalization;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using PredatorLite.Core.Abstractions;
+using Windows.Storage.Pickers;
+using Windows.UI;
 
 namespace PredatorLite.App.Services;
 
@@ -16,47 +19,111 @@ public interface IUserInteraction
     void OpenFolder(string path);
 }
 
-public sealed class DesktopUserInteraction : IUserInteraction
+public sealed class DesktopUserInteraction(
+    Func<XamlRoot?> xamlRootProvider,
+    Func<IntPtr> windowHandleProvider,
+    LocalizationService localization,
+    IAppLogger logger) : IUserInteraction
 {
-    public Task<bool> ConfirmAsync(string message, string title) =>
-        Task.FromResult(
-            System.Windows.MessageBox.Show(message, title, MessageBoxButton.YesNo, MessageBoxImage.Question) ==
-            MessageBoxResult.Yes);
+    private readonly SemaphoreSlim _dialogGate = new(1, 1);
 
-    public Task<string?> ChooseDiagnosticsPathAsync()
+    public async Task<bool> ConfirmAsync(string message, string title)
     {
-        Microsoft.Win32.SaveFileDialog dialog = new()
+        XamlRoot? root = xamlRootProvider();
+        if (root is null)
         {
-            Title = "PredatorLite Diagnostics",
-            FileName = $"PredatorLite-Diagnostics-{DateTime.Now:yyyyMMdd-HHmmss}.zip",
-            DefaultExt = ".zip",
-            Filter = "ZIP archive (*.zip)|*.zip",
-            AddExtension = true,
-            OverwritePrompt = true
-        };
-        return Task.FromResult(dialog.ShowDialog() == true ? dialog.FileName : null);
-    }
+            logger.Error("A confirmation dialog was requested before the window was ready.");
+            return false;
+        }
 
-    public Task<string?> PickColorAsync(string currentColor)
-    {
-        using System.Windows.Forms.ColorDialog dialog = new()
-        {
-            FullOpen = true,
-            AnyColor = true
-        };
+        await _dialogGate.WaitAsync();
         try
         {
-            dialog.Color = System.Drawing.ColorTranslator.FromHtml(currentColor);
+            ContentDialog dialog = new()
+            {
+                XamlRoot = root,
+                Title = title,
+                Content = new TextBlock
+                {
+                    Text = message,
+                    TextWrapping = TextWrapping.Wrap,
+                    MaxWidth = 460
+                },
+                PrimaryButtonText = localization.Get("Action.Confirm"),
+                CloseButtonText = localization.Get("Action.Cancel"),
+                DefaultButton = ContentDialogButton.Primary
+            };
+            return await dialog.ShowAsync() == ContentDialogResult.Primary;
         }
-        catch
+        finally
         {
-            dialog.Color = System.Drawing.Color.DeepSkyBlue;
+            _dialogGate.Release();
+        }
+    }
+
+    public async Task<string?> ChooseDiagnosticsPathAsync()
+    {
+        IntPtr handle = windowHandleProvider();
+        if (handle == IntPtr.Zero)
+        {
+            logger.Error("The diagnostics picker was requested before the window was ready.");
+            return null;
         }
 
-        string? result = dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK
-            ? $"#{dialog.Color.R:X2}{dialog.Color.G:X2}{dialog.Color.B:X2}"
-            : null;
-        return Task.FromResult(result);
+        FileSavePicker picker = new()
+        {
+            SuggestedFileName = $"PredatorLite-Diagnostics-{DateTime.Now:yyyyMMdd-HHmmss}"
+        };
+        picker.FileTypeChoices.Add("ZIP archive", [".zip"]);
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, handle);
+        Windows.Storage.StorageFile? file = await picker.PickSaveFileAsync();
+        return file?.Path;
+    }
+
+    public async Task<string?> PickColorAsync(string currentColor)
+    {
+        XamlRoot? root = xamlRootProvider();
+        if (root is null)
+        {
+            logger.Error("The color picker was requested before the window was ready.");
+            return null;
+        }
+
+        ColorPicker picker = new()
+        {
+            Color = ParseColor(currentColor),
+            IsAlphaEnabled = false,
+            IsAlphaSliderVisible = false,
+            IsAlphaTextInputVisible = false,
+            IsColorChannelTextInputVisible = true,
+            IsHexInputVisible = true,
+            IsMoreButtonVisible = true
+        };
+
+        await _dialogGate.WaitAsync();
+        try
+        {
+            ContentDialog dialog = new()
+            {
+                XamlRoot = root,
+                Title = localization.Get("Tip.PickColor"),
+                Content = picker,
+                PrimaryButtonText = localization.Get("Action.Confirm"),
+                CloseButtonText = localization.Get("Action.Cancel"),
+                DefaultButton = ContentDialogButton.Primary
+            };
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+            {
+                return null;
+            }
+
+            Color color = picker.Color;
+            return $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+        }
+        finally
+        {
+            _dialogGate.Release();
+        }
     }
 
     public void OpenFolder(string path)
@@ -67,5 +134,22 @@ public sealed class DesktopUserInteraction : IUserInteraction
             FileName = path,
             UseShellExecute = true
         });
+    }
+
+    private static Color ParseColor(string value)
+    {
+        try
+        {
+            string hex = value.TrimStart('#');
+            return Color.FromArgb(
+                255,
+                byte.Parse(hex.AsSpan(0, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture),
+                byte.Parse(hex.AsSpan(2, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture),
+                byte.Parse(hex.AsSpan(4, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture));
+        }
+        catch
+        {
+            return Color.FromArgb(255, 0, 168, 232);
+        }
     }
 }

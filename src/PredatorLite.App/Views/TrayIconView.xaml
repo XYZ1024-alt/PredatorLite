@@ -1,0 +1,22 @@
+<UserControl
+    x:Class="PredatorLite.App.Views.TrayIconView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:tb="using:H.NotifyIcon"
+    IsHitTestVisible="False">
+    <tb:TaskbarIcon
+        x:Name="TrayIcon"
+        ContextMenuMode="PopupMenu"
+        IconSource="/Assets/PredatorLite.ico"
+        LeftClickCommand="{x:Bind OpenWindowCommand}"
+        NoLeftClickDelay="True"
+        ToolTipText="PredatorLite">
+        <tb:TaskbarIcon.ContextFlyout>
+            <MenuFlyout AreOpenCloseAnimationsEnabled="False">
+                <MenuFlyoutItem x:Name="OpenMenuItem" Command="{x:Bind OpenWindowCommand}" />
+                <MenuFlyoutSeparator />
+                <MenuFlyoutItem x:Name="ExitMenuItem" Command="{x:Bind ExitCommand}" />
+            </MenuFlyout>
+        </tb:TaskbarIcon.ContextFlyout>
+    </tb:TaskbarIcon>
+</UserControl>

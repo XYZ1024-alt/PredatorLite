@@ -1,4 +1,4 @@
-using System.Windows.Threading;
+using Microsoft.UI.Dispatching;
 using PredatorLite.Core.Abstractions;
 
 namespace PredatorLite.App.Services;
@@ -8,11 +8,11 @@ public interface IUiDispatcher
     void Post(Func<Task> callback);
 }
 
-public sealed class WpfUiDispatcher(Dispatcher dispatcher, IAppLogger logger) : IUiDispatcher
+public sealed class WinUiDispatcher(DispatcherQueue dispatcher, IAppLogger logger) : IUiDispatcher
 {
     public void Post(Func<Task> callback)
     {
-        dispatcher.BeginInvoke(async () =>
+        if (!dispatcher.TryEnqueue(async () =>
         {
             try
             {
@@ -22,6 +22,9 @@ public sealed class WpfUiDispatcher(Dispatcher dispatcher, IAppLogger logger) : 
             {
                 logger.Error("Dispatched UI action failed", exception);
             }
-        });
+        }))
+        {
+            logger.Error("The UI dispatcher rejected an action.");
+        }
     }
 }

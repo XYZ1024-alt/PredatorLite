@@ -1,6 +1,6 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+                    xmlns:sys="using:System">
     <sys:String x:Key="App.Name">PredatorLite</sys:String>
     <sys:String x:Key="Nav.Home">Home</sys:String>
     <sys:String x:Key="Nav.Lighting">Lighting</sys:String>
@@ -74,6 +74,7 @@
     <sys:String x:Key="Metric.RefreshRate">Refresh rate</sys:String>
     <sys:String x:Key="Metric.Fps">Frame rate</sys:String>
     <sys:String x:Key="Label.Current">Current</sys:String>
+    <sys:String x:Key="Label.Zone">Zone</sys:String>
     <sys:String x:Key="Label.Model">Model</sys:String>
     <sys:String x:Key="Label.Bios">BIOS</sys:String>
     <sys:String x:Key="Label.Cpu">CPU</sys:String>
@@ -110,6 +111,8 @@
     <sys:String x:Key="Action.RestoreServices">Restore services</sys:String>
     <sys:String x:Key="Action.Hide">Hide</sys:String>
     <sys:String x:Key="Action.Exit">Exit</sys:String>
+    <sys:String x:Key="Action.Confirm">Confirm</sys:String>
+    <sys:String x:Key="Action.Cancel">Cancel</sys:String>
     <sys:String x:Key="Action.Open">Open PredatorLite</sys:String>
     <sys:String x:Key="Status.Probing">Reading device capabilities...</sys:String>
     <sys:String x:Key="Status.Ready">Device ready</sys:String>

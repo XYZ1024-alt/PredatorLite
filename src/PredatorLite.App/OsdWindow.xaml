@@ -1,38 +1,72 @@
-<Window x:Class="PredatorLite.App.OsdWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
-        Width="330"
-        Height="112"
-        AllowsTransparency="True"
-        Background="Transparent"
-        Focusable="False"
-        IsHitTestVisible="False"
-        ShowActivated="False"
-        ShowInTaskbar="False"
-        Topmost="True"
-        WindowStyle="None"
-        Loaded="Window_Loaded">
-    <Border Padding="14,12" Background="#EE14191C" BorderBrush="#6643C6E8" BorderThickness="1" CornerRadius="6">
-        <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
-            <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                <StackPanel Orientation="Horizontal">
-                    <iconPacks:PackIconLucide Width="16" Height="16" Margin="0,0,8,0" Foreground="{StaticResource AccentBrush}" Kind="Gauge" />
-                    <TextBlock FontWeight="SemiBold" Text="{Binding CurrentOperatingModeName}" />
-                </StackPanel>
-                <TextBlock Grid.Column="1" Foreground="{StaticResource MutedTextBrush}" Text="{Binding CurrentFanModeName}" />
+<Window
+    x:Class="PredatorLite.App.OsdWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Background="Transparent">
+        <Border
+            Margin="1"
+            Padding="16,13"
+            Background="{ThemeResource PredatorPaneBrush}"
+            BorderBrush="{ThemeResource PredatorBorderBrush}"
+            BorderThickness="1"
+            CornerRadius="8">
+            <Grid RowSpacing="14">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon
+                            FontSize="15"
+                            Foreground="{ThemeResource PredatorAccentBrush}"
+                            Glyph="&#xE9D2;" />
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontWeight="SemiBold"
+                            Foreground="{ThemeResource PredatorTextBrush}"
+                            Text="{Binding CurrentOperatingModeName}" />
+                    </StackPanel>
+                    <TextBlock
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Foreground="{ThemeResource PredatorMutedTextBrush}"
+                        Text="{Binding CurrentFanModeName}" />
+                </Grid>
+
+                <Grid Grid.Row="1" ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Spacing="3">
+                        <TextBlock Style="{StaticResource MutedTextStyle}" Text="CPU" />
+                        <TextBlock Foreground="{ThemeResource PredatorTextBrush}" Text="{Binding CpuTemperatureText}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="3">
+                        <TextBlock Style="{StaticResource MutedTextStyle}" Text="GPU" />
+                        <TextBlock Foreground="{ThemeResource PredatorTextBrush}" Text="{Binding GpuTemperatureText}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="3">
+                        <TextBlock x:Name="CpuFanLabel" Style="{StaticResource MutedTextStyle}" Text="{StaticResource Metric.CpuFan}" />
+                        <TextBlock Foreground="{ThemeResource PredatorTextBrush}" Text="{Binding CpuFanText}" />
+                    </StackPanel>
+                    <StackPanel
+                        Grid.Column="3"
+                        Spacing="3"
+                        Visibility="{Binding ShowFps, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Style="{StaticResource MutedTextStyle}" Text="FPS" />
+                        <TextBlock Foreground="{ThemeResource PredatorTextBrush}" Text="{Binding FpsText}" />
+                    </StackPanel>
+                </Grid>
             </Grid>
-            <UniformGrid Grid.Row="1" Margin="0,14,0,0" Columns="4">
-                <StackPanel><TextBlock Style="{StaticResource MutedTextStyle}" Text="CPU" /><TextBlock Margin="0,3,0,0" Text="{Binding CpuTemperatureText}" /></StackPanel>
-                <StackPanel><TextBlock Style="{StaticResource MutedTextStyle}" Text="GPU" /><TextBlock Margin="0,3,0,0" Text="{Binding GpuTemperatureText}" /></StackPanel>
-                <StackPanel><TextBlock Style="{StaticResource MutedTextStyle}" Text="{DynamicResource Metric.CpuFan}" /><TextBlock Margin="0,3,0,0" Text="{Binding CpuFanText}" /></StackPanel>
-                <StackPanel Visibility="{Binding ShowFps, Converter={StaticResource BooleanToVisibilityConverter}}"><TextBlock Style="{StaticResource MutedTextStyle}" Text="FPS" /><TextBlock Margin="0,3,0,0" Text="{Binding FpsText}" /></StackPanel>
-            </UniformGrid>
-        </Grid>
-    </Border>
+        </Border>
+    </Grid>
 </Window>

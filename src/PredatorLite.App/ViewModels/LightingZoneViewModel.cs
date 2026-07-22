@@ -7,11 +7,11 @@ public partial class LightingZoneViewModel : ObservableObject
     public LightingZoneViewModel(int index, string colorHex)
     {
         Index = index;
-        color = colorHex;
+        Color = colorHex;
     }
 
     public int Index { get; }
 
     [ObservableProperty]
-    private string color;
+    public partial string Color { get; set; }
 }

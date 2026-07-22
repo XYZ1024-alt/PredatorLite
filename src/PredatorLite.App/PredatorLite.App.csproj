@@ -9,17 +9,28 @@
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-    <PackageReference Include="MahApps.Metro.IconPacks.Lucide" Version="6.2.1" />
+    <PackageReference Include="H.NotifyIcon.WinUI" Version="2.4.1" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.3.1" />
   </ItemGroup>
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.22000.0</TargetPlatformMinVersion>
+    <SupportedOSPlatformVersion>10.0.22000.0</SupportedOSPlatformVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <UseWPF>true</UseWPF>
-    <UseWindowsForms>true</UseWindowsForms>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <UseWinUI>true</UseWinUI>
+    <WinUISDKReferences>false</WinUISDKReferences>
+    <WindowsPackageType>None</WindowsPackageType>
+    <EnableMsixTooling>false</EnableMsixTooling>
+    <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
+    <SelfContained>false</SelfContained>
+    <PublishTrimmed>false</PublishTrimmed>
+    <PublishReadyToRun>false</PublishReadyToRun>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\PredatorLite.ico</ApplicationIcon>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <Platforms>x64</Platforms>
     <PlatformTarget>x64</PlatformTarget>
@@ -27,35 +38,44 @@
     <Product>PredatorLite</Product>
     <Description>Lightweight Acer Predator PHN16-71 control utility</Description>
     <Version>0.1.0</Version>
+    <CompanionTargetFramework>net10.0-windows10.0.19041.0</CompanionTargetFramework>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Manifest Include="$(ApplicationManifest)" />
+    <Content Include="Assets\PredatorLite.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Assets\PredatorLite.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 
   <Target Name="CopyCompanionExecutables" AfterTargets="Build">
     <ItemGroup>
-      <CompanionFile Include="$(MSBuildProjectDirectory)\..\PredatorLite.FanGuard\bin\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\PredatorLite.FanGuard.*" />
-      <CompanionFile Include="$(MSBuildProjectDirectory)\..\PredatorLite.ElevatedHelper\bin\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\PredatorLite.ElevatedHelper.*" />
+      <CompanionFile Include="$(MSBuildProjectDirectory)\..\PredatorLite.FanGuard\bin\$(Configuration)\$(CompanionTargetFramework)\$(RuntimeIdentifier)\PredatorLite.FanGuard.*" />
+      <CompanionFile Include="$(MSBuildProjectDirectory)\..\PredatorLite.ElevatedHelper\bin\$(Configuration)\$(CompanionTargetFramework)\$(RuntimeIdentifier)\PredatorLite.ElevatedHelper.*" />
     </ItemGroup>
     <Copy SourceFiles="@(CompanionFile)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
   </Target>
 
-  <Target Name="IncludeCompanionAssembliesInPublish" BeforeTargets="ComputeFilesToPublish">
+  <Target Name="CopyCompanionExecutablesToPublish" AfterTargets="Publish">
     <ItemGroup>
-      <ResolvedFileToPublish Include="$(MSBuildProjectDirectory)\..\PredatorLite.FanGuard\bin\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\PredatorLite.FanGuard.dll">
-        <RelativePath>PredatorLite.FanGuard.dll</RelativePath>
-        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      </ResolvedFileToPublish>
-      <ResolvedFileToPublish Include="$(MSBuildProjectDirectory)\..\PredatorLite.FanGuard\bin\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\PredatorLite.FanGuard.pdb">
-        <RelativePath>PredatorLite.FanGuard.pdb</RelativePath>
-        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      </ResolvedFileToPublish>
-      <ResolvedFileToPublish Include="$(MSBuildProjectDirectory)\..\PredatorLite.ElevatedHelper\bin\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\PredatorLite.ElevatedHelper.dll">
-        <RelativePath>PredatorLite.ElevatedHelper.dll</RelativePath>
-        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      </ResolvedFileToPublish>
-      <ResolvedFileToPublish Include="$(MSBuildProjectDirectory)\..\PredatorLite.ElevatedHelper\bin\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\PredatorLite.ElevatedHelper.pdb">
-        <RelativePath>PredatorLite.ElevatedHelper.pdb</RelativePath>
-        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      </ResolvedFileToPublish>
+      <CompanionPublishFile Include="$(MSBuildProjectDirectory)\..\PredatorLite.FanGuard\bin\$(Configuration)\$(CompanionTargetFramework)\$(RuntimeIdentifier)\PredatorLite.FanGuard.*" />
+      <CompanionPublishFile Include="$(MSBuildProjectDirectory)\..\PredatorLite.ElevatedHelper\bin\$(Configuration)\$(CompanionTargetFramework)\$(RuntimeIdentifier)\PredatorLite.ElevatedHelper.*" />
     </ItemGroup>
+    <Copy SourceFiles="@(CompanionPublishFile)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="CopyWinUiResourcesToPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <WinUiPublishFile Include="$(OutDir)**\*.xbf" />
+    </ItemGroup>
+    <MakeDir Directories="@(WinUiPublishFile->'$(PublishDir)%(RecursiveDir)')" />
+    <Copy
+        SourceFiles="@(WinUiPublishFile)"
+        DestinationFiles="@(WinUiPublishFile->'$(PublishDir)%(RecursiveDir)%(Filename)%(Extension)')"
+        SkipUnchangedFiles="true" />
+    <Copy
+        SourceFiles="$(OutDir)PredatorLite.pri"
+        DestinationFolder="$(PublishDir)"
+        SkipUnchangedFiles="true" />
   </Target>
 
 </Project>

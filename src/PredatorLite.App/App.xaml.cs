@@ -1,27 +1,37 @@
-using System.Windows;
-using System.Windows.Threading;
+using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml;
 using PredatorLite.App.Services;
 using PredatorLite.App.ViewModels;
-using PredatorLite.Core.Abstractions;
 using PredatorLite.Core.Services;
 using PredatorLite.Platform.Windows;
 using PredatorLite.Platform.Windows.SystemIntegration;
 
 namespace PredatorLite.App;
 
-public partial class App : System.Windows.Application
+public partial class App : Application
 {
     private FileAppLogger? _logger;
     private SingleInstanceService? _singleInstance;
     private MainViewModel? _viewModel;
+    private MainWindow? _mainWindow;
+    private int _launchStarted;
+    private int _exitStarted;
 
-    protected override async void OnStartup(StartupEventArgs e)
+    public App()
     {
-        base.OnStartup(e);
-        _logger = new FileAppLogger();
-        DispatcherUnhandledException += OnDispatcherUnhandledException;
-        AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
+        InitializeComponent();
+        UnhandledException += OnUnhandledUiException;
+        AppDomain.CurrentDomain.UnhandledException += OnUnhandledProcessException;
+    }
 
+    protected override async void OnLaunched(LaunchActivatedEventArgs args)
+    {
+        if (Interlocked.Exchange(ref _launchStarted, 1) != 0)
+        {
+            return;
+        }
+
+        _logger = new FileAppLogger();
         _singleInstance = new SingleInstanceService();
         if (!_singleInstance.IsPrimary)
         {
@@ -30,67 +40,86 @@ public partial class App : System.Windows.Application
             _singleInstance = null;
             _logger.Dispose();
             _logger = null;
-            Shutdown();
+            Exit();
             return;
         }
 
         try
         {
+            if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
+            {
+                throw new PlatformNotSupportedException("PredatorLite requires Windows 11 or later.");
+            }
+
+            DispatcherQueue dispatcher = DispatcherQueue.GetForCurrentThread();
             LocalizationService localization = new();
-            JsonSettingsStore settings = new();
-            PredatorPlatform platform = new(_logger);
-            QuickAccessModeKeySource modeKey = new(_logger);
-            DeferredFpsSource fps = new(() => new EtwFpsSource(_logger));
-            FanGuardClient fanGuard = new(_logger);
+            MainWindow? window = null;
+            DesktopUserInteraction interaction = new(
+                () => window?.Content is FrameworkElement element ? element.XamlRoot : null,
+                () => window?.WindowHandle ?? IntPtr.Zero,
+                localization,
+                _logger);
+
             _viewModel = new MainViewModel(
-                platform,
-                settings,
+                new PredatorPlatform(_logger),
+                new JsonSettingsStore(),
                 _logger,
-                modeKey,
-                fps,
-                fanGuard,
+                new QuickAccessModeKeySource(_logger),
+                new DeferredFpsSource(() => new EtwFpsSource(_logger)),
+                new FanGuardClient(_logger),
                 new StartupManager(),
                 new ElevatedHelperLauncher(),
                 new DiagnosticsExporter(),
                 localization,
-                new DesktopUserInteraction(),
-                new WpfUiDispatcher(Dispatcher, _logger));
+                interaction,
+                new WinUiDispatcher(dispatcher, _logger));
 
-            await _viewModel.InitializeAsync();
-            MainWindow window = new(_viewModel, _logger);
-            MainWindow = window;
-            bool startHidden = e.Args.Any(argument =>
+            window = new MainWindow(_viewModel, localization, _logger, () => ExitAsync(0));
+            _mainWindow = window;
+            bool startHidden = Environment.GetCommandLineArgs().Skip(1).Any(argument =>
                 string.Equals(argument, "--background", StringComparison.OrdinalIgnoreCase));
             window.SetStartHidden(startHidden);
-            _singleInstance.StartListening(() => Dispatcher.BeginInvoke(window.ShowAndActivate));
-
-            if (startHidden || _viewModel.StartMinimized)
+            _singleInstance.StartListening(() => dispatcher.TryEnqueue(window.ShowAndActivate));
+            window.Activate();
+            if (startHidden)
             {
-                window.ShowActivated = false;
-                window.ShowInTaskbar = false;
-                window.WindowState = WindowState.Minimized;
+                window.HideToTray();
             }
 
-            window.Show();
+            await _viewModel.InitializeAsync();
+            if (_viewModel.StartMinimized)
+            {
+                window.HideToTray();
+            }
         }
         catch (Exception exception)
         {
             _logger.Error("PredatorLite startup failed", exception);
-            System.Windows.MessageBox.Show(
-                exception.Message,
-                "PredatorLite",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
-            Shutdown(1);
+            NativeMethods.ShowError(_mainWindow?.WindowHandle ?? IntPtr.Zero, exception.Message, "PredatorLite");
+            await ExitAsync(1);
         }
     }
 
-    protected override void OnExit(ExitEventArgs e)
+    private async Task ExitAsync(int exitCode)
     {
+        if (Interlocked.Exchange(ref _exitStarted, 1) != 0)
+        {
+            return;
+        }
+
+        Environment.ExitCode = exitCode;
         try
         {
-            _viewModel?.DisposeAsync().AsTask().GetAwaiter().GetResult();
-            _singleInstance?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            _mainWindow?.PrepareForExit();
+            if (_viewModel is not null)
+            {
+                await _viewModel.DisposeAsync();
+            }
+
+            if (_singleInstance is not null)
+            {
+                await _singleInstance.DisposeAsync();
+            }
         }
         catch (Exception exception)
         {
@@ -98,25 +127,18 @@ public partial class App : System.Windows.Application
         }
         finally
         {
+            _mainWindow?.Close();
             _logger?.Dispose();
+            Exit();
         }
-
-        base.OnExit(e);
     }
 
-    private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
+    private void OnUnhandledUiException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
     {
         _logger?.Error("Unhandled UI exception", e.Exception);
         e.Handled = true;
-        System.Windows.MessageBox.Show(
-            e.Exception.Message,
-            "PredatorLite",
-            MessageBoxButton.OK,
-            MessageBoxImage.Error);
     }
 
-    private void OnUnhandledException(object? sender, UnhandledExceptionEventArgs e)
-    {
+    private void OnUnhandledProcessException(object? sender, System.UnhandledExceptionEventArgs e) =>
         _logger?.Error("Unhandled process exception", e.ExceptionObject as Exception);
-    }
 }

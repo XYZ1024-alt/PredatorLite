@@ -1,176 +1,175 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
-using System.Windows;
-using System.Windows.Input;
-using System.Windows.Interop;
+using H.NotifyIcon;
+using Microsoft.UI;
+using Microsoft.UI.Composition.SystemBackdrops;
+using Microsoft.UI.Windowing;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
 using PredatorLite.App.Services;
 using PredatorLite.App.ViewModels;
+using PredatorLite.App.Views;
 using PredatorLite.Core.Abstractions;
-using Forms = System.Windows.Forms;
+using Windows.Graphics;
 
 namespace PredatorLite.App;
 
-public partial class MainWindow : Window
+public sealed partial class MainWindow : Window
 {
+    private const int InitialWidthInDips = 1180;
+    private const int InitialHeightInDips = 780;
     private readonly MainViewModel _viewModel;
+    private readonly LocalizationService _localization;
     private readonly IAppLogger _logger;
-    private readonly Forms.NotifyIcon _trayIcon;
+    private readonly Func<Task> _exitRequested;
+    private readonly AppWindow _appWindow;
+    private readonly NativeWindowSubclass _windowSubclass;
+    private MainShell? _shell;
+    private TrayIconView? _trayIcon;
     private GlobalShortcutManager? _shortcuts;
     private OsdWindow? _osdWindow;
-    private bool _startHidden;
     private bool _allowClose;
-    private bool _loaded;
+    private bool _startHidden;
 
-    public MainWindow(MainViewModel viewModel, IAppLogger logger)
+    public MainWindow(
+        MainViewModel viewModel,
+        LocalizationService localization,
+        IAppLogger logger,
+        Func<Task> exitRequested)
     {
         _viewModel = viewModel;
+        _localization = localization;
         _logger = logger;
-        DataContext = viewModel;
+        _exitRequested = exitRequested;
         InitializeComponent();
+        Title = "PredatorLite";
 
-        _trayIcon = new Forms.NotifyIcon
-        {
-            Icon = System.Drawing.SystemIcons.Application,
-            Text = "PredatorLite",
-            Visible = true
-        };
-        _trayIcon.DoubleClick += (_, _) => ShowAndActivate();
-        RebuildTrayMenu();
-        _viewModel.PropertyChanged += ViewModel_PropertyChanged;
+        WindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        _windowSubclass = new NativeWindowSubclass(WindowHandle);
+        _windowSubclass.MessageReceived += OnWindowMessage;
+        WindowId windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(WindowHandle);
+        _appWindow = AppWindow.GetFromWindowId(windowId);
+        ConfigureWindow(windowId);
+        RebuildShell();
+        CreateTrayIcon();
+
+        Closed += OnClosed;
+        _viewModel.PropertyChanged += ViewModelOnPropertyChanged;
     }
+
+    public IntPtr WindowHandle { get; }
 
     public void SetStartHidden(bool hidden) => _startHidden = hidden;
 
     public void ShowAndActivate()
     {
-        ShowInTaskbar = true;
-        if (!IsVisible)
-        {
-            Show();
-        }
-
-        if (WindowState == WindowState.Minimized)
-        {
-            WindowState = WindowState.Normal;
-        }
-
+        this.Show();
+        _trayIcon?.SetWindowVisible(true);
         Activate();
-        Topmost = true;
-        Topmost = false;
-        Focus();
+        NativeMethods.SetForegroundWindow(WindowHandle);
     }
 
-    private async void Window_Loaded(object sender, RoutedEventArgs e)
+    public void HideToTray()
     {
-        if (_loaded)
+        this.Hide(enableEfficiencyMode: true);
+        _trayIcon?.SetWindowVisible(false);
+    }
+
+    public void PrepareForExit()
+    {
+        _allowClose = true;
+        _viewModel.PropertyChanged -= ViewModelOnPropertyChanged;
+        _shortcuts?.Dispose();
+        _shortcuts = null;
+        _windowSubclass.Dispose();
+        _osdWindow?.CloseOverlay();
+        _osdWindow = null;
+        _trayIcon?.Dispose();
+        _trayIcon = null;
+    }
+
+    private void ConfigureWindow(WindowId windowId)
+    {
+        ExtendsContentIntoTitleBar = true;
+        SystemBackdrop = new MicaBackdrop { Kind = MicaKind.BaseAlt };
+        DisplayArea displayArea = DisplayArea.GetFromWindowId(windowId, DisplayAreaFallback.Primary);
+        RectInt32 workArea = displayArea.WorkArea;
+        double scale = Math.Max(1, NativeMethods.GetDpiForWindow(WindowHandle)) / 96d;
+        int width = Math.Min(workArea.Width, (int)Math.Ceiling(InitialWidthInDips * scale));
+        int height = Math.Min(workArea.Height, (int)Math.Ceiling(InitialHeightInDips * scale));
+        _appWindow.Resize(new SizeInt32(width, height));
+        _appWindow.Move(new PointInt32(
+            workArea.X + Math.Max(0, (workArea.Width - width) / 2),
+            workArea.Y + Math.Max(0, (workArea.Height - height) / 2)));
+
+        string iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "PredatorLite.ico");
+        if (File.Exists(iconPath))
+        {
+            _appWindow.SetIcon(iconPath);
+        }
+    }
+
+    private void OnWindowMessage(object? sender, NativeWindowMessageEventArgs e)
+    {
+        if (e.Message != NativeMethods.WmGetMinMaxInfo)
         {
             return;
         }
 
-        _loaded = true;
-        await _viewModel.InitializeAsync();
-        ConfigureShortcuts();
-        UpdateOsdVisibility();
-        if (_startHidden || _viewModel.StartMinimized)
-        {
-            ShowInTaskbar = false;
-            Hide();
-        }
+        NativeMethods.ApplyMinimumSize(WindowHandle, e.LParam, 980, 660);
+        e.Handled = true;
     }
 
-    private void Window_SourceInitialized(object? sender, EventArgs e)
+    private void RebuildShell()
     {
-        IntPtr handle = new WindowInteropHelper(this).Handle;
-        int enabled = 1;
-        DwmSetWindowAttribute(handle, 20, ref enabled, Marshal.SizeOf<int>());
-    }
-
-    private void Window_Closing(object? sender, CancelEventArgs e)
-    {
-        if (_allowClose)
+        MainShell replacement = new(_viewModel);
+        WindowHost.Children.Insert(0, replacement);
+        if (_shell is not null)
         {
-            _trayIcon.Visible = false;
-            _shortcuts?.Dispose();
-            _osdWindow?.Close();
-            return;
+            WindowHost.Children.Remove(_shell);
         }
 
-        e.Cancel = true;
-        ShowInTaskbar = false;
-        Hide();
+        _shell = replacement;
+        SetTitleBar(replacement.TitleBarDragRegion);
     }
 
-    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private void CreateTrayIcon()
     {
-        if (e.ChangedButton != MouseButton.Left)
-        {
-            return;
-        }
-
-        if (e.ClickCount == 2)
-        {
-            ToggleMaximize();
-            return;
-        }
-
-        DragMove();
+        _trayIcon = new TrayIconView();
+        _trayIcon.Configure(_localization, ShowAndActivate, () => _ = _exitRequested());
+        WindowHost.Children.Add(_trayIcon);
+        _trayIcon.ForceCreate();
     }
-
-    private void MinimizeButton_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
-
-    private void MaximizeButton_Click(object sender, RoutedEventArgs e) => ToggleMaximize();
-
-    private void CloseButton_Click(object sender, RoutedEventArgs e)
-    {
-        ShowInTaskbar = false;
-        Hide();
-    }
-
-    private void ToggleMaximize() =>
-        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
 
     private void ConfigureShortcuts()
     {
         _shortcuts?.Dispose();
         _shortcuts = null;
-        if (!_viewModel.EnableGlobalHotkeys || PresentationSource.FromVisual(this) is not HwndSource)
+        if (!_viewModel.EnableGlobalHotkeys)
         {
             return;
         }
 
-        _shortcuts = new GlobalShortcutManager(this, _logger);
-        _shortcuts.ShowWindowRequested += (_, _) => Dispatcher.BeginInvoke(ShowAndActivate);
-        _shortcuts.CycleModeRequested += (_, _) => Dispatcher.BeginInvoke(async () =>
-        {
-            try
-            {
-                await _viewModel.CycleModeFromShortcutAsync();
-            }
-            catch (Exception exception)
-            {
-                _logger.Error("Global mode shortcut failed", exception);
-            }
-        });
+        _shortcuts = new GlobalShortcutManager(WindowHandle, DispatcherQueue, _logger);
+        _shortcuts.ShowWindowRequested += (_, _) => ShowAndActivate();
+        _shortcuts.CycleModeRequested += (_, _) => _ = _viewModel.CycleModeFromShortcutAsync();
         _shortcuts.Register();
     }
 
     private void UpdateOsdVisibility()
     {
-        bool shouldShow = _viewModel.ShowOsd || _viewModel.ShowFps;
-        if (!shouldShow)
+        bool visible = _viewModel.ShowOsd || _viewModel.ShowFps;
+        if (!visible)
         {
-            _osdWindow?.Hide();
+            _osdWindow?.HideOverlay();
             return;
         }
 
         _osdWindow ??= new OsdWindow(_viewModel);
-        if (!_osdWindow.IsVisible)
-        {
-            _osdWindow.Show();
-        }
+        _osdWindow.ShowOverlay();
     }
 
-    private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    private void ViewModelOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(MainViewModel.ShowOsd) or nameof(MainViewModel.ShowFps))
         {
@@ -182,36 +181,29 @@ public partial class MainWindow : Window
         }
         else if (e.PropertyName == nameof(MainViewModel.CurrentLanguage))
         {
-            RebuildTrayMenu();
+            RebuildShell();
+            _trayIcon?.RebuildMenu(_localization);
+            _osdWindow?.RebuildContent();
+        }
+        else if (e.PropertyName == nameof(MainViewModel.IsInitialized) && _viewModel.IsInitialized)
+        {
+            ConfigureShortcuts();
+            UpdateOsdVisibility();
+            if (_startHidden || _viewModel.StartMinimized)
+            {
+                HideToTray();
+            }
         }
     }
 
-    private void RebuildTrayMenu()
+    private void OnClosed(object sender, WindowEventArgs args)
     {
-        Forms.ContextMenuStrip menu = new();
-        Forms.ToolStripMenuItem open = new(
-            System.Windows.Application.Current.TryFindResource("Action.Open")?.ToString() ?? "Open PredatorLite");
-        open.Click += (_, _) => Dispatcher.BeginInvoke(ShowAndActivate);
-        Forms.ToolStripMenuItem exit = new(
-            System.Windows.Application.Current.TryFindResource("Action.Exit")?.ToString() ?? "Exit");
-        exit.Click += (_, _) => Dispatcher.BeginInvoke(ExitApplication);
-        menu.Items.Add(open);
-        menu.Items.Add(new Forms.ToolStripSeparator());
-        menu.Items.Add(exit);
+        if (_allowClose)
+        {
+            return;
+        }
 
-        Forms.ContextMenuStrip? previous = _trayIcon.ContextMenuStrip;
-        _trayIcon.ContextMenuStrip = menu;
-        previous?.Dispose();
+        args.Handled = true;
+        HideToTray();
     }
-
-    private void ExitApplication()
-    {
-        _allowClose = true;
-        _trayIcon.Visible = false;
-        Close();
-        System.Windows.Application.Current.Shutdown();
-    }
-
-    [DllImport("dwmapi.dll")]
-    private static extern int DwmSetWindowAttribute(IntPtr window, int attribute, ref int value, int size);
 }

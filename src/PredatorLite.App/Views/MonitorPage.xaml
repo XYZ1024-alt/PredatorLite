@@ -1,0 +1,41 @@
+<Page
+    x:Class="PredatorLite.App.Views.MonitorPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <Grid MaxWidth="1180" Padding="28,22,28,32" HorizontalAlignment="Stretch">
+            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+            <StackPanel Spacing="4">
+                <TextBlock Style="{StaticResource PageTitleStyle}" Text="{StaticResource Page.Monitor}" />
+                <TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Section.Telemetry}" />
+            </StackPanel>
+            <Grid Grid.Row="1" Margin="0,20,0,0" ColumnSpacing="10" RowSpacing="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" /><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /><ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Border Style="{StaticResource MetricTileStyle}"><StackPanel Spacing="9"><FontIcon HorizontalAlignment="Left" Foreground="{ThemeResource PredatorWarningBrush}" Glyph="&#xE7A3;" /><TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Metric.CpuTemperature}" /><TextBlock FontSize="20" FontWeight="SemiBold" Text="{x:Bind ViewModel.CpuTemperatureText, Mode=OneWay}" /></StackPanel></Border>
+                <Border Grid.Column="1" Style="{StaticResource MetricTileStyle}"><StackPanel Spacing="9"><FontIcon HorizontalAlignment="Left" Foreground="{ThemeResource PredatorWarningBrush}" Glyph="&#xE7A3;" /><TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Metric.GpuTemperature}" /><TextBlock FontSize="20" FontWeight="SemiBold" Text="{x:Bind ViewModel.GpuTemperatureText, Mode=OneWay}" /></StackPanel></Border>
+                <Border Grid.Column="2" Style="{StaticResource MetricTileStyle}"><StackPanel Spacing="9"><FontIcon HorizontalAlignment="Left" Foreground="{ThemeResource PredatorAccentBrush}" Glyph="&#xE9D2;" /><TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Metric.CpuLoad}" /><TextBlock FontSize="20" FontWeight="SemiBold" Text="{x:Bind ViewModel.CpuLoadText, Mode=OneWay}" /></StackPanel></Border>
+                <Border Grid.Column="3" Style="{StaticResource MetricTileStyle}"><StackPanel Spacing="9"><FontIcon HorizontalAlignment="Left" Foreground="{ThemeResource PredatorAccentBrush}" Glyph="&#xE9D2;" /><TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Metric.GpuLoad}" /><TextBlock FontSize="20" FontWeight="SemiBold" Text="{x:Bind ViewModel.GpuLoadText, Mode=OneWay}" /></StackPanel></Border>
+
+                <Border Grid.Row="1" Style="{StaticResource MetricTileStyle}"><StackPanel Spacing="9"><FontIcon HorizontalAlignment="Left" Foreground="{ThemeResource PredatorCyanBrush}" Glyph="&#xE9CA;" /><TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Metric.CpuFan}" /><TextBlock FontSize="20" FontWeight="SemiBold" Text="{x:Bind ViewModel.CpuFanText, Mode=OneWay}" /></StackPanel></Border>
+                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource MetricTileStyle}"><StackPanel Spacing="9"><FontIcon HorizontalAlignment="Left" Foreground="{ThemeResource PredatorCyanBrush}" Glyph="&#xE9CA;" /><TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Metric.GpuFan}" /><TextBlock FontSize="20" FontWeight="SemiBold" Text="{x:Bind ViewModel.GpuFanText, Mode=OneWay}" /></StackPanel></Border>
+                <Border Grid.Row="1" Grid.Column="2" Style="{StaticResource MetricTileStyle}"><StackPanel Spacing="9"><FontIcon HorizontalAlignment="Left" Foreground="{ThemeResource PredatorWarningBrush}" Glyph="&#xE945;" /><TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Metric.CpuPower}" /><TextBlock FontSize="20" FontWeight="SemiBold" Text="{x:Bind ViewModel.CpuPowerText, Mode=OneWay}" /></StackPanel></Border>
+                <Border Grid.Row="1" Grid.Column="3" Style="{StaticResource MetricTileStyle}"><StackPanel Spacing="9"><FontIcon HorizontalAlignment="Left" Foreground="{ThemeResource PredatorWarningBrush}" Glyph="&#xE945;" /><TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Metric.GpuPower}" /><TextBlock FontSize="20" FontWeight="SemiBold" Text="{x:Bind ViewModel.GpuPowerText, Mode=OneWay}" /></StackPanel></Border>
+
+                <Border Grid.Row="2" Style="{StaticResource MetricTileStyle}"><StackPanel Spacing="9"><FontIcon HorizontalAlignment="Left" Foreground="{ThemeResource PredatorAccentBrush}" Glyph="&#xE950;" /><TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Metric.CpuClock}" /><TextBlock FontSize="20" FontWeight="SemiBold" Text="{x:Bind ViewModel.CpuClockText, Mode=OneWay}" /></StackPanel></Border>
+                <Border Grid.Row="2" Grid.Column="1" Style="{StaticResource MetricTileStyle}"><StackPanel Spacing="9"><FontIcon HorizontalAlignment="Left" Foreground="{ThemeResource PredatorAccentBrush}" Glyph="&#xE950;" /><TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Metric.GpuClock}" /><TextBlock FontSize="20" FontWeight="SemiBold" Text="{x:Bind ViewModel.GpuClockText, Mode=OneWay}" /></StackPanel></Border>
+                <Border Grid.Row="2" Grid.Column="2" Style="{StaticResource MetricTileStyle}"><StackPanel Spacing="9"><FontIcon HorizontalAlignment="Left" Foreground="{ThemeResource PredatorCyanBrush}" Glyph="&#xE7F8;" /><TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Metric.Memory}" /><TextBlock FontSize="17" FontWeight="SemiBold" Text="{x:Bind ViewModel.MemoryText, Mode=OneWay}" /></StackPanel></Border>
+                <Border Grid.Row="2" Grid.Column="3" Style="{StaticResource MetricTileStyle}"><StackPanel Spacing="9"><FontIcon HorizontalAlignment="Left" Foreground="{ThemeResource PredatorCyanBrush}" Glyph="&#xE7F4;" /><TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Metric.Vram}" /><TextBlock FontSize="17" FontWeight="SemiBold" Text="{x:Bind ViewModel.VramText, Mode=OneWay}" /></StackPanel></Border>
+
+                <Border Grid.Row="3" Style="{StaticResource MetricTileStyle}"><StackPanel Spacing="9"><FontIcon HorizontalAlignment="Left" Foreground="{ThemeResource PredatorAccentBrush}" Glyph="&#xE850;" /><TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Metric.Battery}" /><TextBlock FontSize="20" FontWeight="SemiBold" Text="{x:Bind ViewModel.BatteryText, Mode=OneWay}" /></StackPanel></Border>
+                <Border Grid.Row="3" Grid.Column="1" Style="{StaticResource MetricTileStyle}"><StackPanel Spacing="9"><FontIcon HorizontalAlignment="Left" Foreground="{ThemeResource PredatorAccentBrush}" Glyph="&#xE945;" /><TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Metric.PowerSource}" /><TextBlock FontSize="17" FontWeight="SemiBold" Text="{x:Bind ViewModel.PowerSourceText, Mode=OneWay}" /></StackPanel></Border>
+                <Border Grid.Row="3" Grid.Column="2" Style="{StaticResource MetricTileStyle}"><StackPanel Spacing="9"><FontIcon HorizontalAlignment="Left" Foreground="{ThemeResource PredatorCyanBrush}" Glyph="&#xE7F4;" /><TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Metric.RefreshRate}" /><TextBlock FontSize="20" FontWeight="SemiBold" Text="{x:Bind ViewModel.RefreshRateText, Mode=OneWay}" /></StackPanel></Border>
+                <Border Grid.Row="3" Grid.Column="3" Style="{StaticResource MetricTileStyle}"><StackPanel Spacing="9"><FontIcon HorizontalAlignment="Left" Foreground="{ThemeResource PredatorWarningBrush}" Glyph="&#xE916;" /><TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Metric.Fps}" /><TextBlock FontSize="20" FontWeight="SemiBold" Text="{x:Bind ViewModel.FpsText, Mode=OneWay}" /></StackPanel></Border>
+            </Grid>
+        </Grid>
+    </ScrollViewer>
+</Page>

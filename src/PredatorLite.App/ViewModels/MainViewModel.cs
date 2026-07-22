@@ -74,7 +74,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         _localization = localization;
         _interaction = interaction;
         _uiDispatcher = uiDispatcher;
-        statusMessage = "PredatorLite";
+        StatusMessage = "PredatorLite";
     }
 
     public ObservableCollection<FanCurvePointViewModel> CpuFanPoints { get; } = [];
@@ -94,175 +94,175 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     public IReadOnlyList<int> LightingDirections { get; } = [1, 2, 3, 4];
 
     [ObservableProperty]
-    private bool isInitialized;
+    public partial bool IsInitialized { get; set; }
 
     [ObservableProperty]
-    private bool isBusy;
+    public partial bool IsBusy { get; set; }
 
     [ObservableProperty]
-    private int selectedTabIndex;
+    public partial int SelectedTabIndex { get; set; }
 
     [ObservableProperty]
-    private bool statusIsError;
+    public partial bool StatusIsError { get; set; }
 
     [ObservableProperty]
-    private string statusMessage;
+    public partial string StatusMessage { get; set; }
 
     [ObservableProperty]
-    private string currentLanguage = "zh-CN";
+    public partial string CurrentLanguage { get; set; } = "zh-CN";
 
     [ObservableProperty]
-    private string deviceModel = "--";
+    public partial string DeviceModel { get; set; } = "--";
 
     [ObservableProperty]
-    private string biosVersion = "--";
+    public partial string BiosVersion { get; set; } = "--";
 
     [ObservableProperty]
-    private string compatibilityMessage = "--";
+    public partial string CompatibilityMessage { get; set; } = "--";
 
     [ObservableProperty]
-    private bool hardwareWritesEnabled;
+    public partial bool HardwareWritesEnabled { get; set; }
 
     [ObservableProperty]
-    private bool fanControlAvailable;
+    public partial bool FanControlAvailable { get; set; }
 
     [ObservableProperty]
-    private bool gpuMuxAvailable;
+    public partial bool GpuMuxAvailable { get; set; }
 
     [ObservableProperty]
-    private bool lightingAvailable;
+    public partial bool LightingAvailable { get; set; }
 
     [ObservableProperty]
-    private bool batteryControlAvailable;
+    public partial bool BatteryControlAvailable { get; set; }
 
     [ObservableProperty]
-    private bool displayControlAvailable;
+    public partial bool DisplayControlAvailable { get; set; }
 
     [ObservableProperty]
-    private bool acerServiceAvailable;
+    public partial bool AcerServiceAvailable { get; set; }
 
     [ObservableProperty]
-    private bool acerWmiAvailable;
+    public partial bool AcerWmiAvailable { get; set; }
 
     [ObservableProperty]
-    private OperatingMode? currentOperatingMode;
+    public partial OperatingMode? CurrentOperatingMode { get; set; }
 
     [ObservableProperty]
-    private FanMode? currentFanMode;
+    public partial FanMode? CurrentFanMode { get; set; }
 
     [ObservableProperty]
-    private GpuMuxMode? currentGpuMuxMode;
+    public partial GpuMuxMode? CurrentGpuMuxMode { get; set; }
 
     [ObservableProperty]
-    private string currentOperatingModeName = "--";
+    public partial string CurrentOperatingModeName { get; set; } = "--";
 
     [ObservableProperty]
-    private string currentFanModeName = "--";
+    public partial string CurrentFanModeName { get; set; } = "--";
 
     [ObservableProperty]
-    private string currentGpuMuxModeName = "--";
+    public partial string CurrentGpuMuxModeName { get; set; } = "--";
 
     [ObservableProperty]
-    private bool fanGuardActive;
+    public partial bool FanGuardActive { get; set; }
 
     [ObservableProperty]
-    private bool rebootRequired;
+    public partial bool RebootRequired { get; set; }
 
     [ObservableProperty]
-    private string cpuTemperatureText = "--";
+    public partial string CpuTemperatureText { get; set; } = "--";
 
     [ObservableProperty]
-    private string gpuTemperatureText = "--";
+    public partial string GpuTemperatureText { get; set; } = "--";
 
     [ObservableProperty]
-    private string cpuLoadText = "--";
+    public partial string CpuLoadText { get; set; } = "--";
 
     [ObservableProperty]
-    private string gpuLoadText = "--";
+    public partial string GpuLoadText { get; set; } = "--";
 
     [ObservableProperty]
-    private string cpuFanText = "--";
+    public partial string CpuFanText { get; set; } = "--";
 
     [ObservableProperty]
-    private string gpuFanText = "--";
+    public partial string GpuFanText { get; set; } = "--";
 
     [ObservableProperty]
-    private string cpuPowerText = "--";
+    public partial string CpuPowerText { get; set; } = "--";
 
     [ObservableProperty]
-    private string gpuPowerText = "--";
+    public partial string GpuPowerText { get; set; } = "--";
 
     [ObservableProperty]
-    private string cpuClockText = "--";
+    public partial string CpuClockText { get; set; } = "--";
 
     [ObservableProperty]
-    private string gpuClockText = "--";
+    public partial string GpuClockText { get; set; } = "--";
 
     [ObservableProperty]
-    private string memoryText = "--";
+    public partial string MemoryText { get; set; } = "--";
 
     [ObservableProperty]
-    private string vramText = "--";
+    public partial string VramText { get; set; } = "--";
 
     [ObservableProperty]
-    private string batteryText = "--";
+    public partial string BatteryText { get; set; } = "--";
 
     [ObservableProperty]
-    private string powerSourceText = "--";
+    public partial string PowerSourceText { get; set; } = "--";
 
     [ObservableProperty]
-    private string refreshRateText = "--";
+    public partial string RefreshRateText { get; set; } = "--";
 
     [ObservableProperty]
-    private string fpsText = "--";
+    public partial string FpsText { get; set; } = "--";
 
     [ObservableProperty]
-    private int selectedRefreshRate;
+    public partial int SelectedRefreshRate { get; set; }
 
     [ObservableProperty]
-    private bool overdriveEnabled;
+    public partial bool OverdriveEnabled { get; set; }
 
     [ObservableProperty]
-    private bool chargeLimitEnabled;
+    public partial bool ChargeLimitEnabled { get; set; }
 
     [ObservableProperty]
-    private bool runAtStartup;
+    public partial bool RunAtStartup { get; set; }
 
     [ObservableProperty]
-    private bool startMinimized;
+    public partial bool StartMinimized { get; set; }
 
     [ObservableProperty]
-    private bool autoEcoOnBattery;
+    public partial bool AutoEcoOnBattery { get; set; }
 
     [ObservableProperty]
-    private bool autoRefreshRate;
+    public partial bool AutoRefreshRate { get; set; }
 
     [ObservableProperty]
-    private bool showOsd;
+    public partial bool ShowOsd { get; set; }
 
     [ObservableProperty]
-    private bool showFps;
+    public partial bool ShowFps { get; set; }
 
     [ObservableProperty]
-    private bool enableGlobalHotkeys = true;
+    public partial bool EnableGlobalHotkeys { get; set; } = true;
 
     [ObservableProperty]
-    private LightingEffect selectedLightingEffect;
+    public partial LightingEffect SelectedLightingEffect { get; set; }
 
     [ObservableProperty]
-    private int lightingBrightness = 5;
+    public partial int LightingBrightness { get; set; } = 5;
 
     [ObservableProperty]
-    private int lightingSpeed = 3;
+    public partial int LightingSpeed { get; set; } = 3;
 
     [ObservableProperty]
-    private int lightingDirection = 1;
+    public partial int LightingDirection { get; set; } = 1;
 
     [ObservableProperty]
-    private string lightingPrimaryColor = "#00A8E8";
+    public partial string LightingPrimaryColor { get; set; } = "#00A8E8";
 
     [ObservableProperty]
-    private bool logoLightingEnabled = true;
+    public partial bool LogoLightingEnabled { get; set; } = true;
 
     public async Task InitializeAsync()
     {
@@ -351,6 +351,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
                     cancellationToken: _lifetime.Token);
                 if (!autoResult.IsSuccess)
                 {
+                    OnPropertyChanged(nameof(CurrentOperatingMode));
                     PublishResult(autoResult);
                     return;
                 }
@@ -373,6 +374,10 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
                 }
 
                 await SaveSettingsAsync();
+            }
+            else
+            {
+                OnPropertyChanged(nameof(CurrentOperatingMode));
             }
 
             PublishResult(result);
@@ -411,6 +416,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             bool guardWasActive = _fanGuard.IsActive;
             if (mode == FanMode.Max && !await _fanGuard.StartAsync(_lifetime.Token))
             {
+                OnPropertyChanged(nameof(CurrentFanMode));
                 PublishError(_localization.Get("Status.FanGuardFailed"));
                 return;
             }
@@ -442,6 +448,11 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
                 FanGuardActive = _fanGuard.IsActive;
             }
 
+            if (!result.IsSuccess)
+            {
+                OnPropertyChanged(nameof(CurrentFanMode));
+            }
+
             PublishResult(result);
         }
         finally
@@ -458,6 +469,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         IReadOnlyList<string> errors = FanCurveEngine.Validate(curve);
         if (errors.Count > 0)
         {
+            OnPropertyChanged(nameof(CurrentFanMode));
             PublishError(string.Join(Environment.NewLine, errors));
             return;
         }
@@ -474,6 +486,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             if (!await _fanGuard.StartAsync(_lifetime.Token))
             {
                 UpdateExtendedTelemetryState();
+                OnPropertyChanged(nameof(CurrentFanMode));
                 PublishError(_localization.Get("Status.FanGuardFailed"));
                 return;
             }
@@ -516,6 +529,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
                 }
 
                 UpdateExtendedTelemetryState();
+                OnPropertyChanged(nameof(CurrentFanMode));
             }
 
             PublishResult(result);
@@ -541,6 +555,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             LocalizeMuxMode(mode));
         if (!await _interaction.ConfirmAsync(confirmation, _localization.Get("App.Name")))
         {
+            OnPropertyChanged(nameof(CurrentGpuMuxMode));
             return;
         }
 
@@ -553,6 +568,10 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             {
                 CurrentGpuMuxMode = mode;
                 CurrentGpuMuxModeName = LocalizeMuxMode(mode);
+            }
+            else
+            {
+                OnPropertyChanged(nameof(CurrentGpuMuxMode));
             }
 
             PublishResult(result);
