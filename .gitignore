@@ -1,0 +1,13 @@
+/PreySense/
+**/bin/
+**/obj/
+/publish/
+/artifacts/
+/.vs/
+/.idea/
+*.user
+*.suo
+*.log
+*.zip
+TestResults/
+coverage/

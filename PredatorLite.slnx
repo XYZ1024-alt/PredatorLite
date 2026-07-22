@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PredatorLite.App/PredatorLite.App.csproj" />
+    <Project Path="src/PredatorLite.Core/PredatorLite.Core.csproj" />
+    <Project Path="src/PredatorLite.ElevatedHelper/PredatorLite.ElevatedHelper.csproj" />
+    <Project Path="src/PredatorLite.FanGuard/PredatorLite.FanGuard.csproj" />
+    <Project Path="src/PredatorLite.Platform.Windows/PredatorLite.Platform.Windows.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PredatorLite.Tests/PredatorLite.Tests.csproj" />
+  </Folder>
+</Solution>
