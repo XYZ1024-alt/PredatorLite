@@ -3,7 +3,7 @@
 ## Runtime boundaries
 
 ```text
-WPF UI / tray / OSD
+WinUI 3 UI / tray / OSD
         |
         v
 MainViewModel ---- JSON settings / redacted logs / diagnostics ZIP
@@ -19,7 +19,7 @@ MainViewModel -- named-pipe heartbeat --> FanGuard
 Settings UI  -- explicit UAC action --> ElevatedHelper
 ```
 
-`PredatorLite.Core` has no WPF or Acer implementation dependency. The application talks to hardware only through `IPredatorPlatform`, which keeps protocol code and UI state separate.
+`PredatorLite.Core` has no WinUI or Acer implementation dependency. The application talks to hardware only through `IPredatorPlatform`, which keeps protocol code and UI state separate. `PredatorLite.App` is an unpackaged, framework-dependent Windows App SDK 2.3 application targeting Windows 11 x64.
 
 ## Startup sequence
 
@@ -62,7 +62,7 @@ Custom fan control runs from an immutable copy of the last validated curve. Edit
 
 ## Privilege boundary
 
-The WPF process uses an `asInvoker` manifest. `PredatorLite.ElevatedHelper.exe` accepts exactly two commands, `disable` and `restore`, and only a fixed service list. Its backup path is restricted to `%ProgramData%\PredatorLite\service-backup.json`. No hardware protocol is available through the elevated helper.
+The WinUI process uses an `asInvoker` manifest. `PredatorLite.ElevatedHelper.exe` accepts exactly two commands, `disable` and `restore`, and only a fixed service list. Its backup path is restricted to `%ProgramData%\PredatorLite\service-backup.json`. No hardware protocol is available through the elevated helper.
 
 ## Persistence and diagnostics
 

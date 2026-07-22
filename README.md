@@ -48,7 +48,7 @@ PredatorLite 复用 Acer 官方驱动和服务提供的接口，不附带或替�
 
 ## 构建
 
-需要 Windows 11 x64 和 .NET SDK 10.0.302 或兼容的 10.0.x SDK：
+需要 Windows 11 x64 和 .NET SDK 10.0.302 或兼容的 10.0.x SDK。界面使用 WinUI 3，项目固定使用 Microsoft Windows App SDK 2.3.1：
 
 ```powershell
 dotnet restore PredatorLite.slnx
@@ -62,12 +62,17 @@ dotnet test PredatorLite.slnx -c Release --no-build
 .\build\publish.ps1
 ```
 
-输出位于 `publish\win-x64`，其中包含主程序、FanGuard 和管理员辅助程序。目标机器需要安装 .NET 10 Desktop Runtime x64。
+输出位于 `publish\win-x64`，其中包含主程序、FanGuard 和管理员辅助程序。这是免安装、框架依赖的 x64 目录发布，不使用 MSIX。目标机器需要同时安装：
+
+- .NET 10 Runtime x64
+- Windows App Runtime 2.3 x64
+
+发布目录必须整体保留，不能只复制 `PredatorLite.exe`。运行 `build\publish.ps1` 后脚本会检查三个 EXE、运行时配置、WinUI PRI/XBF、Bootstrap DLL 和图标资源是否齐全。
 
 ## 项目结构
 
 ```text
-src/PredatorLite.App              WPF UI、托盘、OSD 与应用编排
+src/PredatorLite.App              WinUI 3 UI、托盘、OSD 与应用编排
 src/PredatorLite.Core             模型、接口、设置与风扇曲线安全逻辑
 src/PredatorLite.Platform.Windows AcerService、WMI 与 Windows 只读监控
 src/PredatorLite.FanGuard         风扇故障恢复看门狗
@@ -80,6 +85,8 @@ tests/PredatorLite.Tests          协议、曲线、设置与能力边界测试
 根目录中的 `PreySense/` 仅作为行为研究参考，已被 `.gitignore` 排除。PredatorLite 不复用其中的代码、UI、资源、字体、二进制文件、ROM 或固件。
 
 PredatorLite 不是 Acer 官方产品，也不隶属于 Acer。使用硬件控制功能前应确认型号与 BIOS 版本完全匹配。
+
+完整的发布前检查见 [手动测试清单](docs/manual-testing.md)。
 
 ## License
 
