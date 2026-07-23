@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using PredatorLite.Core.Abstractions;
 using Windows.Storage.Pickers;
@@ -8,9 +9,19 @@ using Windows.UI;
 
 namespace PredatorLite.App.Services;
 
+public enum ConfirmationKind
+{
+    Standard,
+    RebootRequired,
+    Destructive
+}
+
 public interface IUserInteraction
 {
-    Task<bool> ConfirmAsync(string message, string title);
+    Task<bool> ConfirmAsync(
+        string message,
+        string title,
+        ConfirmationKind kind = ConfirmationKind.Standard);
 
     Task<string?> ChooseDiagnosticsPathAsync();
 
@@ -27,7 +38,10 @@ public sealed class DesktopUserInteraction(
 {
     private readonly SemaphoreSlim _dialogGate = new(1, 1);
 
-    public async Task<bool> ConfirmAsync(string message, string title)
+    public async Task<bool> ConfirmAsync(
+        string message,
+        string title,
+        ConfirmationKind kind = ConfirmationKind.Standard)
     {
         XamlRoot? root = xamlRootProvider();
         if (root is null)
@@ -51,8 +65,11 @@ public sealed class DesktopUserInteraction(
                 },
                 PrimaryButtonText = localization.Get("Action.Confirm"),
                 CloseButtonText = localization.Get("Action.Cancel"),
-                DefaultButton = ContentDialogButton.Primary
+                DefaultButton = kind == ConfirmationKind.Standard
+                    ? ContentDialogButton.Primary
+                    : ContentDialogButton.Close
             };
+            AutomationProperties.SetAutomationId(dialog, $"ConfirmationDialog.{kind}");
             return await dialog.ShowAsync() == ContentDialogResult.Primary;
         }
         finally
@@ -74,7 +91,7 @@ public sealed class DesktopUserInteraction(
         {
             SuggestedFileName = $"PredatorLite-Diagnostics-{DateTime.Now:yyyyMMdd-HHmmss}"
         };
-        picker.FileTypeChoices.Add("ZIP archive", [".zip"]);
+        picker.FileTypeChoices.Add(localization.Get("FileType.ZipArchive"), [".zip"]);
         WinRT.Interop.InitializeWithWindow.Initialize(picker, handle);
         Windows.Storage.StorageFile? file = await picker.PickSaveFileAsync();
         return file?.Path;
@@ -99,6 +116,7 @@ public sealed class DesktopUserInteraction(
             IsHexInputVisible = true,
             IsMoreButtonVisible = true
         };
+        AutomationProperties.SetAutomationId(picker, "LightingColorPicker");
 
         await _dialogGate.WaitAsync();
         try
@@ -112,6 +130,7 @@ public sealed class DesktopUserInteraction(
                 CloseButtonText = localization.Get("Action.Cancel"),
                 DefaultButton = ContentDialogButton.Primary
             };
+            AutomationProperties.SetAutomationId(dialog, "LightingColorDialog");
             if (await dialog.ShowAsync() != ContentDialogResult.Primary)
             {
                 return null;

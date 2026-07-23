@@ -1,7 +1,9 @@
 using System.Globalization;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media;
+using PredatorLite.App.ViewModels;
 using Windows.UI;
 
 namespace PredatorLite.App.Converters;
@@ -62,4 +64,19 @@ public sealed class InverseBooleanToVisibilityConverter : IValueConverter
 
     public object ConvertBack(object? value, Type targetType, object? parameter, string language) =>
         value is Visibility.Collapsed;
+}
+
+public sealed class ShellNoticeSeverityConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, string language) =>
+        value switch
+        {
+            ShellNoticeKind.Error => InfoBarSeverity.Error,
+            ShellNoticeKind.RebootRequired => InfoBarSeverity.Warning,
+            ShellNoticeKind.ReadOnly => InfoBarSeverity.Informational,
+            _ => InfoBarSeverity.Informational
+        };
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, string language) =>
+        DependencyProperty.UnsetValue;
 }

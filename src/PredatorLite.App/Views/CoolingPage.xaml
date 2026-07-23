@@ -1,0 +1,280 @@
+<Page
+    x:Class="PredatorLite.App.Views.CoolingPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:models="using:PredatorLite.Core.Models"
+    xmlns:viewModels="using:PredatorLite.App.ViewModels"
+    xmlns:views="using:PredatorLite.App.Views"
+    Background="Transparent">
+    <ScrollViewer
+        AutomationProperties.AutomationId="Cooling.Scroll"
+        HorizontalScrollBarVisibility="Disabled"
+        VerticalScrollBarVisibility="Auto">
+        <Grid Style="{StaticResource PageContentGridStyle}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Border Style="{StaticResource ToolPanelStyle}">
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Spacing="4">
+                        <TextBlock Style="{StaticResource MetricLabelTextStyle}" Text="{StaticResource Metric.CpuTemperature}" />
+                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{x:Bind ViewModel.CpuTemperatureText, Mode=OneWay}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="4">
+                        <TextBlock Style="{StaticResource MetricLabelTextStyle}" Text="{StaticResource Metric.CpuFan}" />
+                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{x:Bind ViewModel.CpuFanText, Mode=OneWay}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="4">
+                        <TextBlock Style="{StaticResource MetricLabelTextStyle}" Text="{StaticResource Metric.GpuTemperature}" />
+                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{x:Bind ViewModel.GpuTemperatureText, Mode=OneWay}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="3" Spacing="4">
+                        <TextBlock Style="{StaticResource MetricLabelTextStyle}" Text="{StaticResource Metric.GpuFan}" />
+                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{x:Bind ViewModel.GpuFanText, Mode=OneWay}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <StackPanel Grid.Row="1" Spacing="8">
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Spacing="4">
+                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{StaticResource Section.FanModes}" />
+                        <TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Description.FanModes}" />
+                    </StackPanel>
+                    <Border
+                        Grid.Column="1"
+                        Style="{StaticResource SuccessBadgeStyle}"
+                        Visibility="{x:Bind ViewModel.FanGuardActive, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock
+                            Foreground="{ThemeResource SemanticSuccessBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="{StaticResource Status.Active}" />
+                    </Border>
+                </Grid>
+                <Border Style="{StaticResource ToolPanelStyle}">
+                    <RadioButtons
+                        AutomationProperties.AutomationId="Cooling.FanModes"
+                        MaxColumns="2">
+                        <RadioButton
+                            AutomationProperties.AutomationId="Cooling.Fan.Auto"
+                            Command="{x:Bind ViewModel.SetFanModeCommand}"
+                            CommandParameter="{x:Bind AutoFanMode, Mode=OneTime}"
+                            Content="{StaticResource FanMode.Auto}"
+                            IsChecked="{x:Bind ViewModel.CurrentFanMode, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Auto}"
+                            IsEnabled="{x:Bind ViewModel.FanControlAvailable, Mode=OneWay}" />
+                        <RadioButton
+                            AutomationProperties.AutomationId="Cooling.Fan.Max"
+                            Command="{x:Bind ViewModel.SetFanModeCommand}"
+                            CommandParameter="{x:Bind MaxFanMode, Mode=OneTime}"
+                            Content="{StaticResource FanMode.Max}"
+                            IsChecked="{x:Bind ViewModel.CurrentFanMode, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Max}"
+                            IsEnabled="{x:Bind ViewModel.FanControlAvailable, Mode=OneWay}" />
+                    </RadioButtons>
+                </Border>
+            </StackPanel>
+
+            <Grid Grid.Row="2" ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Spacing="4">
+                    <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{StaticResource Section.FanCurve}" />
+                    <TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Description.FanCurve}" />
+                </StackPanel>
+                <Button
+                    Grid.Column="1"
+                    AutomationProperties.AutomationId="Cooling.ApplyCurve"
+                    Command="{x:Bind ViewModel.ApplyCustomFanCommand}"
+                    Content="{StaticResource Action.ApplyCurve}"
+                    IsEnabled="{x:Bind ViewModel.CanApplyFanCurve, Mode=OneWay}"
+                    Style="{StaticResource PrimaryButtonStyle}" />
+            </Grid>
+
+            <StackPanel Grid.Row="3" Spacing="8">
+                <SelectorBar
+                    x:Name="CurveSelector"
+                    AutomationProperties.AutomationId="Cooling.CurveSelector"
+                    SelectionChanged="CurveSelector_SelectionChanged">
+                    <SelectorBarItem
+                        x:Name="CpuCurveSelector"
+                        AutomationProperties.AutomationId="Cooling.CurveSelector.Cpu"
+                        Text="{StaticResource Label.Cpu}" />
+                    <SelectorBarItem
+                        x:Name="GpuCurveSelector"
+                        AutomationProperties.AutomationId="Cooling.CurveSelector.Gpu"
+                        Text="{StaticResource Label.Gpu}" />
+                </SelectorBar>
+
+                <Border Style="{StaticResource ToolPanelStyle}">
+                    <StackPanel Spacing="8">
+                        <ItemsControl
+                            AutomationProperties.AutomationId="Cooling.CpuCurve"
+                            IsEnabled="{x:Bind ViewModel.FanControlAvailable, Mode=OneWay}"
+                            ItemsSource="{x:Bind ViewModel.CpuFanPoints, Mode=OneWay}"
+                            Visibility="{x:Bind views:CoolingPage.ChannelVisibility(ViewModel.SelectedFanCurveChannel, CpuFanCurveChannel), Mode=OneWay}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="viewModels:FanCurvePointViewModel">
+                                    <Grid
+                                        MinHeight="48"
+                                        Padding="0,8"
+                                        ColumnSpacing="8"
+                                        RowSpacing="4">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="28" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="20" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            Style="{StaticResource MetricLabelTextStyle}"
+                                            Text="{x:Bind DisplayIndex, Mode=OneTime}" />
+                                        <NumberBox
+                                            Grid.Column="1"
+                                            AutomationProperties.AutomationId="{x:Bind TemperatureAutomationId, Mode=OneTime}"
+                                            Header="{StaticResource Label.Temperature}"
+                                            IsEnabled="{x:Bind IsEditable, Mode=OneTime}"
+                                            Maximum="95"
+                                            Minimum="20"
+                                            SmallChange="1"
+                                            SpinButtonPlacementMode="Compact"
+                                            Value="{x:Bind TemperatureC, Mode=TwoWay}" />
+                                        <NumberBox
+                                            Grid.Column="2"
+                                            AutomationProperties.AutomationId="{x:Bind SpeedAutomationId, Mode=OneTime}"
+                                            Header="{StaticResource Label.Speed}"
+                                            IsEnabled="{x:Bind IsEditable, Mode=OneTime}"
+                                            Maximum="100"
+                                            Minimum="20"
+                                            SmallChange="1"
+                                            SpinButtonPlacementMode="Compact"
+                                            Value="{x:Bind SpeedPercent, Mode=TwoWay}" />
+                                        <FontIcon
+                                            Grid.Column="3"
+                                            VerticalAlignment="Center"
+                                            Glyph="&#xE72E;"
+                                            Visibility="{x:Bind IsSafetyEndpoint, Mode=OneTime, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                        <TextBlock
+                                            Grid.Row="1"
+                                            Grid.Column="1"
+                                            Grid.ColumnSpan="3"
+                                            Foreground="{ThemeResource SemanticCriticalBrush}"
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            Text="{x:Bind ValidationMessage, Mode=OneWay}"
+                                            TextWrapping="Wrap"
+                                            Visibility="{x:Bind HasValidationIssue, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <ItemsControl
+                            AutomationProperties.AutomationId="Cooling.GpuCurve"
+                            IsEnabled="{x:Bind ViewModel.FanControlAvailable, Mode=OneWay}"
+                            ItemsSource="{x:Bind ViewModel.GpuFanPoints, Mode=OneWay}"
+                            Visibility="{x:Bind views:CoolingPage.ChannelVisibility(ViewModel.SelectedFanCurveChannel, GpuFanCurveChannel), Mode=OneWay}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="viewModels:FanCurvePointViewModel">
+                                    <Grid
+                                        MinHeight="48"
+                                        Padding="0,8"
+                                        ColumnSpacing="8"
+                                        RowSpacing="4">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="28" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="20" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            Style="{StaticResource MetricLabelTextStyle}"
+                                            Text="{x:Bind DisplayIndex, Mode=OneTime}" />
+                                        <NumberBox
+                                            Grid.Column="1"
+                                            AutomationProperties.AutomationId="{x:Bind TemperatureAutomationId, Mode=OneTime}"
+                                            Header="{StaticResource Label.Temperature}"
+                                            IsEnabled="{x:Bind IsEditable, Mode=OneTime}"
+                                            Maximum="95"
+                                            Minimum="20"
+                                            SmallChange="1"
+                                            SpinButtonPlacementMode="Compact"
+                                            Value="{x:Bind TemperatureC, Mode=TwoWay}" />
+                                        <NumberBox
+                                            Grid.Column="2"
+                                            AutomationProperties.AutomationId="{x:Bind SpeedAutomationId, Mode=OneTime}"
+                                            Header="{StaticResource Label.Speed}"
+                                            IsEnabled="{x:Bind IsEditable, Mode=OneTime}"
+                                            Maximum="100"
+                                            Minimum="20"
+                                            SmallChange="1"
+                                            SpinButtonPlacementMode="Compact"
+                                            Value="{x:Bind SpeedPercent, Mode=TwoWay}" />
+                                        <FontIcon
+                                            Grid.Column="3"
+                                            VerticalAlignment="Center"
+                                            Glyph="&#xE72E;"
+                                            Visibility="{x:Bind IsSafetyEndpoint, Mode=OneTime, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                        <TextBlock
+                                            Grid.Row="1"
+                                            Grid.Column="1"
+                                            Grid.ColumnSpan="3"
+                                            Foreground="{ThemeResource SemanticCriticalBrush}"
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            Text="{x:Bind ValidationMessage, Mode=OneWay}"
+                                            TextWrapping="Wrap"
+                                            Visibility="{x:Bind HasValidationIssue, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon
+                                Foreground="{ThemeResource SemanticSuccessBrush}"
+                                Glyph="&#xE73E;"
+                                Visibility="{x:Bind ViewModel.IsFanCurveValid, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <FontIcon
+                                Foreground="{ThemeResource SemanticCriticalBrush}"
+                                Glyph="&#xEA39;"
+                                Visibility="{x:Bind ViewModel.IsFanCurveValid, Mode=OneWay, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
+                            <TextBlock
+                                Grid.Column="1"
+                                AutomationProperties.AutomationId="Cooling.Validation"
+                                Style="{StaticResource MutedTextStyle}"
+                                Text="{x:Bind ViewModel.FanCurveValidationMessage, Mode=OneWay}"
+                                TextWrapping="Wrap" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</Page>

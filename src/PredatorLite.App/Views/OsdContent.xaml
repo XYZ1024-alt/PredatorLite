@@ -1,0 +1,92 @@
+<UserControl
+    x:Class="PredatorLite.App.Views.OsdContent"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Border
+        Margin="1"
+        Padding="12"
+        Background="{ThemeResource AppOverlayBackgroundBrush}"
+        BorderBrush="{ThemeResource AppCardBorderBrush}"
+        BorderThickness="1"
+        CornerRadius="{StaticResource AppCardCornerRadius}">
+        <Grid RowSpacing="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="1" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon
+                        FontSize="14"
+                        Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                        Glyph="&#xE9D2;" />
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontWeight="SemiBold"
+                        Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                        Text="{x:Bind ViewModel.CurrentOperatingModeName, Mode=OneWay}" />
+                </StackPanel>
+                <StackPanel
+                    Grid.Column="1"
+                    Orientation="Horizontal"
+                    Spacing="8">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                        Text="{x:Bind ViewModel.CurrentFanModeName, Mode=OneWay}" />
+                    <StackPanel
+                        Orientation="Horizontal"
+                        Spacing="4"
+                        Visibility="{x:Bind ViewModel.IsTelemetryStale, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <FontIcon
+                            FontSize="12"
+                            Foreground="{ThemeResource SemanticCautionBrush}"
+                            Glyph="&#xE7BA;" />
+                        <TextBlock
+                            AutomationProperties.AutomationId="Osd.TelemetryState"
+                            VerticalAlignment="Center"
+                            Foreground="{ThemeResource SemanticCautionBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="{x:Bind ViewModel.TelemetryStateText, Mode=OneWay}" />
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+
+            <Border Grid.Row="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+            <Grid Grid.Row="2" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition x:Name="FpsColumn" Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Spacing="4">
+                    <TextBlock Style="{StaticResource MutedTextStyle}" Text="{x:Bind ViewModel.CpuLabel, Mode=OneWay}" />
+                    <TextBlock FontWeight="SemiBold" Text="{x:Bind ViewModel.CpuTemperatureText, Mode=OneWay}" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="4">
+                    <TextBlock Style="{StaticResource MutedTextStyle}" Text="{x:Bind ViewModel.GpuLabel, Mode=OneWay}" />
+                    <TextBlock FontWeight="SemiBold" Text="{x:Bind ViewModel.GpuTemperatureText, Mode=OneWay}" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="4">
+                    <TextBlock Style="{StaticResource MutedTextStyle}" Text="{x:Bind ViewModel.CpuFanLabel, Mode=OneWay}" />
+                    <TextBlock FontWeight="SemiBold" Text="{x:Bind ViewModel.CpuFanText, Mode=OneWay}" />
+                </StackPanel>
+                <StackPanel
+                    Grid.Column="3"
+                    Spacing="4"
+                    Visibility="{x:Bind ViewModel.ShowFps, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Style="{StaticResource MutedTextStyle}" Text="{x:Bind ViewModel.FpsLabel, Mode=OneWay}" />
+                    <TextBlock FontWeight="SemiBold" Text="{x:Bind ViewModel.FpsText, Mode=OneWay}" />
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Border>
+</UserControl>

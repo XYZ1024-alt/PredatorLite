@@ -4,7 +4,11 @@ namespace PredatorLite.Core.Services;
 
 public static class FanCurveEngine
 {
+    public const int MinimumTemperatureC = 20;
+
     public const int SafetyTemperatureC = 95;
+
+    public const int SafetySpeedPercent = 100;
 
     public static int Evaluate(
         IReadOnlyList<FanCurvePoint> points,
@@ -18,7 +22,7 @@ public static class FanCurveEngine
 
         if (temperatureC >= SafetyTemperatureC)
         {
-            return 100;
+            return SafetySpeedPercent;
         }
 
         FanCurvePoint[] ordered = points.OrderBy(point => point.TemperatureC).ToArray();
@@ -47,55 +51,98 @@ public static class FanCurveEngine
         return ClampSpeed(ordered[^1].SpeedPercent, minimumSpeedPercent);
     }
 
-    public static IReadOnlyList<string> Validate(FanCurve curve)
+    public static IReadOnlyList<FanCurveValidationIssue> Validate(FanCurve curve)
     {
-        List<string> errors = [];
-        ValidateChannel(curve.Cpu, curve.MinimumSpeedPercent, "CPU", errors);
-        ValidateChannel(curve.Gpu, curve.MinimumSpeedPercent, "GPU", errors);
-        return errors;
+        List<FanCurveValidationIssue> issues = [];
+        ValidateChannel(curve.Cpu, curve.MinimumSpeedPercent, FanCurveChannel.Cpu, issues);
+        ValidateChannel(curve.Gpu, curve.MinimumSpeedPercent, FanCurveChannel.Gpu, issues);
+        return issues;
     }
 
     private static void ValidateChannel(
         IReadOnlyList<FanCurvePoint> points,
         int minimumSpeedPercent,
-        string channel,
-        ICollection<string> errors)
+        FanCurveChannel channel,
+        ICollection<FanCurveValidationIssue> issues)
     {
         if (points.Count < 2)
         {
-            errors.Add($"{channel} curve must have at least two points.");
+            issues.Add(new FanCurveValidationIssue(
+                channel,
+                FanCurveValidationCode.TooFewPoints,
+                MinimumPointCount: 2));
             return;
         }
 
         int previousTemperature = int.MinValue;
         int previousSpeed = minimumSpeedPercent;
-        foreach (FanCurvePoint point in points)
+        for (int index = 0; index < points.Count; index++)
         {
-            if (point.TemperatureC <= previousTemperature)
+            FanCurvePoint point = points[index];
+            if (point.TemperatureC is < MinimumTemperatureC or > SafetyTemperatureC)
             {
-                errors.Add($"{channel} temperatures must increase.");
+                issues.Add(new FanCurveValidationIssue(
+                    channel,
+                    FanCurveValidationCode.TemperatureOutOfRange,
+                    index,
+                    MinimumTemperatureC,
+                    SafetyTemperatureC));
             }
 
-            if (point.SpeedPercent < minimumSpeedPercent || point.SpeedPercent > 100)
+            if (point.TemperatureC <= previousTemperature)
             {
-                errors.Add($"{channel} speed must be between {minimumSpeedPercent}% and 100%.");
+                int minimumTemperature = previousTemperature == int.MaxValue
+                    ? int.MaxValue
+                    : previousTemperature + 1;
+                issues.Add(new FanCurveValidationIssue(
+                    channel,
+                    FanCurveValidationCode.TemperatureNotIncreasing,
+                    index,
+                    minimumTemperature,
+                    SafetyTemperatureC));
+            }
+
+            if (point.SpeedPercent < minimumSpeedPercent || point.SpeedPercent > SafetySpeedPercent)
+            {
+                issues.Add(new FanCurveValidationIssue(
+                    channel,
+                    FanCurveValidationCode.SpeedOutOfRange,
+                    index,
+                    MinimumSpeedPercent: minimumSpeedPercent,
+                    MaximumSpeedPercent: SafetySpeedPercent));
             }
 
             if (point.SpeedPercent < previousSpeed)
             {
-                errors.Add($"{channel} speed must not decrease as temperature rises.");
+                issues.Add(new FanCurveValidationIssue(
+                    channel,
+                    FanCurveValidationCode.SpeedDecreases,
+                    index,
+                    MinimumSpeedPercent: previousSpeed,
+                    MaximumSpeedPercent: SafetySpeedPercent));
             }
 
             previousTemperature = point.TemperatureC;
             previousSpeed = point.SpeedPercent;
         }
 
-        if (points[^1].TemperatureC < SafetyTemperatureC || points[^1].SpeedPercent != 100)
+        if (points[^1].TemperatureC != SafetyTemperatureC ||
+            points[^1].SpeedPercent != SafetySpeedPercent)
         {
-            errors.Add($"{channel} curve must reach 100% at {SafetyTemperatureC}C.");
+            issues.Add(new FanCurveValidationIssue(
+                channel,
+                FanCurveValidationCode.InvalidSafetyEndpoint,
+                points.Count - 1,
+                SafetyTemperatureC,
+                SafetyTemperatureC,
+                SafetySpeedPercent,
+                SafetySpeedPercent));
         }
     }
 
     private static int ClampSpeed(int speed, int minimumSpeedPercent) =>
-        Math.Clamp(speed, Math.Clamp(minimumSpeedPercent, 0, 100), 100);
+        Math.Clamp(
+            speed,
+            Math.Clamp(minimumSpeedPercent, 0, SafetySpeedPercent),
+            SafetySpeedPercent);
 }

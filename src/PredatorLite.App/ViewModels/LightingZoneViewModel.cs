@@ -12,6 +12,8 @@ public partial class LightingZoneViewModel : ObservableObject
 
     public int Index { get; }
 
+    public string AutomationId => $"LightingZone.{Index}";
+
     [ObservableProperty]
     public partial string Color { get; set; }
 }

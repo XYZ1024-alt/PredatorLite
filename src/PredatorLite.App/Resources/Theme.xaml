@@ -1,50 +1,99 @@
 <ResourceDictionary
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:behaviors="using:PredatorLite.App.Behaviors"
     xmlns:converters="using:PredatorLite.App.Converters">
 
     <ResourceDictionary.ThemeDictionaries>
-        <ResourceDictionary x:Key="Default">
-            <SolidColorBrush x:Key="PredatorWindowBrush" Color="#101416" />
-            <SolidColorBrush x:Key="PredatorPaneBrush" Color="#B813181B" />
-            <SolidColorBrush x:Key="PredatorSurfaceBrush" Color="#C21B2125" />
-            <SolidColorBrush x:Key="PredatorSurfaceSecondaryBrush" Color="#90242B30" />
-            <SolidColorBrush x:Key="PredatorBorderBrush" Color="#593B454B" />
-            <SolidColorBrush x:Key="PredatorTextBrush" Color="#F4F7F8" />
-            <SolidColorBrush x:Key="PredatorMutedTextBrush" Color="#A7B1B6" />
-            <SolidColorBrush x:Key="PredatorAccentBrush" Color="#72DC87" />
-            <SolidColorBrush x:Key="PredatorAccentSubtleBrush" Color="#382A6B39" />
-            <SolidColorBrush x:Key="PredatorCyanBrush" Color="#52C7E8" />
-            <SolidColorBrush x:Key="PredatorWarningBrush" Color="#FFB454" />
-            <SolidColorBrush x:Key="PredatorDangerBrush" Color="#FF7373" />
-        </ResourceDictionary>
         <ResourceDictionary x:Key="Light">
-            <SolidColorBrush x:Key="PredatorWindowBrush" Color="#F3F6F7" />
-            <SolidColorBrush x:Key="PredatorPaneBrush" Color="#DDF7F9FA" />
-            <SolidColorBrush x:Key="PredatorSurfaceBrush" Color="#EFFFFFFF" />
-            <SolidColorBrush x:Key="PredatorSurfaceSecondaryBrush" Color="#C9E7ECEE" />
-            <SolidColorBrush x:Key="PredatorBorderBrush" Color="#463C4A50" />
-            <SolidColorBrush x:Key="PredatorTextBrush" Color="#172024" />
-            <SolidColorBrush x:Key="PredatorMutedTextBrush" Color="#5C6A71" />
-            <SolidColorBrush x:Key="PredatorAccentBrush" Color="#197A37" />
-            <SolidColorBrush x:Key="PredatorAccentSubtleBrush" Color="#1E197A37" />
-            <SolidColorBrush x:Key="PredatorCyanBrush" Color="#087C9C" />
-            <SolidColorBrush x:Key="PredatorWarningBrush" Color="#9B5700" />
-            <SolidColorBrush x:Key="PredatorDangerBrush" Color="#B4232A" />
+            <StaticResource x:Key="AppCardBackgroundBrush" ResourceKey="CardBackgroundFillColorDefaultBrush" />
+            <StaticResource x:Key="AppCardInactiveBackgroundBrush" ResourceKey="SolidBackgroundFillColorTertiaryBrush" />
+            <StaticResource x:Key="AppCardBorderBrush" ResourceKey="CardStrokeColorDefaultBrush" />
+            <StaticResource x:Key="AppOverlayBackgroundBrush" ResourceKey="AcrylicInAppFillColorDefaultBrush" />
+            <StaticResource x:Key="AppChromeBackgroundBrush" ResourceKey="LayerOnAcrylicFillColorDefaultBrush" />
+            <StaticResource x:Key="AppNavigationPointerOverBrush" ResourceKey="SubtleFillColorSecondaryBrush" />
+            <StaticResource x:Key="AppNavigationPressedBrush" ResourceKey="SubtleFillColorTertiaryBrush" />
+            <StaticResource x:Key="AppNavigationSelectedBrush" ResourceKey="CardBackgroundFillColorDefaultBrush" />
+            <StaticResource x:Key="AppNavigationSelectedInactiveBrush" ResourceKey="SolidBackgroundFillColorTertiaryBrush" />
+            <StaticResource x:Key="AppNavigationSelectedBorderBrush" ResourceKey="AccentFillColorDefaultBrush" />
+            <StaticResource x:Key="AppNavigationSelectedForegroundBrush" ResourceKey="AccentTextFillColorPrimaryBrush" />
+            <StaticResource x:Key="AppProgressBrush" ResourceKey="AccentFillColorDefaultBrush" />
+            <StaticResource x:Key="AppSubtleBackgroundBrush" ResourceKey="ControlFillColorDefaultBrush" />
+            <StaticResource x:Key="SemanticSuccessBrush" ResourceKey="SystemFillColorSuccessBrush" />
+            <StaticResource x:Key="SemanticSuccessBackgroundBrush" ResourceKey="SystemFillColorSuccessBackgroundBrush" />
+            <StaticResource x:Key="SemanticCautionBrush" ResourceKey="SystemFillColorCautionBrush" />
+            <StaticResource x:Key="SemanticCautionBackgroundBrush" ResourceKey="SystemFillColorCautionBackgroundBrush" />
+            <StaticResource x:Key="SemanticCriticalBrush" ResourceKey="SystemFillColorCriticalBrush" />
+            <StaticResource x:Key="SemanticCriticalBackgroundBrush" ResourceKey="SystemFillColorCriticalBackgroundBrush" />
+            <StaticResource x:Key="ModeTileBackgroundBrush" ResourceKey="CardBackgroundFillColorDefaultBrush" />
+            <StaticResource x:Key="ModeTilePointerOverBackgroundBrush" ResourceKey="ControlFillColorSecondaryBrush" />
+            <StaticResource x:Key="ModeTilePressedBackgroundBrush" ResourceKey="ControlFillColorTertiaryBrush" />
+            <StaticResource x:Key="ModeTileSelectedBackgroundBrush" ResourceKey="SubtleFillColorSecondaryBrush" />
+            <StaticResource x:Key="ModeTileBorderBrush" ResourceKey="CardStrokeColorDefaultBrush" />
+            <StaticResource x:Key="ModeTileSelectedBorderBrush" ResourceKey="AccentFillColorDefaultBrush" />
+            <StaticResource x:Key="ModeTileForegroundBrush" ResourceKey="TextFillColorPrimaryBrush" />
+            <StaticResource x:Key="ModeTileDisabledForegroundBrush" ResourceKey="TextFillColorDisabledBrush" />
+            <StaticResource x:Key="ModeTileSelectedForegroundBrush" ResourceKey="TextFillColorPrimaryBrush" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+            <StaticResource x:Key="AppCardBackgroundBrush" ResourceKey="CardBackgroundFillColorDefaultBrush" />
+            <StaticResource x:Key="AppCardInactiveBackgroundBrush" ResourceKey="SolidBackgroundFillColorQuarternaryBrush" />
+            <StaticResource x:Key="AppCardBorderBrush" ResourceKey="CardStrokeColorDefaultBrush" />
+            <StaticResource x:Key="AppOverlayBackgroundBrush" ResourceKey="AcrylicInAppFillColorDefaultBrush" />
+            <StaticResource x:Key="AppChromeBackgroundBrush" ResourceKey="LayerOnAcrylicFillColorDefaultBrush" />
+            <StaticResource x:Key="AppNavigationPointerOverBrush" ResourceKey="SubtleFillColorSecondaryBrush" />
+            <StaticResource x:Key="AppNavigationPressedBrush" ResourceKey="SubtleFillColorTertiaryBrush" />
+            <StaticResource x:Key="AppNavigationSelectedBrush" ResourceKey="CardBackgroundFillColorDefaultBrush" />
+            <StaticResource x:Key="AppNavigationSelectedInactiveBrush" ResourceKey="SolidBackgroundFillColorQuarternaryBrush" />
+            <StaticResource x:Key="AppNavigationSelectedBorderBrush" ResourceKey="AccentFillColorDefaultBrush" />
+            <StaticResource x:Key="AppNavigationSelectedForegroundBrush" ResourceKey="AccentTextFillColorPrimaryBrush" />
+            <StaticResource x:Key="AppProgressBrush" ResourceKey="AccentFillColorDefaultBrush" />
+            <StaticResource x:Key="AppSubtleBackgroundBrush" ResourceKey="ControlFillColorDefaultBrush" />
+            <StaticResource x:Key="SemanticSuccessBrush" ResourceKey="SystemFillColorSuccessBrush" />
+            <StaticResource x:Key="SemanticSuccessBackgroundBrush" ResourceKey="SystemFillColorSuccessBackgroundBrush" />
+            <StaticResource x:Key="SemanticCautionBrush" ResourceKey="SystemFillColorCautionBrush" />
+            <StaticResource x:Key="SemanticCautionBackgroundBrush" ResourceKey="SystemFillColorCautionBackgroundBrush" />
+            <StaticResource x:Key="SemanticCriticalBrush" ResourceKey="SystemFillColorCriticalBrush" />
+            <StaticResource x:Key="SemanticCriticalBackgroundBrush" ResourceKey="SystemFillColorCriticalBackgroundBrush" />
+            <StaticResource x:Key="ModeTileBackgroundBrush" ResourceKey="CardBackgroundFillColorDefaultBrush" />
+            <StaticResource x:Key="ModeTilePointerOverBackgroundBrush" ResourceKey="ControlFillColorSecondaryBrush" />
+            <StaticResource x:Key="ModeTilePressedBackgroundBrush" ResourceKey="ControlFillColorTertiaryBrush" />
+            <StaticResource x:Key="ModeTileSelectedBackgroundBrush" ResourceKey="SubtleFillColorSecondaryBrush" />
+            <StaticResource x:Key="ModeTileBorderBrush" ResourceKey="CardStrokeColorDefaultBrush" />
+            <StaticResource x:Key="ModeTileSelectedBorderBrush" ResourceKey="AccentFillColorDefaultBrush" />
+            <StaticResource x:Key="ModeTileForegroundBrush" ResourceKey="TextFillColorPrimaryBrush" />
+            <StaticResource x:Key="ModeTileDisabledForegroundBrush" ResourceKey="TextFillColorDisabledBrush" />
+            <StaticResource x:Key="ModeTileSelectedForegroundBrush" ResourceKey="TextFillColorPrimaryBrush" />
         </ResourceDictionary>
         <ResourceDictionary x:Key="HighContrast">
-            <SolidColorBrush x:Key="PredatorWindowBrush" Color="Black" />
-            <SolidColorBrush x:Key="PredatorPaneBrush" Color="Black" />
-            <SolidColorBrush x:Key="PredatorSurfaceBrush" Color="Black" />
-            <SolidColorBrush x:Key="PredatorSurfaceSecondaryBrush" Color="Black" />
-            <SolidColorBrush x:Key="PredatorBorderBrush" Color="White" />
-            <SolidColorBrush x:Key="PredatorTextBrush" Color="White" />
-            <SolidColorBrush x:Key="PredatorMutedTextBrush" Color="White" />
-            <SolidColorBrush x:Key="PredatorAccentBrush" Color="Yellow" />
-            <SolidColorBrush x:Key="PredatorAccentSubtleBrush" Color="Black" />
-            <SolidColorBrush x:Key="PredatorCyanBrush" Color="Cyan" />
-            <SolidColorBrush x:Key="PredatorWarningBrush" Color="Yellow" />
-            <SolidColorBrush x:Key="PredatorDangerBrush" Color="Red" />
+            <StaticResource x:Key="AppCardBackgroundBrush" ResourceKey="SystemColorButtonFaceColorBrush" />
+            <StaticResource x:Key="AppCardInactiveBackgroundBrush" ResourceKey="SystemColorButtonFaceColorBrush" />
+            <StaticResource x:Key="AppCardBorderBrush" ResourceKey="SystemColorButtonTextColorBrush" />
+            <StaticResource x:Key="AppOverlayBackgroundBrush" ResourceKey="SystemColorWindowColorBrush" />
+            <StaticResource x:Key="AppChromeBackgroundBrush" ResourceKey="SystemColorWindowColorBrush" />
+            <StaticResource x:Key="AppNavigationPointerOverBrush" ResourceKey="SystemColorHighlightColorBrush" />
+            <StaticResource x:Key="AppNavigationPressedBrush" ResourceKey="SystemColorHighlightColorBrush" />
+            <StaticResource x:Key="AppNavigationSelectedBrush" ResourceKey="SystemColorHighlightColorBrush" />
+            <StaticResource x:Key="AppNavigationSelectedInactiveBrush" ResourceKey="SystemColorHighlightColorBrush" />
+            <StaticResource x:Key="AppNavigationSelectedBorderBrush" ResourceKey="SystemColorHighlightTextColorBrush" />
+            <StaticResource x:Key="AppNavigationSelectedForegroundBrush" ResourceKey="SystemColorHighlightTextColorBrush" />
+            <StaticResource x:Key="AppProgressBrush" ResourceKey="SystemColorHighlightColorBrush" />
+            <StaticResource x:Key="AppSubtleBackgroundBrush" ResourceKey="SystemColorButtonFaceColorBrush" />
+            <StaticResource x:Key="SemanticSuccessBrush" ResourceKey="SystemColorHighlightColorBrush" />
+            <StaticResource x:Key="SemanticSuccessBackgroundBrush" ResourceKey="SystemColorWindowColorBrush" />
+            <StaticResource x:Key="SemanticCautionBrush" ResourceKey="SystemColorHotlightColorBrush" />
+            <StaticResource x:Key="SemanticCautionBackgroundBrush" ResourceKey="SystemColorWindowColorBrush" />
+            <StaticResource x:Key="SemanticCriticalBrush" ResourceKey="SystemColorHotlightColorBrush" />
+            <StaticResource x:Key="SemanticCriticalBackgroundBrush" ResourceKey="SystemColorWindowColorBrush" />
+            <StaticResource x:Key="ModeTileBackgroundBrush" ResourceKey="SystemColorWindowColorBrush" />
+            <StaticResource x:Key="ModeTilePointerOverBackgroundBrush" ResourceKey="SystemColorHighlightColorBrush" />
+            <StaticResource x:Key="ModeTilePressedBackgroundBrush" ResourceKey="SystemColorHighlightColorBrush" />
+            <StaticResource x:Key="ModeTileSelectedBackgroundBrush" ResourceKey="SystemColorHighlightColorBrush" />
+            <StaticResource x:Key="ModeTileBorderBrush" ResourceKey="SystemColorWindowTextColorBrush" />
+            <StaticResource x:Key="ModeTileSelectedBorderBrush" ResourceKey="SystemColorHighlightTextColorBrush" />
+            <StaticResource x:Key="ModeTileForegroundBrush" ResourceKey="SystemColorWindowTextColorBrush" />
+            <StaticResource x:Key="ModeTileDisabledForegroundBrush" ResourceKey="SystemColorGrayTextColorBrush" />
+            <StaticResource x:Key="ModeTileSelectedForegroundBrush" ResourceKey="SystemColorHighlightTextColorBrush" />
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 
@@ -53,61 +102,396 @@
     <converters:InverseBooleanConverter x:Key="InverseBooleanConverter" />
     <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
     <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" />
+    <converters:ShellNoticeSeverityConverter x:Key="ShellNoticeSeverityConverter" />
 
-    <Style x:Key="PageTitleStyle" TargetType="TextBlock" BasedOn="{StaticResource TitleTextBlockStyle}">
-        <Setter Property="FontFamily" Value="Segoe UI Variable Display" />
-        <Setter Property="FontSize" Value="24" />
-        <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="Foreground" Value="{ThemeResource PredatorTextBrush}" />
+    <CornerRadius x:Key="AppCardCornerRadius">8</CornerRadius>
+
+    <Style
+        x:Key="CompactTitleTextStyle"
+        BasedOn="{StaticResource BodyStrongTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+        <Setter Property="TextWrapping" Value="NoWrap" />
     </Style>
 
-    <Style x:Key="SectionTitleStyle" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
-        <Setter Property="FontSize" Value="15" />
+    <Style
+        x:Key="PageTitleStyle"
+        BasedOn="{StaticResource SubtitleTextBlockStyle}"
+        TargetType="TextBlock">
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="Foreground" Value="{ThemeResource PredatorTextBrush}" />
-    </Style>
-
-    <Style x:Key="MutedTextStyle" TargetType="TextBlock" BasedOn="{StaticResource CaptionTextBlockStyle}">
-        <Setter Property="Foreground" Value="{ThemeResource PredatorMutedTextBrush}" />
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
         <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
 
-    <Style x:Key="SectionPanelStyle" TargetType="Border">
-        <Setter Property="Padding" Value="0,18,0,20" />
-        <Setter Property="BorderBrush" Value="{ThemeResource PredatorBorderBrush}" />
-        <Setter Property="BorderThickness" Value="0,0,0,1" />
+    <Style
+        x:Key="PageSubtitleStyle"
+        BasedOn="{StaticResource BodyTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
 
-    <Style x:Key="MetricTileStyle" TargetType="Border">
-        <Setter Property="MinHeight" Value="96" />
-        <Setter Property="Padding" Value="14" />
-        <Setter Property="Background" Value="{ThemeResource PredatorSurfaceBrush}" />
-        <Setter Property="BorderBrush" Value="{ThemeResource PredatorBorderBrush}" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="8" />
+    <Style
+        x:Key="SectionTitleStyle"
+        BasedOn="{StaticResource BodyStrongTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <Style
+        x:Key="SectionHeaderStyle"
+        BasedOn="{StaticResource BodyStrongTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+        <Setter Property="TextWrapping" Value="NoWrap" />
+    </Style>
+
+    <Style
+        x:Key="BodyTextStyle"
+        BasedOn="{StaticResource BodyTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <Style
+        x:Key="MutedTextStyle"
+        BasedOn="{StaticResource CaptionTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <Style
+        x:Key="MetricLabelTextStyle"
+        BasedOn="{StaticResource CaptionTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <Style
+        x:Key="MetricValueTextStyle"
+        BasedOn="{StaticResource SubtitleTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+        <Setter Property="TextWrapping" Value="NoWrap" />
+    </Style>
+
+    <Style x:Key="PageContentGridStyle" TargetType="Grid">
+        <Setter Property="MaxWidth" Value="640" />
+        <Setter Property="Padding" Value="12,8,12,16" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="RowSpacing" Value="12" />
     </Style>
 
     <Style x:Key="ToolPanelStyle" TargetType="Border">
-        <Setter Property="Padding" Value="16" />
-        <Setter Property="Background" Value="{ThemeResource PredatorSurfaceBrush}" />
-        <Setter Property="BorderBrush" Value="{ThemeResource PredatorBorderBrush}" />
+        <Setter Property="Padding" Value="12" />
+        <Setter Property="behaviors:WindowActivationSurface.IsEnabled" Value="True" />
+        <Setter Property="behaviors:WindowActivationSurface.ActiveBackground" Value="{ThemeResource AppCardBackgroundBrush}" />
+        <Setter Property="behaviors:WindowActivationSurface.InactiveBackground" Value="{ThemeResource AppCardInactiveBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{ThemeResource AppCardBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="CornerRadius" Value="{StaticResource AppCardCornerRadius}" />
     </Style>
 
-    <Style x:Key="CompactIconButtonStyle" TargetType="Button">
-        <Setter Property="Width" Value="36" />
-        <Setter Property="Height" Value="36" />
+    <Style x:Key="SubtlePanelStyle" TargetType="Border">
+        <Setter Property="Padding" Value="12" />
+        <Setter Property="Background" Value="{ThemeResource AppSubtleBackgroundBrush}" />
+        <Setter Property="CornerRadius" Value="{StaticResource AppCardCornerRadius}" />
+    </Style>
+
+    <Style x:Key="SettingGroupStyle" TargetType="Border">
+        <Setter Property="behaviors:WindowActivationSurface.IsEnabled" Value="True" />
+        <Setter Property="behaviors:WindowActivationSurface.ActiveBackground" Value="{ThemeResource AppCardBackgroundBrush}" />
+        <Setter Property="behaviors:WindowActivationSurface.InactiveBackground" Value="{ThemeResource AppCardInactiveBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{ThemeResource AppCardBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource AppCardCornerRadius}" />
+    </Style>
+
+    <Style
+        x:Key="DashboardCardStyle"
+        BasedOn="{StaticResource ToolPanelStyle}"
+        TargetType="Border">
+        <Setter Property="MinHeight" Value="132" />
+    </Style>
+
+    <Style
+        x:Key="DashboardMetricValueTextStyle"
+        BasedOn="{StaticResource BodyStrongTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="FontSize" Value="24" />
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+        <Setter Property="TextWrapping" Value="NoWrap" />
+    </Style>
+
+    <Style x:Key="DashboardProgressBarStyle" TargetType="ProgressBar">
+        <Setter Property="Height" Value="4" />
+        <Setter Property="Foreground" Value="{ThemeResource AppProgressBrush}" />
+        <Setter Property="CornerRadius" Value="2" />
+    </Style>
+
+    <Style x:Key="SettingRowStyle" TargetType="Border">
+        <Setter Property="MinHeight" Value="44" />
+        <Setter Property="Padding" Value="10,6" />
+        <Setter Property="BorderBrush" Value="{ThemeResource DividerStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+    </Style>
+
+    <Style
+        x:Key="PrimaryButtonStyle"
+        BasedOn="{StaticResource AccentButtonStyle}"
+        TargetType="Button">
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="Padding" Value="16,8" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style
+        x:Key="SecondaryButtonStyle"
+        BasedOn="{StaticResource DefaultButtonStyle}"
+        TargetType="Button">
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="Padding" Value="12,8" />
+    </Style>
+
+    <Style
+        x:Key="CompactIconButtonStyle"
+        BasedOn="{StaticResource DefaultButtonStyle}"
+        TargetType="Button">
+        <Setter Property="Width" Value="32" />
+        <Setter Property="Height" Value="32" />
         <Setter Property="Padding" Value="0" />
-        <Setter Property="CornerRadius" Value="6" />
+    </Style>
+
+    <Style
+        x:Key="DashboardLinkButtonStyle"
+        BasedOn="{StaticResource DefaultButtonStyle}"
+        TargetType="Button">
+        <Setter Property="MinHeight" Value="48" />
+        <Setter Property="Padding" Value="8" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style
+        x:Key="QuickActionButtonStyle"
+        BasedOn="{StaticResource DefaultButtonStyle}"
+        TargetType="Button">
+        <Setter Property="MinHeight" Value="44" />
+        <Setter Property="Padding" Value="8" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="SectionDividerStyle" TargetType="Border">
+        <Setter Property="Height" Value="1" />
+        <Setter Property="Background" Value="{ThemeResource DividerStrokeColorDefaultBrush}" />
+    </Style>
+
+    <Style x:Key="ModeTileRadioButtonStyle" TargetType="RadioButton">
+        <Setter Property="Height" Value="72" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="Padding" Value="6" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{ThemeResource ModeTileForegroundBrush}" />
+        <Setter Property="Background" Value="{ThemeResource ModeTileBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{ThemeResource ModeTileBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}" />
+        <Setter Property="UseSystemFocusVisuals" Value="True" />
+        <Setter Property="FocusVisualMargin" Value="-2" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Grid
+                        x:Name="Root"
+                        Padding="{TemplateBinding Padding}"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="{TemplateBinding CornerRadius}">
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal" />
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Background" Value="{ThemeResource ModeTilePointerOverBackgroundBrush}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Background" Value="{ThemeResource ModeTilePressedBackgroundBrush}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource ModeTileDisabledForegroundBrush}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                            <VisualStateGroup x:Name="CheckStates">
+                                <VisualState x:Name="Checked">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Background" Value="{ThemeResource ModeTileSelectedBackgroundBrush}" />
+                                        <Setter Target="Root.BorderBrush" Value="{ThemeResource ModeTileSelectedBorderBrush}" />
+                                        <Setter Target="Root.BorderThickness" Value="2" />
+                                        <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource ModeTileSelectedForegroundBrush}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Unchecked" />
+                                <VisualState x:Name="Indeterminate" />
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                        <ContentPresenter
+                            x:Name="ContentPresenter"
+                            HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                            Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                            Foreground="{TemplateBinding Foreground}" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="BottomNavigationTextStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="TextWrapping" Value="NoWrap" />
+    </Style>
+
+    <Style x:Key="BottomNavigationRadioButtonStyle" TargetType="RadioButton">
+        <Setter Property="Height" Value="58" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="Padding" Value="8,5" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+        <Setter Property="Background" Value="{ThemeResource ControlFillColorTransparentBrush}" />
+        <Setter Property="UseSystemFocusVisuals" Value="True" />
+        <Setter Property="FocusVisualMargin" Value="-2" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Grid
+                        x:Name="Root"
+                        Background="{TemplateBinding Background}"
+                        CornerRadius="{StaticResource AppCardCornerRadius}">
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal" />
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="InteractionSurface.Opacity" Value="1" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="InteractionSurface.Background" Value="{ThemeResource AppNavigationPressedBrush}" />
+                                        <Setter Target="InteractionSurface.Opacity" Value="1" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Opacity" Value="0.36" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                            <VisualStateGroup x:Name="CheckStates">
+                                <VisualState x:Name="Checked">
+                                    <VisualState.Setters>
+                                        <Setter Target="SelectedSurface.Opacity" Value="1" />
+                                        <Setter Target="SelectionIndicator.Opacity" Value="1" />
+                                        <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource AppNavigationSelectedForegroundBrush}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Unchecked" />
+                                <VisualState x:Name="Indeterminate" />
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                        <Border
+                            x:Name="SelectedSurface"
+                            behaviors:WindowActivationSurface.ActiveBackground="{ThemeResource AppNavigationSelectedBrush}"
+                            behaviors:WindowActivationSurface.InactiveBackground="{ThemeResource AppNavigationSelectedInactiveBrush}"
+                            behaviors:WindowActivationSurface.IsEnabled="True"
+                            BorderBrush="{ThemeResource AppCardBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource AppCardCornerRadius}"
+                            IsHitTestVisible="False"
+                            Opacity="0" />
+                        <Border
+                            x:Name="InteractionSurface"
+                            Background="{ThemeResource AppNavigationPointerOverBrush}"
+                            CornerRadius="{StaticResource AppCardCornerRadius}"
+                            IsHitTestVisible="False"
+                            Opacity="0" />
+                        <Border
+                            x:Name="SelectionIndicator"
+                            Height="2"
+                            Margin="10,0,10,0"
+                            VerticalAlignment="Top"
+                            Background="{ThemeResource AppNavigationSelectedBorderBrush}"
+                            CornerRadius="1"
+                            IsHitTestVisible="False"
+                            Opacity="0" />
+                        <ContentPresenter
+                            x:Name="ContentPresenter"
+                            HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                            Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                            Foreground="{TemplateBinding Foreground}"
+                            Margin="{TemplateBinding Padding}" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <Style x:Key="ColorSwatchButtonStyle" TargetType="Button">
-        <Setter Property="Width" Value="44" />
-        <Setter Property="Height" Value="30" />
-        <Setter Property="Padding" Value="0" />
-        <Setter Property="CornerRadius" Value="6" />
-        <Setter Property="BorderBrush" Value="{ThemeResource PredatorBorderBrush}" />
+        <Setter Property="MinWidth" Value="72" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Padding" Value="8,0" />
+        <Setter Property="BorderBrush" Value="{ThemeResource ControlStrongStrokeColorDefaultBrush}" />
         <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style
+        x:Key="KeyboardZoneButtonStyle"
+        BasedOn="{StaticResource DefaultButtonStyle}"
+        TargetType="Button">
+        <Setter Property="MinHeight" Value="80" />
+        <Setter Property="Padding" Value="8" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Stretch" />
+        <Setter Property="BorderBrush" Value="{ThemeResource ControlStrongStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style x:Key="SuccessBadgeStyle" TargetType="Border">
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="Background" Value="{ThemeResource SemanticSuccessBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{ThemeResource SemanticSuccessBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}" />
+    </Style>
+
+    <Style x:Key="CautionBadgeStyle" TargetType="Border">
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="Background" Value="{ThemeResource SemanticCautionBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{ThemeResource SemanticCautionBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}" />
     </Style>
 </ResourceDictionary>

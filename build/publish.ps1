@@ -39,8 +39,10 @@ $requiredFiles = @(
     "Resources\Theme.xbf",
     "Views\MainShell.xbf",
     "Views\HomePage.xbf",
+    "Views\CoolingPage.xbf",
     "Views\LightingPage.xbf",
     "Views\MonitorPage.xbf",
+    "Views\OsdContent.xbf",
     "Views\SettingsPage.xbf",
     "Views\TrayIconView.xbf",
     "PredatorLite.FanGuard.exe",
@@ -53,8 +55,8 @@ $requiredFiles = @(
     "PredatorLite.ElevatedHelper.runtimeconfig.json",
     "Microsoft.WindowsAppRuntime.Bootstrap.dll",
     "Microsoft.WindowsAppRuntime.Bootstrap.Net.dll",
-    "Assets\PredatorLite.ico",
-    "Assets\PredatorLite.png"
+    "Assets\PredatorLiteFluent.ico",
+    "Assets\PredatorLiteFluent.png"
 )
 $missingFiles = $requiredFiles | Where-Object {
     -not (Test-Path -LiteralPath (Join-Path $destination $_) -PathType Leaf)

@@ -32,9 +32,15 @@ public sealed class FanCurveEngineTests
         FanCurve curve = FanCurve.CreateDefault();
         curve.Cpu[^1] = new FanCurvePoint(92, 96);
 
-        IReadOnlyList<string> errors = FanCurveEngine.Validate(curve);
+        IReadOnlyList<FanCurveValidationIssue> issues = FanCurveEngine.Validate(curve);
 
-        Assert.Contains(errors, error => error.Contains("95", StringComparison.Ordinal));
+        FanCurveValidationIssue issue = Assert.Single(
+            issues,
+            issue => issue.Channel == FanCurveChannel.Cpu &&
+                issue.Code == FanCurveValidationCode.InvalidSafetyEndpoint);
+        Assert.Equal(7, issue.PointIndex);
+        Assert.Equal(FanCurveEngine.SafetyTemperatureC, issue.MinimumTemperatureC);
+        Assert.Equal(100, issue.MinimumSpeedPercent);
     }
 
     [Fact]
@@ -43,9 +49,31 @@ public sealed class FanCurveEngineTests
         FanCurve curve = FanCurve.CreateDefault();
         curve.Gpu[3] = new FanCurvePoint(70, 30);
 
-        IReadOnlyList<string> errors = FanCurveEngine.Validate(curve);
+        IReadOnlyList<FanCurveValidationIssue> issues = FanCurveEngine.Validate(curve);
 
-        Assert.Contains(errors, error => error.Contains("must not decrease", StringComparison.Ordinal));
+        Assert.Contains(
+            issues,
+            issue => issue.Channel == FanCurveChannel.Gpu &&
+                issue.Code == FanCurveValidationCode.SpeedDecreases &&
+                issue.PointIndex == 3 &&
+                issue.MinimumSpeedPercent == 40);
+    }
+
+    [Fact]
+    public void TemperatureOutsideEditableRangeIsRejectedWithLimits()
+    {
+        FanCurve curve = FanCurve.CreateDefault();
+        curve.Cpu[0] = new FanCurvePoint(10, 25);
+
+        IReadOnlyList<FanCurveValidationIssue> issues = FanCurveEngine.Validate(curve);
+
+        Assert.Contains(
+            issues,
+            issue => issue.Channel == FanCurveChannel.Cpu &&
+                issue.Code == FanCurveValidationCode.TemperatureOutOfRange &&
+                issue.PointIndex == 0 &&
+                issue.MinimumTemperatureC == FanCurveEngine.MinimumTemperatureC &&
+                issue.MaximumTemperatureC == FanCurveEngine.SafetyTemperatureC);
     }
 
     [Fact]

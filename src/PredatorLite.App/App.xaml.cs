@@ -44,6 +44,7 @@ public partial class App : Application
             return;
         }
 
+        LocalizationService? localization = null;
         try
         {
             if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
@@ -52,7 +53,8 @@ public partial class App : Application
             }
 
             DispatcherQueue dispatcher = DispatcherQueue.GetForCurrentThread();
-            LocalizationService localization = new();
+            localization = new LocalizationService();
+            localization.SetLanguage("zh-CN");
             MainWindow? window = null;
             DesktopUserInteraction interaction = new(
                 () => window?.Content is FrameworkElement element ? element.XamlRoot : null,
@@ -95,7 +97,9 @@ public partial class App : Application
         catch (Exception exception)
         {
             _logger.Error("PredatorLite startup failed", exception);
-            NativeMethods.ShowError(_mainWindow?.WindowHandle ?? IntPtr.Zero, exception.Message, "PredatorLite");
+            string message = localization?.Get("Status.InitializationFailed") ??
+                "PredatorLite could not initialize. Review the logs for details.";
+            NativeMethods.ShowError(_mainWindow?.WindowHandle ?? IntPtr.Zero, message, "PredatorLite");
             await ExitAsync(1);
         }
     }

@@ -16,11 +16,10 @@ public sealed partial class TrayIconView : UserControl, IDisposable
         InitializeComponent();
     }
 
-    public void Configure(LocalizationService localization, Action showWindow, Action exit)
+    public void Configure(Action showWindow, Action exit)
     {
         _showWindow = showWindow;
         _exit = exit;
-        RebuildMenu(localization);
     }
 
     public void RebuildMenu(LocalizationService localization)

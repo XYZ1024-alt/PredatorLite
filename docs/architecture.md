@@ -10,10 +10,10 @@ MainViewModel ---- JSON settings / redacted logs / diagnostics ZIP
         |
         v
 IPredatorPlatform
-   |            |                |
-   v            v                v
-AcerService   Acer WMI     Windows read-only telemetry
-TCP 46933     provider     display, power, LHM, ETW FPS
+   |                |             |                |
+   v                v             v                v
+AcerService   AcerSysMonitor   Acer WMI     Windows read-only telemetry
+TCP 46933     TCP 46753        provider     display, power, LHM, ETW FPS
 
 MainViewModel -- named-pipe heartbeat --> FanGuard
 Settings UI  -- explicit UAC action --> ElevatedHelper
@@ -25,13 +25,19 @@ Settings UI  -- explicit UAC action --> ElevatedHelper
 
 1. Acquire the per-session single-instance mutex.
 2. Load versioned JSON settings and select the language resource dictionary.
-3. Probe identity, AcerService, Acer WMI, supported display rates and individual device capabilities.
+3. Probe identity, AcerService, Acer system monitor, Acer WMI, supported display rates and individual device capabilities.
 4. Read the initial hardware snapshot and service state.
 5. Start lightweight Acer/power polling, tray integration and optional input listeners.
 
 No hardware setter is called in this sequence. Saved modes, fan settings, lighting and MUX state are not replayed at startup.
 
-LibreHardwareMonitor is created only while the Monitor tab, OSD/FPS, or an explicitly enabled Custom fan curve needs extended telemetry. ETW is loaded only after FPS is enabled.
+The ordinary-user `AcerSysMonitorService` endpoint on `127.0.0.1:46753` supplies CPU/GPU temperature,
+frequency, load and fan speed on every telemetry cycle. Acer WMI remains a temperature/fan fallback,
+and Windows processor counters remain a CPU load/frequency fallback.
+
+LibreHardwareMonitor is created only while the Monitor tab, OSD/FPS, or an explicitly enabled Custom
+fan curve needs GPU power, VRAM, memory or other extended telemetry. Its CPU backend is always disabled
+so PredatorLite does not initialize PawnIO or a privileged MSR path. ETW is loaded only after FPS is enabled.
 
 ## Hardware command sequence
 

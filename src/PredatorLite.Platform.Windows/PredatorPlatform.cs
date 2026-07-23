@@ -9,10 +9,12 @@ namespace PredatorLite.Platform.Windows;
 public sealed class PredatorPlatform : IPredatorPlatform
 {
     private readonly AcerServiceClient _service;
+    private readonly AcerSystemMonitorClient _systemMonitor;
     private readonly AcerWmiClient _wmi;
     private readonly DisplayController _display = new();
     private readonly IAppLogger _logger;
     private readonly SemaphoreSlim _operationGate = new(1, 1);
+    private readonly WindowsCpuTelemetryReader _windowsCpuTelemetry;
 
     private DeviceCapabilities? _capabilities;
     private OperatingMode? _operatingMode;
@@ -27,7 +29,9 @@ public sealed class PredatorPlatform : IPredatorPlatform
     {
         _logger = logger;
         _service = new AcerServiceClient(logger);
+        _systemMonitor = new AcerSystemMonitorClient(logger);
         _wmi = new AcerWmiClient(logger);
+        _windowsCpuTelemetry = new WindowsCpuTelemetryReader(logger);
     }
 
     public async Task<DeviceCapabilities> ProbeAsync(CancellationToken cancellationToken = default)
@@ -35,6 +39,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
         DeviceIdentity identity = await Task.Run(SystemIdentityReader.Read, cancellationToken).ConfigureAwait(false);
         bool serviceAvailable = await _service.IsAvailableAsync(cancellationToken).ConfigureAwait(false);
         bool wmiAvailable = await _wmi.IsGamingInterfaceAvailableAsync(cancellationToken).ConfigureAwait(false);
+        bool systemMonitorAvailable = await _systemMonitor.IsAvailableAsync(cancellationToken).ConfigureAwait(false);
         bool batteryAvailable = await _wmi.IsBatteryInterfaceAvailableAsync(cancellationToken).ConfigureAwait(false);
         bool? chargeLimitEnabled = batteryAvailable
             ? await _wmi.ReadChargeLimitAsync(cancellationToken).ConfigureAwait(false)
@@ -46,6 +51,13 @@ public sealed class PredatorPlatform : IPredatorPlatform
             string.Equals(identity.Model, "Predator PHN16-71", StringComparison.OrdinalIgnoreCase);
         bool biosMatches = string.Equals(identity.BiosVersion, "V1.20", StringComparison.OrdinalIgnoreCase);
         bool validated = modelMatches && biosMatches;
+        HardwareWriteBlockReason writeBlockReason = !modelMatches
+            ? HardwareWriteBlockReason.UnsupportedModel
+            : !biosMatches
+                ? HardwareWriteBlockReason.UnvalidatedBios
+                : !serviceAvailable && !wmiAvailable
+                    ? HardwareWriteBlockReason.ControlBackendUnavailable
+                    : HardwareWriteBlockReason.None;
 
         AcerResponse? fanState = serviceAvailable
             ? await TryQueryAsync(AcerProtocol.FanControl, cancellationToken).ConfigureAwait(false)
@@ -64,13 +76,21 @@ public sealed class PredatorPlatform : IPredatorPlatform
         {
             Device = identity,
             IsValidatedModel = validated,
-            CompatibilityMessage = validated
-                ? "Predator PHN16-71 BIOS V1.20 validated."
-                : modelMatches
-                    ? $"BIOS {identity.BiosVersion} is not yet validated; hardware writes are disabled."
-                    : $"Model {identity.Model} is not yet supported; diagnostics remain available.",
+            WriteBlockReason = writeBlockReason,
+            CompatibilityMessage = writeBlockReason switch
+            {
+                HardwareWriteBlockReason.None => "Predator PHN16-71 BIOS V1.20 validated.",
+                HardwareWriteBlockReason.UnsupportedModel =>
+                    $"Model {identity.Model} is not yet supported; diagnostics remain available.",
+                HardwareWriteBlockReason.UnvalidatedBios =>
+                    $"BIOS {identity.BiosVersion} is not yet validated; hardware writes are disabled.",
+                HardwareWriteBlockReason.ControlBackendUnavailable =>
+                    "No supported Acer control backend is available; hardware writes are disabled.",
+                _ => "Hardware writes are disabled."
+            },
             AcerServiceAvailable = serviceAvailable,
             AcerWmiAvailable = wmiAvailable,
+            AcerSystemMonitorAvailable = systemMonitorAvailable,
             BatteryControlAvailable = batteryAvailable,
             ChargeLimitEnabled = chargeLimitEnabled,
             LightingAvailable = lightingState?.IsSuccess == true,
@@ -81,12 +101,14 @@ public sealed class PredatorPlatform : IPredatorPlatform
         };
 
         _logger.Info($"Capability probe: {identity.Model}, BIOS {identity.BiosVersion}, " +
-            $"AcerService={serviceAvailable}, WMI={wmiAvailable}, validated={validated}.");
+            $"AcerService={serviceAvailable}, AcerSystemMonitor={systemMonitorAvailable}, " +
+            $"WMI={wmiAvailable}, validated={validated}.");
         return _capabilities;
     }
 
     public async Task<HardwareSnapshot> ReadSnapshotAsync(CancellationToken cancellationToken = default)
     {
+        Task<AcerMonitorTelemetry?> acerMonitorTask = _systemMonitor.ReadAsync(cancellationToken);
         bool useWmiSensors = _capabilities?.AcerWmiAvailable == true;
         Task<int?> cpuTemperatureTask = useWmiSensors
             ? _wmi.ReadSensorAsync(AcerProtocol.CpuTemperatureSensor, cancellationToken)
@@ -109,29 +131,26 @@ public sealed class PredatorPlatform : IPredatorPlatform
             await RefreshServiceStateAsync(cancellationToken).ConfigureAwait(false);
         }
 
+        AcerMonitorTelemetry? acerMonitor = await acerMonitorTask.ConfigureAwait(false);
+        Task<WindowsCpuTelemetry> windowsCpuTask =
+            acerMonitor?.CpuLoadPercent is null || acerMonitor.CpuClockMhz is null
+                ? Task.Run(_windowsCpuTelemetry.Read, cancellationToken)
+                : Task.FromResult(new WindowsCpuTelemetry());
         ExtraTelemetry extra = await extraTask.ConfigureAwait(false);
-        int? cpuTemperature = NormalizeTemperature(await cpuTemperatureTask.ConfigureAwait(false)) ??
-            NormalizeTemperature(extra.CpuTemperatureC);
-        int? gpuTemperature = NormalizeTemperature(await gpuTemperatureTask.ConfigureAwait(false)) ??
-            NormalizeTemperature(extra.GpuTemperatureC);
+        AcerWmiTelemetry wmiTelemetry = new(
+            CpuTemperatureC: NormalizeTemperature(await cpuTemperatureTask.ConfigureAwait(false)),
+            GpuTemperatureC: NormalizeTemperature(await gpuTemperatureTask.ConfigureAwait(false)),
+            CpuFanRpm: NormalizeRpm(await cpuFanTask.ConfigureAwait(false)),
+            GpuFanRpm: NormalizeRpm(await gpuFanTask.ConfigureAwait(false)));
+        HardwareSnapshot telemetry = TelemetryMerger.Merge(
+            acerMonitor,
+            wmiTelemetry,
+            extra,
+            await windowsCpuTask.ConfigureAwait(false));
         (bool? onAc, int? batteryPercent) = PowerStatusReader.Read();
 
-        return new HardwareSnapshot
+        return telemetry with
         {
-            CpuTemperatureC = cpuTemperature,
-            GpuTemperatureC = gpuTemperature,
-            CpuFanRpm = NormalizeRpm(await cpuFanTask.ConfigureAwait(false)),
-            GpuFanRpm = NormalizeRpm(await gpuFanTask.ConfigureAwait(false)),
-            CpuLoadPercent = extra.CpuLoadPercent,
-            GpuLoadPercent = extra.GpuLoadPercent,
-            CpuPowerWatts = extra.CpuPowerWatts,
-            GpuPowerWatts = extra.GpuPowerWatts,
-            CpuClockMhz = extra.CpuClockMhz,
-            GpuClockMhz = extra.GpuClockMhz,
-            MemoryUsedGb = extra.MemoryUsedGb,
-            MemoryTotalGb = extra.MemoryTotalGb,
-            VramUsedGb = extra.VramUsedGb,
-            VramTotalGb = extra.VramTotalGb,
             BatteryPercent = batteryPercent,
             IsOnAcPower = onAc,
             DisplayRefreshRate = _display.GetCurrentRefreshRate(),
@@ -151,7 +170,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
         _extendedTelemetryEnabled = enabled;
         if (enabled)
         {
-            _hardwareMonitor = new HardwareMonitorReader();
+            _hardwareMonitor = new HardwareMonitorReader(_logger);
         }
         else
         {
@@ -533,6 +552,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
         }
 
         _hardwareMonitor?.Dispose();
+        await _systemMonitor.DisposeAsync().ConfigureAwait(false);
         await _service.DisposeAsync().ConfigureAwait(false);
         _operationGate.Dispose();
     }
@@ -731,8 +751,6 @@ public sealed class PredatorPlatform : IPredatorPlatform
     };
 
     private static int? NormalizeTemperature(int? value) => value is > 0 and < 130 ? value : null;
-
-    private static int? NormalizeTemperature(double? value) => value is > 0 and < 130 ? (int)Math.Round(value.Value) : null;
 
     private static int? NormalizeRpm(int? value) => value is > 0 and < 20000
         ? (int)(Math.Round(value.Value / 100d) * 100)

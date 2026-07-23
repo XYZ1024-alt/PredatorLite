@@ -1,17 +1,26 @@
 using LibreHardwareMonitor.Hardware;
+using PredatorLite.Core.Abstractions;
 
 namespace PredatorLite.Platform.Windows.SystemIntegration;
 
 internal sealed class HardwareMonitorReader : IDisposable
 {
     private readonly object _sync = new();
+    private readonly IAppLogger _logger;
     private readonly Computer _computer = new()
     {
-        IsCpuEnabled = true,
+        IsCpuEnabled = false,
         IsGpuEnabled = true,
         IsMemoryEnabled = true
     };
+
     private bool _opened;
+    private bool _failureLogged;
+
+    public HardwareMonitorReader(IAppLogger logger)
+    {
+        _logger = logger;
+    }
 
     public ExtraTelemetry Read()
     {
@@ -28,27 +37,39 @@ internal sealed class HardwareMonitorReader : IDisposable
                 UpdateVisitor visitor = new();
                 _computer.Accept(visitor);
 
-                List<ISensor> cpuSensors = GetSensors(HardwareType.Cpu);
-                List<ISensor> gpuSensors = GetSensors(HardwareType.GpuNvidia, HardwareType.GpuIntel, HardwareType.GpuAmd);
-                List<ISensor> memorySensors = GetSensors(HardwareType.Memory);
+                List<ISensor> gpuSensors = GetPreferredGpuSensors();
+                List<ISensor> memorySensors = GetPhysicalMemorySensors();
+                ExtraTelemetry telemetry = new(
+                    GpuTemperatureC: FindExact(gpuSensors, SensorType.Temperature, "GPU Core"),
+                    GpuLoadPercent: FindExact(gpuSensors, SensorType.Load, "GPU Core"),
+                    GpuPowerWatts: FindExact(gpuSensors, SensorType.Power, "GPU Package"),
+                    GpuClockMhz: FindExact(gpuSensors, SensorType.Clock, "GPU Core"),
+                    MemoryUsedGb: ConvertMemoryToGb(
+                        FindExact(memorySensors, SensorType.Data, "Memory Used")),
+                    MemoryTotalGb: SumMemory(
+                        FindExact(memorySensors, SensorType.Data, "Memory Used"),
+                        FindExact(memorySensors, SensorType.Data, "Memory Available")),
+                    VramUsedGb: ConvertMemoryToGb(
+                        FindExact(gpuSensors, SensorType.SmallData, "GPU Memory Used")),
+                    VramTotalGb: ConvertMemoryToGb(
+                        FindExact(gpuSensors, SensorType.SmallData, "GPU Memory Total")));
 
-                return new ExtraTelemetry(
-                    CpuTemperatureC: Find(cpuSensors, SensorType.Temperature, "Package"),
-                    GpuTemperatureC: Find(gpuSensors, SensorType.Temperature, "Core"),
-                    CpuLoadPercent: Find(cpuSensors, SensorType.Load, "Total"),
-                    GpuLoadPercent: Find(gpuSensors, SensorType.Load, "Core"),
-                    CpuPowerWatts: Find(cpuSensors, SensorType.Power, "Package"),
-                    GpuPowerWatts: Find(gpuSensors, SensorType.Power, "Package", "GPU"),
-                    CpuClockMhz: Average(cpuSensors, SensorType.Clock, "Core"),
-                    GpuClockMhz: Find(gpuSensors, SensorType.Clock, "Core"),
-                    MemoryUsedGb: ConvertMemoryToGb(Find(memorySensors, SensorType.Data, "Used")),
-                    MemoryTotalGb: ConvertMemoryToGb(Find(memorySensors, SensorType.Data, "Available") +
-                        Find(memorySensors, SensorType.Data, "Used")),
-                    VramUsedGb: ConvertMemoryToGb(Find(gpuSensors, SensorType.SmallData, "Used")),
-                    VramTotalGb: ConvertMemoryToGb(Find(gpuSensors, SensorType.SmallData, "Total")));
+                if (_failureLogged)
+                {
+                    _logger.Info("LibreHardwareMonitor GPU and memory telemetry recovered.");
+                    _failureLogged = false;
+                }
+
+                return telemetry;
             }
-            catch
+            catch (Exception exception)
             {
+                if (!_failureLogged)
+                {
+                    _logger.Error("LibreHardwareMonitor GPU or memory enumeration failed", exception);
+                    _failureLogged = true;
+                }
+
                 return new ExtraTelemetry();
             }
         }
@@ -64,6 +85,39 @@ internal sealed class HardwareMonitorReader : IDisposable
                 _opened = false;
             }
         }
+    }
+
+    private List<ISensor> GetPreferredGpuSensors()
+    {
+        foreach (HardwareType type in new[]
+                 {
+                     HardwareType.GpuNvidia,
+                     HardwareType.GpuAmd,
+                     HardwareType.GpuIntel
+                 })
+        {
+            List<ISensor> sensors = GetSensors(type);
+            if (sensors.Count > 0)
+            {
+                return sensors;
+            }
+        }
+
+        return [];
+    }
+
+    private List<ISensor> GetPhysicalMemorySensors()
+    {
+        IHardware? physicalMemory = _computer.Hardware.FirstOrDefault(hardware =>
+            hardware.HardwareType == HardwareType.Memory &&
+            string.Equals(hardware.Identifier.ToString(), "/ram", StringComparison.OrdinalIgnoreCase));
+        physicalMemory ??= _computer.Hardware.FirstOrDefault(hardware =>
+            hardware.HardwareType == HardwareType.Memory &&
+            !string.Equals(hardware.Identifier.ToString(), "/vram", StringComparison.OrdinalIgnoreCase) &&
+            !hardware.Name.Contains("Virtual", StringComparison.OrdinalIgnoreCase));
+        return physicalMemory is null
+            ? []
+            : Flatten(physicalMemory).ToList();
     }
 
     private List<ISensor> GetSensors(params HardwareType[] types) =>
@@ -88,32 +142,29 @@ internal sealed class HardwareMonitorReader : IDisposable
         }
     }
 
-    private static double? Find(
+    private static double? FindExact(
         IEnumerable<ISensor> sensors,
         SensorType type,
-        params string[] nameFragments)
+        string name)
     {
         ISensor? sensor = sensors.FirstOrDefault(candidate =>
             candidate.SensorType == type &&
-            nameFragments.Any(fragment => candidate.Name.Contains(fragment, StringComparison.OrdinalIgnoreCase)));
+            string.Equals(candidate.Name, name, StringComparison.OrdinalIgnoreCase));
         return sensor?.Value;
     }
 
-    private static double? Average(IEnumerable<ISensor> sensors, SensorType type, string nameFragment)
+    private static double? SumMemory(double? used, double? available)
     {
-        float[] values = sensors
-            .Where(sensor =>
-                sensor.SensorType == type &&
-                sensor.Name.Contains(nameFragment, StringComparison.OrdinalIgnoreCase) &&
-                sensor.Value.HasValue)
-            .Select(sensor => sensor.Value!.Value)
-            .ToArray();
-        return values.Length == 0 ? null : values.Average();
+        double? usedGb = ConvertMemoryToGb(used);
+        double? availableGb = ConvertMemoryToGb(available);
+        return usedGb.HasValue && availableGb.HasValue
+            ? usedGb + availableGb
+            : null;
     }
 
     private static double? ConvertMemoryToGb(double? value)
     {
-        if (!value.HasValue)
+        if (!value.HasValue || !double.IsFinite(value.Value) || value.Value < 0)
         {
             return null;
         }
@@ -145,13 +196,9 @@ internal sealed class HardwareMonitorReader : IDisposable
 }
 
 internal sealed record ExtraTelemetry(
-    double? CpuTemperatureC = null,
     double? GpuTemperatureC = null,
-    double? CpuLoadPercent = null,
     double? GpuLoadPercent = null,
-    double? CpuPowerWatts = null,
     double? GpuPowerWatts = null,
-    double? CpuClockMhz = null,
     double? GpuClockMhz = null,
     double? MemoryUsedGb = null,
     double? MemoryTotalGb = null,

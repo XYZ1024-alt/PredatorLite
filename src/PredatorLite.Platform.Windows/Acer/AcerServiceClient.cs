@@ -190,7 +190,7 @@ public sealed class AcerServiceClient : IAsyncDisposable
         };
     }
 
-    private static byte[]? ReadAesKey()
+    internal static byte[]? ReadAesKey()
     {
         try
         {

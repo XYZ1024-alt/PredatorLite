@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -46,6 +47,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     private int _lastCpuFanTarget = -1;
     private int _lastGpuFanTarget = -1;
     private DateTimeOffset _lastFanWrite = DateTimeOffset.MinValue;
+    private int _telemetryFailureCount;
+    private bool _modeKeyStarted;
     private bool _disposed;
 
     public MainViewModel(
@@ -74,6 +77,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         _localization = localization;
         _interaction = interaction;
         _uiDispatcher = uiDispatcher;
+        RebuildLightingEffects();
         StatusMessage = "PredatorLite";
     }
 
@@ -85,7 +89,23 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     public ObservableCollection<SelectionOption<LightingEffect>> LightingEffects { get; } = [];
 
-    public ObservableCollection<DeviceSettingItemViewModel> DeviceSettings { get; } = [];
+    public SelectionOption<LightingEffect>? SelectedLightingEffectOption
+    {
+        get => LightingEffects.FirstOrDefault(option => option.Value == SelectedLightingEffect);
+        set
+        {
+            if (value is not null)
+            {
+                SelectedLightingEffect = value.Value;
+            }
+        }
+    }
+
+    public ObservableCollection<SelectionOption<OperatingMode>> OperatingModes { get; } = [];
+
+    public ObservableCollection<SelectionOption<FanMode>> FanModes { get; } = [];
+
+    public ObservableCollection<SelectionOption<GpuMuxMode>> GpuMuxModes { get; } = [];
 
     public ObservableCollection<ManagedServiceInfo> ManagedServices { get; } = [];
 
@@ -100,13 +120,46 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     public partial bool IsBusy { get; set; }
 
     [ObservableProperty]
-    public partial int SelectedTabIndex { get; set; }
+    public partial bool InitializationFailed { get; set; }
+
+    [ObservableProperty]
+    public partial AppSection SelectedSection { get; set; } = AppSection.Home;
 
     [ObservableProperty]
     public partial bool StatusIsError { get; set; }
 
     [ObservableProperty]
     public partial string StatusMessage { get; set; }
+
+    public bool IsShellNoticeOpen => ShellNotice != ShellNoticeKind.None;
+
+    public ShellNoticeKind ShellNotice => StatusIsError
+        ? ShellNoticeKind.Error
+        : RebootRequired
+            ? ShellNoticeKind.RebootRequired
+            : IsInitialized && !HardwareWritesEnabled
+                ? ShellNoticeKind.ReadOnly
+                : ShellNoticeKind.None;
+
+    public string ShellNoticeMessage => ShellNotice switch
+    {
+        ShellNoticeKind.Error => StatusMessage,
+        ShellNoticeKind.RebootRequired => _localization.Get("Status.RebootRequired"),
+        ShellNoticeKind.ReadOnly => CompatibilityMessage,
+        _ => string.Empty
+    };
+
+    public bool CanApplyFanCurve => FanControlAvailable && IsFanCurveValid && !IsBusy;
+
+    public string CpuLabel => _localization.Get("Label.Cpu");
+
+    public string GpuLabel => _localization.Get("Label.Gpu");
+
+    public string CpuFanLabel => _localization.Get("Metric.CpuFan");
+
+    public string FpsLabel => _localization.Get("Metric.Fps");
+
+    public string TelemetryStateText => _localization.Get("Status.TelemetryStale");
 
     [ObservableProperty]
     public partial string CurrentLanguage { get; set; } = "zh-CN";
@@ -119,6 +172,9 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     [ObservableProperty]
     public partial string CompatibilityMessage { get; set; } = "--";
+
+    [ObservableProperty]
+    public partial HardwareWriteBlockReason WriteBlockReason { get; set; }
 
     [ObservableProperty]
     public partial bool HardwareWritesEnabled { get; set; }
@@ -169,10 +225,28 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     public partial bool RebootRequired { get; set; }
 
     [ObservableProperty]
+    public partial bool IsTelemetryStale { get; set; }
+
+    [ObservableProperty]
+    public partial FanCurveChannel SelectedFanCurveChannel { get; set; } = FanCurveChannel.Cpu;
+
+    [ObservableProperty]
+    public partial bool IsFanCurveValid { get; set; } = true;
+
+    [ObservableProperty]
+    public partial string FanCurveValidationMessage { get; set; } = string.Empty;
+
+    [ObservableProperty]
     public partial string CpuTemperatureText { get; set; } = "--";
 
     [ObservableProperty]
+    public partial double CpuTemperatureValue { get; set; }
+
+    [ObservableProperty]
     public partial string GpuTemperatureText { get; set; } = "--";
+
+    [ObservableProperty]
+    public partial double GpuTemperatureValue { get; set; }
 
     [ObservableProperty]
     public partial string CpuLoadText { get; set; } = "--";
@@ -185,9 +259,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     [ObservableProperty]
     public partial string GpuFanText { get; set; } = "--";
-
-    [ObservableProperty]
-    public partial string CpuPowerText { get; set; } = "--";
 
     [ObservableProperty]
     public partial string GpuPowerText { get; set; } = "--";
@@ -206,6 +277,9 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     [ObservableProperty]
     public partial string BatteryText { get; set; } = "--";
+
+    [ObservableProperty]
+    public partial double BatteryPercentValue { get; set; }
 
     [ObservableProperty]
     public partial string PowerSourceText { get; set; } = "--";
@@ -249,6 +323,9 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     [ObservableProperty]
     public partial LightingEffect SelectedLightingEffect { get; set; }
 
+    partial void OnSelectedLightingEffectChanged(LightingEffect value) =>
+        OnPropertyChanged(nameof(SelectedLightingEffectOption));
+
     [ObservableProperty]
     public partial int LightingBrightness { get; set; } = 5;
 
@@ -272,6 +349,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
 
         IsBusy = true;
+        InitializationFailed = false;
         StatusIsError = false;
         try
         {
@@ -285,11 +363,11 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             _capabilities = await _platform.ProbeAsync(_lifetime.Token);
             ApplyCapabilities(_capabilities);
             _deviceSettingStates = _capabilities.DeviceSettings;
-            RebuildDeviceSettings();
             await RefreshServicesCoreAsync(_lifetime.Token);
 
             _snapshot = await _platform.ReadSnapshotAsync(_lifetime.Token);
             ApplySnapshot(_snapshot);
+            UpdateTelemetryFreshness(_snapshot);
             _lastAcState = _snapshot.IsOnAcPower;
             if (_snapshot.DisplayRefreshRate is int currentRate && RefreshRates.Contains(currentRate))
             {
@@ -302,8 +380,13 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
                 SelectedRefreshRate = RefreshRates[^1];
             }
 
-            _modeKeySource.ModeKeyPressed += OnModeKeyPressed;
-            await _modeKeySource.StartAsync(_lifetime.Token);
+            if (!_modeKeyStarted)
+            {
+                await _modeKeySource.StartAsync(_lifetime.Token);
+                _modeKeySource.ModeKeyPressed += OnModeKeyPressed;
+                _modeKeyStarted = true;
+            }
+
             if (ShowFps && !await _fpsSource.StartAsync(_lifetime.Token))
             {
                 ShowFps = false;
@@ -313,7 +396,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             StatusMessage = HardwareWritesEnabled
                 ? _localization.Get("Status.Ready")
                 : CompatibilityMessage;
-            _monitorTask = MonitorAsync(_lifetime.Token);
+            _monitorTask ??= MonitorAsync(_lifetime.Token);
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
         {
@@ -321,14 +404,17 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         catch (Exception exception)
         {
             _logger.Error("Application initialization failed", exception);
-            StatusIsError = true;
-            StatusMessage = exception.Message;
+            InitializationFailed = true;
+            PublishError(_localization.Get("Status.InitializationFailed"));
         }
         finally
         {
             IsBusy = false;
         }
     }
+
+    [RelayCommand]
+    private Task RetryInitializationAsync() => InitializeAsync();
 
     public Task CycleModeFromShortcutAsync() => CycleOperatingModeCoreAsync();
 
@@ -465,15 +551,15 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     [RelayCommand]
     private async Task ApplyCustomFanAsync()
     {
-        FanCurve curve = BuildFanCurve();
-        IReadOnlyList<string> errors = FanCurveEngine.Validate(curve);
-        if (errors.Count > 0)
+        ValidateFanCurve();
+        if (!IsFanCurveValid)
         {
             OnPropertyChanged(nameof(CurrentFanMode));
-            PublishError(string.Join(Environment.NewLine, errors));
+            PublishError(FanCurveValidationMessage);
             return;
         }
 
+        FanCurve curve = BuildFanCurve();
         await _hardwareGate.WaitAsync(_lifetime.Token);
         IsBusy = true;
         try
@@ -483,6 +569,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             _platform.SetExtendedTelemetryEnabled(true);
             _snapshot = await _platform.ReadSnapshotAsync(_lifetime.Token);
             ApplySnapshot(_snapshot);
+            UpdateTelemetryFreshness(_snapshot);
             if (!await _fanGuard.StartAsync(_lifetime.Token))
             {
                 UpdateExtendedTelemetryState();
@@ -509,6 +596,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
                 CurrentFanMode = FanMode.Custom;
                 CurrentFanModeName = LocalizeFanMode(FanMode.Custom);
                 FanGuardActive = true;
+                ValidateFanCurve();
                 UpdateExtendedTelemetryState();
                 await SaveSettingsAsync();
             }
@@ -553,7 +641,10 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             CultureInfo.CurrentCulture,
             _localization.Get("Confirm.Mux"),
             LocalizeMuxMode(mode));
-        if (!await _interaction.ConfirmAsync(confirmation, _localization.Get("App.Name")))
+        if (!await _interaction.ConfirmAsync(
+                confirmation,
+                _localization.Get("App.Name"),
+                ConfirmationKind.RebootRequired))
         {
             OnPropertyChanged(nameof(CurrentGpuMuxMode));
             return;
@@ -688,36 +779,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     }
 
     [RelayCommand]
-    private async Task ToggleDeviceSettingAsync(DeviceSettingItemViewModel item)
-    {
-        bool requested = item.Enabled;
-        await _hardwareGate.WaitAsync(_lifetime.Token);
-        IsBusy = true;
-        try
-        {
-            ApplyResult result = await _platform.SetDeviceSettingAsync(item.Id, requested, _lifetime.Token);
-            if (result.IsSuccess)
-            {
-                _settings.DeviceSettings[item.Id] = requested;
-                await SaveSettingsAsync();
-                _deviceSettingStates = await _platform.ReadDeviceSettingsAsync(_lifetime.Token);
-                RebuildDeviceSettings();
-            }
-            else
-            {
-                item.Enabled = !requested;
-            }
-
-            PublishResult(result);
-        }
-        finally
-        {
-            IsBusy = false;
-            _hardwareGate.Release();
-        }
-    }
-
-    [RelayCommand]
     private async Task ChangeLanguageAsync(string language)
     {
         _localization.SetLanguage(language);
@@ -725,7 +786,10 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         _settings.Language = CurrentLanguage;
         RebuildLocalizedValues();
         await SaveSettingsAsync();
-        StatusMessage = _localization.Get("Status.Ready");
+        StatusIsError = false;
+        StatusMessage = HardwareWritesEnabled
+            ? _localization.Get("Status.Ready")
+            : CompatibilityMessage;
     }
 
     [RelayCommand]
@@ -785,6 +849,11 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             StatusIsError = false;
             StatusMessage = _localization.Get("Status.ServicesRefreshed");
         }
+        catch (Exception exception)
+        {
+            _logger.Error("Service refresh failed", exception);
+            PublishError(_localization.Get("Status.ServicesFailed"));
+        }
         finally
         {
             IsBusy = false;
@@ -796,7 +865,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         if (!await _interaction.ConfirmAsync(
                 _localization.Get("Confirm.DisableServices"),
-                _localization.Get("App.Name")))
+                _localization.Get("App.Name"),
+                ConfirmationKind.Destructive))
         {
             return;
         }
@@ -807,6 +877,11 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             ApplyResult result = await _elevatedHelper.SetConflictingServicesDisabledAsync(true);
             PublishResult(result);
             await RefreshServicesCoreAsync(_lifetime.Token);
+        }
+        catch (Exception exception)
+        {
+            _logger.Error("Conflicting service update failed", exception);
+            PublishError(_localization.Get("Status.ServicesFailed"));
         }
         finally
         {
@@ -823,6 +898,11 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             ApplyResult result = await _elevatedHelper.SetConflictingServicesDisabledAsync(false);
             PublishResult(result);
             await RefreshServicesCoreAsync(_lifetime.Token);
+        }
+        catch (Exception exception)
+        {
+            _logger.Error("Service restore failed", exception);
+            PublishError(_localization.Get("Status.ServicesFailed"));
         }
         finally
         {
@@ -862,7 +942,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         catch (Exception exception)
         {
             _logger.Error("Diagnostics export failed", exception);
-            PublishError(exception.Message);
+            PublishError(_localization.Get("Status.DiagnosticsFailed"));
         }
         finally
         {
@@ -927,16 +1007,28 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         LogoLightingEnabled = _settings.Lighting.LogoEnabled;
         SelectedLightingEffect = _settings.Lighting.Effect;
 
+        IReadOnlyList<FanCurvePoint> cpuPoints = NormalizeFanCurvePoints(_settings.FanCurve.Cpu);
         CpuFanPoints.Clear();
-        foreach (FanCurvePoint point in _settings.FanCurve.Cpu)
+        for (int index = 0; index < cpuPoints.Count; index++)
         {
-            CpuFanPoints.Add(new FanCurvePointViewModel(point));
+            AddFanCurvePoint(
+                CpuFanPoints,
+                cpuPoints[index],
+                FanCurveChannel.Cpu,
+                index,
+                index == cpuPoints.Count - 1);
         }
 
+        IReadOnlyList<FanCurvePoint> gpuPoints = NormalizeFanCurvePoints(_settings.FanCurve.Gpu);
         GpuFanPoints.Clear();
-        foreach (FanCurvePoint point in _settings.FanCurve.Gpu)
+        for (int index = 0; index < gpuPoints.Count; index++)
         {
-            GpuFanPoints.Add(new FanCurvePointViewModel(point));
+            AddFanCurvePoint(
+                GpuFanPoints,
+                gpuPoints[index],
+                FanCurveChannel.Gpu,
+                index,
+                index == gpuPoints.Count - 1);
         }
 
         LightingZones.Clear();
@@ -949,13 +1041,16 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
 
         RebuildLightingEffects();
+        RebuildModeOptions();
+        ValidateFanCurve();
     }
 
     private void ApplyCapabilities(DeviceCapabilities capabilities)
     {
         DeviceModel = capabilities.Device.Model;
         BiosVersion = capabilities.Device.BiosVersion;
-        CompatibilityMessage = capabilities.CompatibilityMessage;
+        WriteBlockReason = capabilities.WriteBlockReason;
+        CompatibilityMessage = LocalizeCompatibility(capabilities);
         HardwareWritesEnabled = capabilities.CanWriteHardware;
         FanControlAvailable = capabilities.FanControlAvailable && capabilities.CanWriteHardware;
         GpuMuxAvailable = capabilities.GpuMuxAvailable && capabilities.CanWriteHardware;
@@ -981,13 +1076,15 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     private void ApplySnapshot(HardwareSnapshot snapshot)
     {
         _snapshot = snapshot;
+        CpuTemperatureValue = ClampPercent(snapshot.CpuTemperatureC);
+        GpuTemperatureValue = ClampPercent(snapshot.GpuTemperatureC);
+        BatteryPercentValue = ClampPercent(snapshot.BatteryPercent);
         CpuTemperatureText = FormatNumber(snapshot.CpuTemperatureC, " °C", 0);
         GpuTemperatureText = FormatNumber(snapshot.GpuTemperatureC, " °C", 0);
         CpuLoadText = FormatNumber(snapshot.CpuLoadPercent, " %", 0);
         GpuLoadText = FormatNumber(snapshot.GpuLoadPercent, " %", 0);
         CpuFanText = FormatNumber(snapshot.CpuFanRpm, " RPM", 0);
         GpuFanText = FormatNumber(snapshot.GpuFanRpm, " RPM", 0);
-        CpuPowerText = FormatNumber(snapshot.CpuPowerWatts, " W", 1);
         GpuPowerText = FormatNumber(snapshot.GpuPowerWatts, " W", 1);
         CpuClockText = FormatNumber(snapshot.CpuClockMhz, " MHz", 0);
         GpuClockText = FormatNumber(snapshot.GpuClockMhz, " MHz", 0);
@@ -1030,6 +1127,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             try
             {
                 HardwareSnapshot snapshot = await _platform.ReadSnapshotAsync(cancellationToken);
+                UpdateTelemetryFreshness(snapshot);
                 ApplySnapshot(snapshot);
                 await HandlePowerTransitionAsync(snapshot, cancellationToken);
                 if (_customFanActive)
@@ -1044,7 +1142,29 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             catch (Exception exception)
             {
                 _logger.Error("Telemetry refresh failed", exception);
+                MarkTelemetryFailure();
             }
+        }
+    }
+
+    private void UpdateTelemetryFreshness(HardwareSnapshot snapshot)
+    {
+        if (snapshot.HasLivePrimaryTelemetry)
+        {
+            _telemetryFailureCount = 0;
+            IsTelemetryStale = false;
+            return;
+        }
+
+        MarkTelemetryFailure();
+    }
+
+    private void MarkTelemetryFailure()
+    {
+        _telemetryFailureCount++;
+        if (_telemetryFailureCount >= 3)
+        {
+            IsTelemetryStale = true;
         }
     }
 
@@ -1191,6 +1311,11 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     private void RebuildLocalizedValues()
     {
+        if (_capabilities is not null)
+        {
+            CompatibilityMessage = LocalizeCompatibility(_capabilities);
+        }
+
         CurrentOperatingModeName = CurrentOperatingMode is OperatingMode operating
             ? LocalizeMode(operating)
             : "--";
@@ -1202,64 +1327,186 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             false => _localization.Get("Power.Battery"),
             null => "--"
         };
+        RebuildModeOptions();
         RebuildLightingEffects();
-        RebuildDeviceSettings();
+        ValidateFanCurve();
+        OnPropertyChanged(nameof(CpuLabel));
+        OnPropertyChanged(nameof(GpuLabel));
+        OnPropertyChanged(nameof(CpuFanLabel));
+        OnPropertyChanged(nameof(FpsLabel));
+        OnPropertyChanged(nameof(TelemetryStateText));
+        NotifyShellNoticeChanged();
+    }
+
+    private void RebuildModeOptions()
+    {
+        OperatingModes.Clear();
+        foreach (OperatingMode mode in Enum.GetValues<OperatingMode>())
+        {
+            OperatingModes.Add(new SelectionOption<OperatingMode>(
+                mode,
+                LocalizeMode(mode),
+                $"OperatingMode.{mode}"));
+        }
+
+        FanModes.Clear();
+        foreach (FanMode mode in Enum.GetValues<FanMode>())
+        {
+            FanModes.Add(new SelectionOption<FanMode>(
+                mode,
+                LocalizeFanMode(mode),
+                $"FanMode.{mode}"));
+        }
+
+        GpuMuxModes.Clear();
+        foreach (GpuMuxMode mode in Enum.GetValues<GpuMuxMode>())
+        {
+            GpuMuxModes.Add(new SelectionOption<GpuMuxMode>(
+                mode,
+                LocalizeMuxMode(mode),
+                $"GpuMuxMode.{mode}"));
+        }
     }
 
     private void RebuildLightingEffects()
     {
+        LightingEffect selectedEffect = SelectedLightingEffect;
         LightingEffects.Clear();
         foreach (LightingEffect effect in Enum.GetValues<LightingEffect>())
         {
             LightingEffects.Add(new SelectionOption<LightingEffect>(
                 effect,
-                _localization.Get($"LightingEffect.{effect}")));
+                _localization.Get($"LightingEffect.{effect}"),
+                $"LightingEffect.{effect}"));
+        }
+
+        SelectedLightingEffect = selectedEffect;
+        OnPropertyChanged(nameof(SelectedLightingEffect));
+        OnPropertyChanged(nameof(SelectedLightingEffectOption));
+    }
+
+    private void AddFanCurvePoint(
+        ObservableCollection<FanCurvePointViewModel> target,
+        FanCurvePoint point,
+        FanCurveChannel channel,
+        int index,
+        bool isSafetyEndpoint)
+    {
+        FanCurvePointViewModel item = new(point, channel, index, isSafetyEndpoint);
+        item.PropertyChanged += FanCurvePointOnPropertyChanged;
+        target.Add(item);
+    }
+
+    private static IReadOnlyList<FanCurvePoint> NormalizeFanCurvePoints(
+        IReadOnlyList<FanCurvePoint> points)
+    {
+        FanCurve fallback = FanCurve.CreateDefault();
+        return points.Count == fallback.Cpu.Count
+            ? points
+            : fallback.Cpu;
+    }
+
+    private void FanCurvePointOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(FanCurvePointViewModel.TemperatureC) or
+            nameof(FanCurvePointViewModel.SpeedPercent))
+        {
+            ValidateFanCurve();
         }
     }
 
-    private void RebuildDeviceSettings()
+    private void ValidateFanCurve()
     {
-        DeviceSettings.Clear();
-        foreach (DeviceSettingState state in _deviceSettingStates.Values.OrderBy(state => state.Id))
+        foreach (FanCurvePointViewModel point in CpuFanPoints.Concat(GpuFanPoints))
         {
-            DeviceSettings.Add(new DeviceSettingItemViewModel(
-                state,
-                _localization.Get($"DeviceSetting.{state.Id}"),
-                LocalizeDeviceSettingDetail(state)));
+            point.SetValidation(string.Empty);
         }
+
+        IReadOnlyList<FanCurveValidationIssue> issues = FanCurveEngine.Validate(BuildFanCurve());
+        foreach (IGrouping<(FanCurveChannel Channel, int PointIndex), FanCurveValidationIssue> group in
+                 issues
+                     .Where(issue => issue.PointIndex.HasValue)
+                     .GroupBy(issue => (issue.Channel, issue.PointIndex!.Value)))
+        {
+            ObservableCollection<FanCurvePointViewModel> points =
+                group.Key.Channel == FanCurveChannel.Cpu ? CpuFanPoints : GpuFanPoints;
+            if (group.Key.PointIndex >= 0 && group.Key.PointIndex < points.Count)
+            {
+                points[group.Key.PointIndex].SetValidation(
+                    string.Join(Environment.NewLine, group.Select(LocalizeFanValidationIssue)));
+            }
+        }
+
+        IsFanCurveValid = issues.Count == 0;
+        FanCurveValidationMessage = IsFanCurveValid
+            ? _localization.Get("Status.FanCurveValid")
+            : string.Join(Environment.NewLine, issues.Select(LocalizeFanValidationIssue).Distinct());
     }
 
-    private string LocalizeDeviceSettingDetail(DeviceSettingState state)
+    private string LocalizeFanValidationIssue(FanCurveValidationIssue issue)
     {
-        if (state.IsSupported)
+        string channel = _localization.Get($"FanCurveChannel.{issue.Channel}");
+        string template = _localization.Get($"FanCurveValidation.{issue.Code}");
+        return issue.Code switch
         {
-            return state.IsWritable
-                ? _localization.Get("DeviceSetting.Available")
-                : _localization.Get("DeviceSetting.ReadOnly");
-        }
+            FanCurveValidationCode.TooFewPoints => string.Format(
+                CultureInfo.CurrentCulture,
+                template,
+                channel,
+                issue.MinimumPointCount),
+            FanCurveValidationCode.TemperatureOutOfRange => string.Format(
+                CultureInfo.CurrentCulture,
+                template,
+                channel,
+                issue.PointIndex.GetValueOrDefault() + 1,
+                issue.MinimumTemperatureC,
+                issue.MaximumTemperatureC),
+            FanCurveValidationCode.TemperatureNotIncreasing => string.Format(
+                CultureInfo.CurrentCulture,
+                template,
+                channel,
+                issue.PointIndex.GetValueOrDefault() + 1),
+            FanCurveValidationCode.SpeedOutOfRange => string.Format(
+                CultureInfo.CurrentCulture,
+                template,
+                channel,
+                issue.PointIndex.GetValueOrDefault() + 1,
+                issue.MinimumSpeedPercent,
+                issue.MaximumSpeedPercent),
+            FanCurveValidationCode.SpeedDecreases => string.Format(
+                CultureInfo.CurrentCulture,
+                template,
+                channel,
+                issue.PointIndex.GetValueOrDefault() + 1),
+            FanCurveValidationCode.InvalidSafetyEndpoint => string.Format(
+                CultureInfo.CurrentCulture,
+                template,
+                channel,
+                FanCurveEngine.SafetyTemperatureC),
+            _ => template
+        };
+    }
 
-        string detail = state.Detail ?? string.Empty;
-        if (detail.Contains("panel", StringComparison.OrdinalIgnoreCase))
+    private string LocalizeCompatibility(DeviceCapabilities capabilities)
+    {
+        string template = _localization.Get($"Compatibility.{capabilities.WriteBlockReason}");
+        return capabilities.WriteBlockReason switch
         {
-            return _localization.Get("DeviceSetting.PanelUnavailable");
-        }
-
-        if (detail.Contains("AcerService unavailable", StringComparison.OrdinalIgnoreCase))
-        {
-            return _localization.Get("DeviceSetting.ServiceUnavailable");
-        }
-
-        if (detail.Contains("query", StringComparison.OrdinalIgnoreCase))
-        {
-            return _localization.Get("DeviceSetting.QueryFailed");
-        }
-
-        if (detail.Contains("WMI", StringComparison.OrdinalIgnoreCase))
-        {
-            return _localization.Get("DeviceSetting.WmiUnavailable");
-        }
-
-        return _localization.Get("DeviceSetting.Unsupported");
+            HardwareWriteBlockReason.None => string.Format(
+                CultureInfo.CurrentCulture,
+                template,
+                capabilities.Device.Model,
+                capabilities.Device.BiosVersion),
+            HardwareWriteBlockReason.UnsupportedModel => string.Format(
+                CultureInfo.CurrentCulture,
+                template,
+                capabilities.Device.Model),
+            HardwareWriteBlockReason.UnvalidatedBios => string.Format(
+                CultureInfo.CurrentCulture,
+                template,
+                capabilities.Device.BiosVersion),
+            _ => template
+        };
     }
 
     private FanCurve BuildFanCurve() => new()
@@ -1306,7 +1553,22 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     private void PublishResult(ApplyResult result)
     {
         StatusIsError = !result.IsSuccess;
-        StatusMessage = result.IsSuccess ? _localization.Get("Status.Applied") : result.Message;
+        if (result.IsSuccess)
+        {
+            StatusMessage = _localization.Get("Status.Applied");
+        }
+        else
+        {
+            _logger.Error($"Operation failed with {result.Status}: {result.Message}");
+            StatusMessage = result.Status switch
+            {
+                ApplyStatus.NotSupported when !HardwareWritesEnabled => CompatibilityMessage,
+                ApplyStatus.NotSupported => _localization.Get("Status.NotSupported"),
+                ApplyStatus.RequiresElevation => _localization.Get("Status.ElevationCancelled"),
+                _ => _localization.Get("Status.OperationFailed")
+            };
+        }
+
         RebootRequired |= result.RequiresReboot;
     }
 
@@ -1321,6 +1583,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     private string LocalizeFanMode(FanMode mode) => _localization.Get($"FanMode.{mode}");
 
     private string LocalizeMuxMode(GpuMuxMode mode) => _localization.Get($"GpuMuxMode.{mode}");
+
+    private static double ClampPercent(int? value) => Math.Clamp(value ?? 0, 0, 100);
 
     private static string FormatNumber(double? value, string suffix, int decimals) => value.HasValue
         ? $"{Math.Round(value.Value, decimals).ToString($"F{decimals}", CultureInfo.CurrentCulture)}{suffix}"
@@ -1343,9 +1607,42 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     private void UpdateExtendedTelemetryState() =>
         _platform.SetExtendedTelemetryEnabled(
-            SelectedTabIndex == 2 || ShowOsd || ShowFps || _customFanActive);
+            SelectedSection == AppSection.Monitor || ShowOsd || ShowFps || _customFanActive);
 
-    partial void OnSelectedTabIndexChanged(int value) => UpdateExtendedTelemetryState();
+    private void NotifyShellNoticeChanged()
+    {
+        OnPropertyChanged(nameof(ShellNotice));
+        OnPropertyChanged(nameof(IsShellNoticeOpen));
+        OnPropertyChanged(nameof(ShellNoticeMessage));
+    }
+
+    partial void OnSelectedSectionChanged(AppSection value) => UpdateExtendedTelemetryState();
+
+    partial void OnIsBusyChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanApplyFanCurve));
+    }
+
+    partial void OnStatusIsErrorChanged(bool value)
+    {
+        NotifyShellNoticeChanged();
+    }
+
+    partial void OnStatusMessageChanged(string value) => NotifyShellNoticeChanged();
+
+    partial void OnIsInitializedChanged(bool value) => NotifyShellNoticeChanged();
+
+    partial void OnHardwareWritesEnabledChanged(bool value) => NotifyShellNoticeChanged();
+
+    partial void OnCompatibilityMessageChanged(string value) => NotifyShellNoticeChanged();
+
+    partial void OnRebootRequiredChanged(bool value) => NotifyShellNoticeChanged();
+
+    partial void OnFanControlAvailableChanged(bool value) =>
+        OnPropertyChanged(nameof(CanApplyFanCurve));
+
+    partial void OnIsFanCurveValidChanged(bool value) =>
+        OnPropertyChanged(nameof(CanApplyFanCurve));
 
     partial void OnShowOsdChanged(bool value) => UpdateExtendedTelemetryState();
 

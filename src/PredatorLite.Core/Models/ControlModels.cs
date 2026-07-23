@@ -54,6 +54,32 @@ public enum ApplyStatus
     RequiresElevation
 }
 
+public enum FanCurveChannel
+{
+    Cpu,
+    Gpu
+}
+
+public enum FanCurveValidationCode
+{
+    TooFewPoints,
+    TemperatureOutOfRange,
+    TemperatureNotIncreasing,
+    SpeedOutOfRange,
+    SpeedDecreases,
+    InvalidSafetyEndpoint
+}
+
+public sealed record FanCurveValidationIssue(
+    FanCurveChannel Channel,
+    FanCurveValidationCode Code,
+    int? PointIndex = null,
+    int? MinimumTemperatureC = null,
+    int? MaximumTemperatureC = null,
+    int? MinimumSpeedPercent = null,
+    int? MaximumSpeedPercent = null,
+    int? MinimumPointCount = null);
+
 public sealed record ApplyResult(
     ApplyStatus Status,
     string Message,

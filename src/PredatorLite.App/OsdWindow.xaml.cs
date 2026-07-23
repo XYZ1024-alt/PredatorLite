@@ -3,7 +3,9 @@ using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
+using PredatorLite.App.Services;
 using PredatorLite.App.ViewModels;
+using PredatorLite.App.Views;
 using Windows.Graphics;
 
 namespace PredatorLite.App;
@@ -14,21 +16,28 @@ public sealed partial class OsdWindow : Window
     private const int HeightInDips = 122;
     private const int WorkAreaMarginInDips = 18;
     private readonly AppWindow _appWindow;
+    private readonly UiMotionService _motion;
+    private readonly OsdContent _content;
     private bool _closed;
+    private bool _visible;
+    private int _visibilityGeneration;
 
-    public OsdWindow(MainViewModel viewModel)
+    public OsdWindow(MainViewModel viewModel, UiMotionService motion)
     {
+        ViewModel = viewModel;
+        _motion = motion;
         InitializeComponent();
-        if (Content is FrameworkElement root)
-        {
-            root.DataContext = viewModel;
-        }
+        _content = new OsdContent(viewModel);
+        OsdRoot.Children.Add(_content);
+        Closed += OnClosed;
 
         IntPtr windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
         WindowId windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(windowHandle);
         _appWindow = AppWindow.GetFromWindowId(windowId);
         ConfigureWindow(windowHandle, windowId);
     }
+
+    public MainViewModel ViewModel { get; }
 
     public void ShowOverlay()
     {
@@ -37,16 +46,19 @@ public sealed partial class OsdWindow : Window
             return;
         }
 
-        PositionInWorkArea();
-        _appWindow.Show(activateWindow: false);
+        int generation = ++_visibilityGeneration;
+        _ = ShowOverlayAsync(generation);
     }
 
     public void HideOverlay()
     {
-        if (!_closed)
+        if (_closed)
         {
-            _appWindow.Hide();
+            return;
         }
+
+        int generation = ++_visibilityGeneration;
+        _ = HideOverlayAsync(generation);
     }
 
     public void CloseOverlay()
@@ -57,6 +69,7 @@ public sealed partial class OsdWindow : Window
         }
 
         _closed = true;
+        _visibilityGeneration++;
         Close();
     }
 
@@ -64,8 +77,14 @@ public sealed partial class OsdWindow : Window
     {
         if (!_closed)
         {
-            CpuFanLabel.Text = Application.Current.Resources["Metric.CpuFan"]?.ToString() ?? "CPU fan";
+            _content.RefreshLocalizedContent();
         }
+    }
+
+    private void OnClosed(object sender, WindowEventArgs args)
+    {
+        _content.Dispose();
+        Closed -= OnClosed;
     }
 
     private void ConfigureWindow(IntPtr windowHandle, WindowId windowId)
@@ -80,7 +99,9 @@ public sealed partial class OsdWindow : Window
         }
 
         _appWindow.IsShownInSwitchers = false;
-        SystemBackdrop = new DesktopAcrylicBackdrop();
+        SystemBackdrop = DesktopAcrylicController.IsSupported()
+            ? new DesktopAcrylicBackdrop()
+            : new MicaBackdrop { Kind = MicaKind.BaseAlt };
 
         long extendedStyle = NativeMethods.GetWindowLongPtr(windowHandle, NativeMethods.GwlExStyle).ToInt64();
         extendedStyle |= NativeMethods.WsExTransparent | NativeMethods.WsExToolWindow | NativeMethods.WsExNoActivate;
@@ -91,7 +112,43 @@ public sealed partial class OsdWindow : Window
         int preference = roundCorner;
         NativeMethods.DwmSetWindowAttribute(windowHandle, windowCornerPreference, ref preference, sizeof(int));
 
+        const int windowBorderColor = 34;
+        int noBorderColor = unchecked((int)0xFFFFFFFE);
+        NativeMethods.DwmSetWindowAttribute(windowHandle, windowBorderColor, ref noBorderColor, sizeof(int));
+
         PositionInWorkArea(windowId, windowHandle);
+    }
+
+    private async Task ShowOverlayAsync(int generation)
+    {
+        PositionInWorkArea();
+        _appWindow.Show(activateWindow: false);
+        _visible = true;
+        await _motion.AnimateOsdInAsync(OsdRoot);
+        if (_closed || generation != _visibilityGeneration)
+        {
+            return;
+        }
+
+        _visible = true;
+    }
+
+    private async Task HideOverlayAsync(int generation)
+    {
+        if (!_visible)
+        {
+            _appWindow.Hide();
+            return;
+        }
+
+        await _motion.AnimateOsdOutAsync(OsdRoot);
+        if (_closed || generation != _visibilityGeneration)
+        {
+            return;
+        }
+
+        _appWindow.Hide();
+        _visible = false;
     }
 
     private void PositionInWorkArea()

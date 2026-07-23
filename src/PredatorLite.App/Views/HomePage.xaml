@@ -1,203 +1,433 @@
 <Page
     x:Class="PredatorLite.App.Views.HomePage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-        <Grid MaxWidth="1180" Padding="28,22,28,32" HorizontalAlignment="Stretch">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="Transparent">
+    <ScrollViewer
+        AutomationProperties.AutomationId="Home.Scroll"
+        HorizontalScrollBarVisibility="Disabled"
+        VerticalScrollBarVisibility="Auto">
+        <StackPanel
+            MaxWidth="640"
+            Padding="12,8,12,16"
+            HorizontalAlignment="Stretch"
+            Spacing="10">
 
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <StackPanel Spacing="4">
-                    <TextBlock Style="{StaticResource PageTitleStyle}" Text="{StaticResource Page.Home}" />
-                    <TextBlock Style="{StaticResource MutedTextStyle}" Text="{x:Bind ViewModel.CompatibilityMessage, Mode=OneWay}" />
+            <StackPanel Spacing="8">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon FontSize="16" Glyph="&#xE9D9;" />
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        Style="{StaticResource SectionHeaderStyle}"
+                        Text="{StaticResource Section.OperatingMode}" />
                 </StackPanel>
-                <Border
-                    Grid.Column="1"
-                    Padding="10,5"
-                    VerticalAlignment="Center"
-                    Background="{ThemeResource PredatorSurfaceBrush}"
-                    BorderBrush="{ThemeResource PredatorBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8">
-                    <StackPanel Orientation="Horizontal" Spacing="7">
-                        <Ellipse Width="8" Height="8" Fill="{ThemeResource PredatorAccentBrush}" />
-                        <TextBlock
-                            Style="{StaticResource MutedTextStyle}"
-                            Text="{StaticResource Status.Writable}"
-                            Visibility="{x:Bind ViewModel.HardwareWritesEnabled, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                        <TextBlock
-                            Style="{StaticResource MutedTextStyle}"
-                            Text="{StaticResource Status.ReadOnly}"
-                            Visibility="{x:Bind ViewModel.HardwareWritesEnabled, Mode=OneWay, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
-                    </StackPanel>
-                </Border>
-            </Grid>
 
-            <Grid Grid.Row="1" Margin="0,20,0,2" ColumnSpacing="10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-                <Border Style="{StaticResource MetricTileStyle}">
-                    <StackPanel Spacing="8">
-                        <FontIcon HorizontalAlignment="Left" Foreground="{ThemeResource PredatorAccentBrush}" Glyph="&#xE9D2;" />
-                        <TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Section.OperatingMode}" />
-                        <TextBlock FontSize="17" FontWeight="SemiBold" Text="{x:Bind ViewModel.CurrentOperatingModeName, Mode=OneWay}" />
-                    </StackPanel>
-                </Border>
-                <Border Grid.Column="1" Style="{StaticResource MetricTileStyle}">
-                    <StackPanel Spacing="8">
-                        <FontIcon HorizontalAlignment="Left" Foreground="{ThemeResource PredatorCyanBrush}" Glyph="&#xE9CA;" />
-                        <TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Section.Fan}" />
-                        <TextBlock FontSize="17" FontWeight="SemiBold" Text="{x:Bind ViewModel.CurrentFanModeName, Mode=OneWay}" />
-                    </StackPanel>
-                </Border>
-                <Border Grid.Column="2" Style="{StaticResource MetricTileStyle}">
-                    <StackPanel Spacing="8">
-                        <FontIcon HorizontalAlignment="Left" Foreground="{ThemeResource PredatorWarningBrush}" Glyph="&#xE7F4;" />
-                        <TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Section.GpuRouting}" />
-                        <TextBlock FontSize="17" FontWeight="SemiBold" Text="{x:Bind ViewModel.CurrentGpuMuxModeName, Mode=OneWay}" />
-                    </StackPanel>
-                </Border>
-                <Border Grid.Column="3" Style="{StaticResource MetricTileStyle}">
-                    <StackPanel Spacing="8">
-                        <FontIcon HorizontalAlignment="Left" Foreground="{ThemeResource PredatorAccentBrush}" Glyph="&#xE945;" />
-                        <TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Metric.PowerSource}" />
-                        <TextBlock FontSize="17" FontWeight="SemiBold" Text="{x:Bind ViewModel.PowerSourceText, Mode=OneWay}" />
-                    </StackPanel>
-                </Border>
-            </Grid>
-
-            <Border Grid.Row="2" Style="{StaticResource SectionPanelStyle}">
-                <Grid ColumnSpacing="22">
+                <Grid
+                    AutomationProperties.AutomationId="Home.OperatingModes"
+                    ColumnSpacing="6"
+                    XYFocusKeyboardNavigation="Enabled">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="190" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <StackPanel Spacing="5">
-                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{StaticResource Section.OperatingMode}" />
-                        <TextBlock Style="{StaticResource MutedTextStyle}" Text="{x:Bind ViewModel.CurrentOperatingModeName, Mode=OneWay}" />
-                    </StackPanel>
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
-                        <RadioButton IsEnabled="{x:Bind ViewModel.HardwareWritesEnabled, Mode=OneWay}" Content="{StaticResource OperatingMode.Silent}" GroupName="OperatingMode" IsChecked="{x:Bind ViewModel.CurrentOperatingMode, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Silent}" Command="{x:Bind ViewModel.SetOperatingModeCommand}" CommandParameter="{x:Bind SilentMode}" />
-                        <RadioButton IsEnabled="{x:Bind ViewModel.HardwareWritesEnabled, Mode=OneWay}" Content="{StaticResource OperatingMode.Balanced}" GroupName="OperatingMode" IsChecked="{x:Bind ViewModel.CurrentOperatingMode, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Balanced}" Command="{x:Bind ViewModel.SetOperatingModeCommand}" CommandParameter="{x:Bind BalancedMode}" />
-                        <RadioButton IsEnabled="{x:Bind ViewModel.HardwareWritesEnabled, Mode=OneWay}" Content="{StaticResource OperatingMode.Performance}" GroupName="OperatingMode" IsChecked="{x:Bind ViewModel.CurrentOperatingMode, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Performance}" Command="{x:Bind ViewModel.SetOperatingModeCommand}" CommandParameter="{x:Bind PerformanceMode}" />
-                        <RadioButton IsEnabled="{x:Bind ViewModel.HardwareWritesEnabled, Mode=OneWay}" Content="{StaticResource OperatingMode.Turbo}" GroupName="OperatingMode" IsChecked="{x:Bind ViewModel.CurrentOperatingMode, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Turbo}" Command="{x:Bind ViewModel.SetOperatingModeCommand}" CommandParameter="{x:Bind TurboMode}" />
-                        <RadioButton IsEnabled="{x:Bind ViewModel.HardwareWritesEnabled, Mode=OneWay}" Content="{StaticResource OperatingMode.Eco}" GroupName="OperatingMode" IsChecked="{x:Bind ViewModel.CurrentOperatingMode, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Eco}" Command="{x:Bind ViewModel.SetOperatingModeCommand}" CommandParameter="{x:Bind EcoMode}" />
-                    </StackPanel>
-                </Grid>
-            </Border>
-
-            <Border Grid.Row="3" Style="{StaticResource SectionPanelStyle}">
-                <Grid ColumnSpacing="22">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="190" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <StackPanel Spacing="5">
-                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{StaticResource Section.Fan}" />
-                        <TextBlock Style="{StaticResource MutedTextStyle}" Text="{x:Bind ViewModel.CurrentFanModeName, Mode=OneWay}" />
-                        <StackPanel Orientation="Horizontal" Spacing="6" Visibility="{x:Bind ViewModel.FanGuardActive, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <FontIcon FontSize="12" Foreground="{ThemeResource PredatorAccentBrush}" Glyph="&#xE73E;" />
-                            <TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Label.FanGuard}" />
+                    <RadioButton
+                        AutomationProperties.AutomationId="Home.Mode.Silent"
+                        Command="{x:Bind ViewModel.SetOperatingModeCommand}"
+                        CommandParameter="{x:Bind SilentMode, Mode=OneTime}"
+                        GroupName="OperatingMode"
+                        IsChecked="{x:Bind ViewModel.CurrentOperatingMode, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Silent}"
+                        IsEnabled="{x:Bind ViewModel.HardwareWritesEnabled, Mode=OneWay}"
+                        Style="{StaticResource ModeTileRadioButtonStyle}">
+                        <StackPanel HorizontalAlignment="Center" Spacing="4">
+                            <FontIcon FontSize="22" Glyph="&#xE708;" />
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="{StaticResource OperatingMode.Silent}"
+                                TextAlignment="Center"
+                                TextWrapping="Wrap" />
                         </StackPanel>
-                    </StackPanel>
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                        <RadioButton IsEnabled="{x:Bind ViewModel.FanControlAvailable, Mode=OneWay}" Content="{StaticResource FanMode.Auto}" GroupName="FanMode" IsChecked="{x:Bind ViewModel.CurrentFanMode, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Auto}" Command="{x:Bind ViewModel.SetFanModeCommand}" CommandParameter="{x:Bind AutoFanMode}" />
-                        <RadioButton IsEnabled="{x:Bind ViewModel.FanControlAvailable, Mode=OneWay}" Content="{StaticResource FanMode.Max}" GroupName="FanMode" IsChecked="{x:Bind ViewModel.CurrentFanMode, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Max}" Command="{x:Bind ViewModel.SetFanModeCommand}" CommandParameter="{x:Bind MaxFanMode}" />
-                        <RadioButton IsEnabled="{x:Bind ViewModel.FanControlAvailable, Mode=OneWay}" Content="{StaticResource FanMode.Custom}" GroupName="FanMode" IsChecked="{x:Bind ViewModel.CurrentFanMode, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Custom}" Command="{x:Bind ViewModel.ApplyCustomFanCommand}" />
-                    </StackPanel>
+                    </RadioButton>
+                    <RadioButton
+                        Grid.Column="1"
+                        AutomationProperties.AutomationId="Home.Mode.Balanced"
+                        Command="{x:Bind ViewModel.SetOperatingModeCommand}"
+                        CommandParameter="{x:Bind BalancedMode, Mode=OneTime}"
+                        GroupName="OperatingMode"
+                        IsChecked="{x:Bind ViewModel.CurrentOperatingMode, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Balanced}"
+                        IsEnabled="{x:Bind ViewModel.HardwareWritesEnabled, Mode=OneWay}"
+                        Style="{StaticResource ModeTileRadioButtonStyle}">
+                        <StackPanel HorizontalAlignment="Center" Spacing="4">
+                            <FontIcon FontSize="22" Glyph="&#xE7F8;" />
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="{StaticResource OperatingMode.Balanced}"
+                                TextAlignment="Center"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton
+                        Grid.Column="2"
+                        AutomationProperties.AutomationId="Home.Mode.Performance"
+                        Command="{x:Bind ViewModel.SetOperatingModeCommand}"
+                        CommandParameter="{x:Bind PerformanceMode, Mode=OneTime}"
+                        GroupName="OperatingMode"
+                        IsChecked="{x:Bind ViewModel.CurrentOperatingMode, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Performance}"
+                        IsEnabled="{x:Bind ViewModel.HardwareWritesEnabled, Mode=OneWay}"
+                        Style="{StaticResource ModeTileRadioButtonStyle}">
+                        <StackPanel HorizontalAlignment="Center" Spacing="4">
+                            <FontIcon FontSize="22" Glyph="&#xE9CA;" />
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="{StaticResource OperatingMode.Performance}"
+                                TextAlignment="Center"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton
+                        Grid.Column="3"
+                        AutomationProperties.AutomationId="Home.Mode.Turbo"
+                        Command="{x:Bind ViewModel.SetOperatingModeCommand}"
+                        CommandParameter="{x:Bind TurboMode, Mode=OneTime}"
+                        GroupName="OperatingMode"
+                        IsChecked="{x:Bind ViewModel.CurrentOperatingMode, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Turbo}"
+                        IsEnabled="{x:Bind ViewModel.HardwareWritesEnabled, Mode=OneWay}"
+                        Style="{StaticResource ModeTileRadioButtonStyle}">
+                        <StackPanel HorizontalAlignment="Center" Spacing="4">
+                            <FontIcon FontSize="22" Glyph="&#xE945;" />
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="{StaticResource OperatingMode.Turbo}"
+                                TextAlignment="Center"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                    </RadioButton>
                 </Grid>
-            </Border>
+            </StackPanel>
 
-            <Grid Grid.Row="4" ColumnSpacing="28">
+            <Grid ColumnSpacing="8" RowSpacing="8">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <Border Style="{StaticResource SectionPanelStyle}">
-                    <StackPanel Spacing="14">
-                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{StaticResource Section.GpuRouting}" />
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <Border Style="{StaticResource DashboardCardStyle}">
+                    <StackPanel Spacing="8">
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon FontSize="17" Glyph="&#xE9CA;" />
+                            <TextBlock
+                                Grid.Column="1"
+                                VerticalAlignment="Center"
+                                Style="{StaticResource SectionHeaderStyle}"
+                                Text="{StaticResource Section.Fan}" />
+                            <TextBlock
+                                Grid.Column="2"
+                                VerticalAlignment="Center"
+                                Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="{x:Bind ViewModel.CurrentFanModeName, Mode=OneWay}" />
+                        </Grid>
+                        <Grid ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2">
+                                <TextBlock Style="{StaticResource MetricLabelTextStyle}" Text="{StaticResource Label.Cpu}" />
+                                <TextBlock
+                                    Style="{StaticResource DashboardMetricValueTextStyle}"
+                                    Text="{x:Bind ViewModel.CpuFanText, Mode=OneWay}"
+                                    TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="2">
+                                <TextBlock Style="{StaticResource MetricLabelTextStyle}" Text="{StaticResource Label.Gpu}" />
+                                <TextBlock
+                                    Style="{StaticResource DashboardMetricValueTextStyle}"
+                                    Text="{x:Bind ViewModel.GpuFanText, Mode=OneWay}"
+                                    TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </Grid>
+                        <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                        <RadioButtons
+                            AutomationProperties.AutomationId="Home.FanModes"
+                            MaxColumns="2">
+                            <RadioButton
+                                AutomationProperties.AutomationId="Home.Fan.Auto"
+                                Command="{x:Bind ViewModel.SetFanModeCommand}"
+                                CommandParameter="{x:Bind AutoFanMode, Mode=OneTime}"
+                                Content="{StaticResource FanMode.Auto}"
+                                IsChecked="{x:Bind ViewModel.CurrentFanMode, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Auto}"
+                                IsEnabled="{x:Bind ViewModel.FanControlAvailable, Mode=OneWay}" />
+                            <RadioButton
+                                AutomationProperties.AutomationId="Home.Fan.Max"
+                                Command="{x:Bind ViewModel.SetFanModeCommand}"
+                                CommandParameter="{x:Bind MaxFanMode, Mode=OneTime}"
+                                Content="{StaticResource FanMode.Max}"
+                                IsChecked="{x:Bind ViewModel.CurrentFanMode, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Max}"
+                                IsEnabled="{x:Bind ViewModel.FanControlAvailable, Mode=OneWay}" />
+                        </RadioButtons>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="1" Style="{StaticResource DashboardCardStyle}">
+                    <StackPanel Spacing="8">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <RadioButton IsEnabled="{x:Bind ViewModel.GpuMuxAvailable, Mode=OneWay}" Content="{StaticResource GpuMuxMode.Hybrid}" GroupName="GpuMux" IsChecked="{x:Bind ViewModel.CurrentGpuMuxMode, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Hybrid}" Command="{x:Bind ViewModel.SetGpuMuxModeCommand}" CommandParameter="{x:Bind HybridMuxMode}" />
-                            <RadioButton IsEnabled="{x:Bind ViewModel.GpuMuxAvailable, Mode=OneWay}" Content="{StaticResource GpuMuxMode.Discrete}" GroupName="GpuMux" IsChecked="{x:Bind ViewModel.CurrentGpuMuxMode, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Discrete}" Command="{x:Bind ViewModel.SetGpuMuxModeCommand}" CommandParameter="{x:Bind DiscreteMuxMode}" />
+                            <FontIcon FontSize="17" Glyph="&#xE8CD;" />
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                Style="{StaticResource SectionHeaderStyle}"
+                                Text="{StaticResource Metric.Battery}" />
                         </StackPanel>
-                    </StackPanel>
-                </Border>
-                <Border Grid.Column="1" Style="{StaticResource SectionPanelStyle}">
-                    <StackPanel Spacing="12">
-                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{StaticResource Section.DisplayBattery}" />
-                        <Grid ColumnSpacing="12">
+                        <TextBlock
+                            Style="{StaticResource DashboardMetricValueTextStyle}"
+                            Text="{x:Bind ViewModel.BatteryText, Mode=OneWay}" />
+                        <ProgressBar
+                            AutomationProperties.Name="{StaticResource Metric.Battery}"
+                            Maximum="100"
+                            Style="{StaticResource DashboardProgressBarStyle}"
+                            Value="{x:Bind ViewModel.BatteryPercentValue, Mode=OneWay}" />
+                        <TextBlock
+                            Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="{x:Bind ViewModel.PowerSourceText, Mode=OneWay}" />
+                        <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                        <Grid ColumnSpacing="8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="{StaticResource Label.ChargeLimit}"
+                                TextWrapping="Wrap" />
+                            <ToggleSwitch
+                                Grid.Column="1"
+                                AutomationProperties.AutomationId="Home.ChargeLimit"
+                                AutomationProperties.Name="{StaticResource Label.ChargeLimit}"
+                                IsEnabled="{x:Bind ViewModel.BatteryControlAvailable, Mode=OneWay}"
+                                IsOn="{x:Bind ViewModel.ChargeLimitEnabled, Mode=OneWay}"
+                                Toggled="ChargeLimitToggle_Toggled" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Row="1" Style="{StaticResource DashboardCardStyle}">
+                    <StackPanel Spacing="9">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon FontSize="17" Glyph="&#xE950;" />
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                Style="{StaticResource SectionHeaderStyle}"
+                                Text="{StaticResource Section.Performance}" />
+                        </StackPanel>
+                        <Grid RowSpacing="4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <ComboBox Width="130" Header="{StaticResource Label.RefreshRate}" ItemsSource="{x:Bind ViewModel.RefreshRates}" SelectedItem="{x:Bind ViewModel.SelectedRefreshRate, Mode=TwoWay}" />
-                            <ToggleSwitch Grid.Column="1" Header="{StaticResource Label.Overdrive}" IsOn="{x:Bind ViewModel.OverdriveEnabled, Mode=TwoWay}" />
-                            <ToggleSwitch x:Name="ChargeLimitToggle" Grid.Column="2" Header="{StaticResource Label.ChargeLimit}" IsEnabled="{x:Bind ViewModel.BatteryControlAvailable, Mode=OneWay}" IsOn="{x:Bind ViewModel.ChargeLimitEnabled, Mode=OneWay}" Toggled="ChargeLimitToggle_Toggled" />
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock Style="{StaticResource MetricLabelTextStyle}" Text="{StaticResource Label.Cpu}" />
+                            <TextBlock
+                                Grid.Column="1"
+                                Style="{StaticResource BodyTextBlockStyle}"
+                                Text="{x:Bind ViewModel.CpuTemperatureText, Mode=OneWay}" />
+                            <ProgressBar
+                                Grid.Row="1"
+                                Grid.ColumnSpan="2"
+                                AutomationProperties.Name="{StaticResource Metric.CpuTemperature}"
+                                Maximum="100"
+                                Style="{StaticResource DashboardProgressBarStyle}"
+                                Value="{x:Bind ViewModel.CpuTemperatureValue, Mode=OneWay}" />
                         </Grid>
-                        <Button HorizontalAlignment="Right" Style="{StaticResource AccentButtonStyle}" Content="{StaticResource Action.Apply}" Command="{x:Bind ViewModel.ApplyDisplayCommand}" IsEnabled="{x:Bind ViewModel.DisplayControlAvailable, Mode=OneWay}" />
+                        <Grid RowSpacing="4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock Style="{StaticResource MetricLabelTextStyle}" Text="{StaticResource Label.Gpu}" />
+                            <TextBlock
+                                Grid.Column="1"
+                                Style="{StaticResource BodyTextBlockStyle}"
+                                Text="{x:Bind ViewModel.GpuTemperatureText, Mode=OneWay}" />
+                            <ProgressBar
+                                Grid.Row="1"
+                                Grid.ColumnSpan="2"
+                                AutomationProperties.Name="{StaticResource Metric.GpuTemperature}"
+                                Maximum="100"
+                                Style="{StaticResource DashboardProgressBarStyle}"
+                                Value="{x:Bind ViewModel.GpuTemperatureValue, Mode=OneWay}" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <Border
+                    Grid.Row="1"
+                    Grid.Column="1"
+                    Style="{StaticResource DashboardCardStyle}">
+                    <StackPanel Spacing="8">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon FontSize="17" Glyph="&#xE706;" />
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                Style="{StaticResource SectionHeaderStyle}"
+                                Text="{StaticResource Nav.Lighting}" />
+                        </StackPanel>
+                        <ComboBox
+                            AutomationProperties.AutomationId="Home.Lighting.Effect"
+                            DisplayMemberPath="Name"
+                            HorizontalAlignment="Stretch"
+                            IsEnabled="{x:Bind ViewModel.LightingAvailable, Mode=OneWay}"
+                            ItemsSource="{x:Bind ViewModel.LightingEffects, Mode=OneWay}"
+                            SelectedItem="{x:Bind ViewModel.SelectedLightingEffectOption, Mode=TwoWay}" />
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Button
+                                AutomationProperties.AutomationId="Home.Lighting.Color"
+                                AutomationProperties.Name="{StaticResource Tip.PickColor}"
+                                Command="{x:Bind ViewModel.PickPrimaryColorCommand}"
+                                IsEnabled="{x:Bind ViewModel.LightingAvailable, Mode=OneWay}"
+                                Style="{StaticResource CompactIconButtonStyle}"
+                                ToolTipService.ToolTip="{StaticResource Tip.PickColor}">
+                                <Border
+                                    Width="18"
+                                    Height="18"
+                                    Background="{x:Bind ViewModel.LightingPrimaryColor, Mode=OneWay, Converter={StaticResource HexColorToBrushConverter}}"
+                                    BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="9" />
+                            </Button>
+                            <StackPanel Grid.Column="1" Spacing="2">
+                                <Grid>
+                                    <TextBlock Style="{StaticResource MetricLabelTextStyle}" Text="{StaticResource Label.Brightness}" />
+                                    <TextBlock
+                                        HorizontalAlignment="Right"
+                                        Style="{StaticResource MetricLabelTextStyle}"
+                                        Text="{x:Bind ViewModel.LightingBrightness, Mode=OneWay}" />
+                                </Grid>
+                                <Slider
+                                    AutomationProperties.AutomationId="Home.Lighting.Brightness"
+                                    IsEnabled="{x:Bind ViewModel.LightingAvailable, Mode=OneWay}"
+                                    Maximum="5"
+                                    Minimum="1"
+                                    SmallChange="1"
+                                    StepFrequency="1"
+                                    Value="{x:Bind ViewModel.LightingBrightness, Mode=TwoWay}" />
+                            </StackPanel>
+                        </Grid>
+                        <Button
+                            HorizontalAlignment="Right"
+                            AutomationProperties.AutomationId="Home.Lighting.Apply"
+                            Command="{x:Bind ViewModel.ApplyLightingCommand}"
+                            Content="{StaticResource Action.Apply}"
+                            IsEnabled="{x:Bind ViewModel.LightingAvailable, Mode=OneWay}"
+                            Style="{StaticResource PrimaryButtonStyle}" />
                     </StackPanel>
                 </Border>
             </Grid>
 
-            <Border Grid.Row="5" Margin="0,18,0,0" Style="{StaticResource ToolPanelStyle}">
-                <StackPanel Spacing="16">
-                    <Grid>
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                        <StackPanel Spacing="4">
-                            <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{StaticResource Section.FanCurve}" />
-                            <TextBlock Style="{StaticResource MutedTextStyle}" Text="20–100% · 95°C = 100%" />
-                        </StackPanel>
-                        <Button Grid.Column="1" IsEnabled="{x:Bind ViewModel.FanControlAvailable, Mode=OneWay}" Style="{StaticResource AccentButtonStyle}" Content="{StaticResource Action.ApplyCurve}" Command="{x:Bind ViewModel.ApplyCustomFanCommand}" />
+            <Border Style="{StaticResource ToolPanelStyle}">
+                <StackPanel Spacing="10">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon FontSize="17" Glyph="&#xE7F4;" />
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            Style="{StaticResource SectionHeaderStyle}"
+                            Text="{StaticResource Section.GraphicsDisplay}" />
+                    </StackPanel>
+
+                    <Grid ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="132" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            Style="{StaticResource MetricLabelTextStyle}"
+                            Text="{StaticResource Section.GpuRouting}" />
+                        <RadioButtons
+                            Grid.Column="1"
+                            AutomationProperties.AutomationId="Home.GpuModes"
+                            MaxColumns="2">
+                            <RadioButton
+                                AutomationProperties.AutomationId="Home.Gpu.Hybrid"
+                                Command="{x:Bind ViewModel.SetGpuMuxModeCommand}"
+                                CommandParameter="{x:Bind HybridMuxMode, Mode=OneTime}"
+                                Content="{StaticResource GpuMuxMode.Hybrid}"
+                                IsChecked="{x:Bind ViewModel.CurrentGpuMuxMode, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Hybrid}"
+                                IsEnabled="{x:Bind ViewModel.GpuMuxAvailable, Mode=OneWay}" />
+                            <RadioButton
+                                AutomationProperties.AutomationId="Home.Gpu.Discrete"
+                                Command="{x:Bind ViewModel.SetGpuMuxModeCommand}"
+                                CommandParameter="{x:Bind DiscreteMuxMode, Mode=OneTime}"
+                                Content="{StaticResource GpuMuxMode.Discrete}"
+                                IsChecked="{x:Bind ViewModel.CurrentGpuMuxMode, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Discrete}"
+                                IsEnabled="{x:Bind ViewModel.GpuMuxAvailable, Mode=OneWay}" />
+                        </RadioButtons>
                     </Grid>
-                    <Grid ColumnSpacing="24">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                        <StackPanel Spacing="8">
-                            <TextBlock FontWeight="SemiBold" Text="CPU" />
-                            <ItemsControl IsEnabled="{x:Bind ViewModel.FanControlAvailable, Mode=OneWay}" ItemsSource="{x:Bind ViewModel.CpuFanPoints}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid Margin="0,0,0,7" ColumnSpacing="10">
-                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                            <NumberBox Header="{StaticResource Label.Temperature}" Minimum="20" Maximum="95" SmallChange="1" SpinButtonPlacementMode="Compact" Value="{Binding TemperatureC, Mode=TwoWay}" />
-                                            <NumberBox Grid.Column="1" Header="{StaticResource Label.Speed}" Minimum="20" Maximum="100" SmallChange="1" SpinButtonPlacementMode="Compact" Value="{Binding SpeedPercent, Mode=TwoWay}" />
-                                        </Grid>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Spacing="8">
-                            <TextBlock FontWeight="SemiBold" Text="GPU" />
-                            <ItemsControl IsEnabled="{x:Bind ViewModel.FanControlAvailable, Mode=OneWay}" ItemsSource="{x:Bind ViewModel.GpuFanPoints}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid Margin="0,0,0,7" ColumnSpacing="10">
-                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                            <NumberBox Header="{StaticResource Label.Temperature}" Minimum="20" Maximum="95" SmallChange="1" SpinButtonPlacementMode="Compact" Value="{Binding TemperatureC, Mode=TwoWay}" />
-                                            <NumberBox Grid.Column="1" Header="{StaticResource Label.Speed}" Minimum="20" Maximum="100" SmallChange="1" SpinButtonPlacementMode="Compact" Value="{Binding SpeedPercent, Mode=TwoWay}" />
-                                        </Grid>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
+
+                    <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+                    <Grid ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="132" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            Style="{StaticResource MetricLabelTextStyle}"
+                            Text="{StaticResource Label.RefreshRate}" />
+                        <ComboBox
+                            Grid.Column="1"
+                            MinWidth="96"
+                            AutomationProperties.AutomationId="Home.RefreshRate"
+                            HorizontalAlignment="Stretch"
+                            IsEnabled="{x:Bind ViewModel.DisplayControlAvailable, Mode=OneWay}"
+                            ItemsSource="{x:Bind ViewModel.RefreshRates, Mode=OneWay}"
+                            SelectedItem="{x:Bind ViewModel.SelectedRefreshRate, Mode=TwoWay}" />
+                        <ToggleSwitch
+                            Grid.Column="2"
+                            AutomationProperties.AutomationId="Home.Overdrive"
+                            AutomationProperties.Name="{StaticResource Label.Overdrive}"
+                            Header="{StaticResource Label.Overdrive}"
+                            IsEnabled="{x:Bind ViewModel.DisplayControlAvailable, Mode=OneWay}"
+                            IsOn="{x:Bind ViewModel.OverdriveEnabled, Mode=TwoWay}" />
+                        <Button
+                            Grid.Column="3"
+                            AutomationProperties.AutomationId="Home.ApplyDisplay"
+                            Command="{x:Bind ViewModel.ApplyDisplayCommand}"
+                            Content="{StaticResource Action.Apply}"
+                            IsEnabled="{x:Bind ViewModel.DisplayControlAvailable, Mode=OneWay}"
+                            Style="{StaticResource PrimaryButtonStyle}" />
                     </Grid>
                 </StackPanel>
             </Border>
-        </Grid>
+        </StackPanel>
     </ScrollViewer>
 </Page>

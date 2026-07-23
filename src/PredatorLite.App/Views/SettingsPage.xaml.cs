@@ -9,7 +9,6 @@ public sealed partial class SettingsPage : Page
     private bool _loaded;
     private bool _handlingRunAtStartup;
     private bool _handlingFps;
-    private bool _handlingDeviceSetting;
     private bool _savingPreferences;
     private bool _preferencesDirty;
 
@@ -91,24 +90,4 @@ public sealed partial class SettingsPage : Page
         }
     }
 
-    private async void DeviceSetting_Toggled(object sender, RoutedEventArgs e)
-    {
-        if (!_loaded ||
-            _handlingDeviceSetting ||
-            sender is not ToggleSwitch { DataContext: DeviceSettingItemViewModel item } toggle)
-        {
-            return;
-        }
-
-        _handlingDeviceSetting = true;
-        item.Enabled = toggle.IsOn;
-        try
-        {
-            await ViewModel.ToggleDeviceSettingCommand.ExecuteAsync(item);
-        }
-        finally
-        {
-            _handlingDeviceSetting = false;
-        }
-    }
 }

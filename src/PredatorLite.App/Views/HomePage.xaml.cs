@@ -23,7 +23,6 @@ public sealed partial class HomePage : Page
     public OperatingMode BalancedMode => OperatingMode.Balanced;
     public OperatingMode PerformanceMode => OperatingMode.Performance;
     public OperatingMode TurboMode => OperatingMode.Turbo;
-    public OperatingMode EcoMode => OperatingMode.Eco;
     public FanMode AutoFanMode => FanMode.Auto;
     public FanMode MaxFanMode => FanMode.Max;
     public GpuMuxMode HybridMuxMode => GpuMuxMode.Hybrid;
@@ -31,7 +30,10 @@ public sealed partial class HomePage : Page
 
     private async void ChargeLimitToggle_Toggled(object sender, RoutedEventArgs e)
     {
-        if (!_loaded || _handlingChargeLimit || sender is not ToggleSwitch toggle)
+        if (!_loaded ||
+            _handlingChargeLimit ||
+            sender is not ToggleSwitch toggle ||
+            toggle.IsOn == ViewModel.ChargeLimitEnabled)
         {
             return;
         }

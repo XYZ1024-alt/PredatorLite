@@ -11,6 +11,7 @@ internal static partial class NativeMethods
     internal const int SwHide = 0;
     internal const int SwShowNoActivate = 4;
     internal const uint WmGetMinMaxInfo = 0x0024;
+    private const uint MonitorDefaultToNearest = 0x00000002;
 
     [LibraryImport("user32.dll", EntryPoint = "MessageBoxW", StringMarshalling = StringMarshalling.Utf16)]
     private static partial int MessageBox(IntPtr window, string text, string caption, uint type);
@@ -26,6 +27,13 @@ internal static partial class NativeMethods
     [LibraryImport("user32.dll")]
     internal static partial uint GetDpiForWindow(IntPtr window);
 
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr MonitorFromWindow(IntPtr window, uint flags);
+
+    [LibraryImport("user32.dll", EntryPoint = "GetMonitorInfoW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetMonitorInfo(IntPtr monitor, ref MonitorInfo info);
+
     [LibraryImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
     internal static partial IntPtr GetWindowLongPtr(IntPtr window, int index);
 
@@ -38,13 +46,62 @@ internal static partial class NativeMethods
     internal static void ShowError(IntPtr window, string message, string title) =>
         MessageBox(window, message, title, 0x00000010);
 
-    internal static void ApplyMinimumSize(IntPtr window, IntPtr minMaxInfoPointer, int width, int height)
+    internal static void ApplySizeConstraints(
+        IntPtr window,
+        IntPtr minMaxInfoPointer,
+        int minimumWidth,
+        int minimumHeight,
+        int maximumWidth,
+        int maximumHeight)
     {
         MinMaxInfo info = Marshal.PtrToStructure<MinMaxInfo>(minMaxInfoPointer);
         double scale = Math.Max(1, GetDpiForWindow(window)) / 96d;
-        info.MinimumTrackSize.X = (int)Math.Ceiling(width * scale);
-        info.MinimumTrackSize.Y = (int)Math.Ceiling(height * scale);
+        int availableWidth = int.MaxValue;
+        int availableHeight = int.MaxValue;
+        IntPtr monitor = MonitorFromWindow(window, MonitorDefaultToNearest);
+        MonitorInfo monitorInfo = new() { Size = (uint)Marshal.SizeOf<MonitorInfo>() };
+        if (monitor != IntPtr.Zero && GetMonitorInfo(monitor, ref monitorInfo))
+        {
+            availableWidth = monitorInfo.WorkArea.Right - monitorInfo.WorkArea.Left;
+            availableHeight = monitorInfo.WorkArea.Bottom - monitorInfo.WorkArea.Top;
+        }
+
+        int minimumTrackWidth = Math.Min(
+            availableWidth,
+            (int)Math.Ceiling(minimumWidth * scale));
+        int minimumTrackHeight = Math.Min(
+            availableHeight,
+            (int)Math.Ceiling(minimumHeight * scale));
+        int maximumTrackWidth = Math.Max(
+            minimumTrackWidth,
+            Math.Min(availableWidth, (int)Math.Ceiling(maximumWidth * scale)));
+        int maximumTrackHeight = Math.Max(
+            minimumTrackHeight,
+            Math.Min(availableHeight, (int)Math.Ceiling(maximumHeight * scale)));
+
+        info.MinimumTrackSize.X = minimumTrackWidth;
+        info.MinimumTrackSize.Y = minimumTrackHeight;
+        info.MaximumTrackSize.X = maximumTrackWidth;
+        info.MaximumTrackSize.Y = maximumTrackHeight;
         Marshal.StructureToPtr(info, minMaxInfoPointer, false);
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeRect
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MonitorInfo
+    {
+        public uint Size;
+        public NativeRect Monitor;
+        public NativeRect WorkArea;
+        public uint Flags;
     }
 
     [StructLayout(LayoutKind.Sequential)]

@@ -11,6 +11,11 @@ Hardware writes require all of the following:
 
 A mismatch leaves telemetry and diagnostics available but returns `NotSupported` for writes.
 
+Read-only CPU/GPU telemetry uses the ordinary-user Acer system monitor socket on
+`127.0.0.1:46753`. LibreHardwareMonitor is restricted to GPU and memory sensors. Its CPU backend
+remains disabled, so telemetry does not require a PawnIO ACL change, an elevated broker or a new
+privileged service.
+
 ## Allowed controls
 
 | Control | Values | Primary transport |

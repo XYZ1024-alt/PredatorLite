@@ -6,16 +6,23 @@
     IsHitTestVisible="False">
     <tb:TaskbarIcon
         x:Name="TrayIcon"
+        AutomationProperties.AutomationId="Tray.Icon"
         ContextMenuMode="PopupMenu"
-        IconSource="/Assets/PredatorLite.ico"
+        IconSource="/Assets/PredatorLiteFluent.ico"
         LeftClickCommand="{x:Bind OpenWindowCommand}"
         NoLeftClickDelay="True"
         ToolTipText="PredatorLite">
         <tb:TaskbarIcon.ContextFlyout>
             <MenuFlyout AreOpenCloseAnimationsEnabled="False">
-                <MenuFlyoutItem x:Name="OpenMenuItem" Command="{x:Bind OpenWindowCommand}" />
+                <MenuFlyoutItem
+                    x:Name="OpenMenuItem"
+                    AutomationProperties.AutomationId="Tray.Open"
+                    Command="{x:Bind OpenWindowCommand}" />
                 <MenuFlyoutSeparator />
-                <MenuFlyoutItem x:Name="ExitMenuItem" Command="{x:Bind ExitCommand}" />
+                <MenuFlyoutItem
+                    x:Name="ExitMenuItem"
+                    AutomationProperties.AutomationId="Tray.Exit"
+                    Command="{x:Bind ExitCommand}" />
             </MenuFlyout>
         </tb:TaskbarIcon.ContextFlyout>
     </tb:TaskbarIcon>

@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.251219" />
     <PackageReference Include="H.NotifyIcon.WinUI" Version="2.4.1" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.3.1" />
   </ItemGroup>
@@ -30,7 +31,7 @@
     <PublishTrimmed>false</PublishTrimmed>
     <PublishReadyToRun>false</PublishReadyToRun>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <ApplicationIcon>Assets\PredatorLite.ico</ApplicationIcon>
+    <ApplicationIcon>Assets\PredatorLiteFluent.ico</ApplicationIcon>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <Platforms>x64</Platforms>
     <PlatformTarget>x64</PlatformTarget>
@@ -43,8 +44,10 @@
 
   <ItemGroup>
     <Manifest Include="$(ApplicationManifest)" />
-    <Content Include="Assets\PredatorLite.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="Assets\PredatorLite.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Assets\PredatorLiteFluent.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Assets\PredatorLiteFluent.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Resources\Strings.zhCN.xaml" Link="Localization\Strings.zhCN.xaml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Resources\Strings.enUS.xaml" Link="Localization\Strings.enUS.xaml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <Target Name="CopyCompanionExecutables" AfterTargets="Build">
@@ -68,14 +71,8 @@
       <WinUiPublishFile Include="$(OutDir)**\*.xbf" />
     </ItemGroup>
     <MakeDir Directories="@(WinUiPublishFile->'$(PublishDir)%(RecursiveDir)')" />
-    <Copy
-        SourceFiles="@(WinUiPublishFile)"
-        DestinationFiles="@(WinUiPublishFile->'$(PublishDir)%(RecursiveDir)%(Filename)%(Extension)')"
-        SkipUnchangedFiles="true" />
-    <Copy
-        SourceFiles="$(OutDir)PredatorLite.pri"
-        DestinationFolder="$(PublishDir)"
-        SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(WinUiPublishFile)" DestinationFiles="@(WinUiPublishFile->'$(PublishDir)%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(OutDir)PredatorLite.pri" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
   </Target>
 
 </Project>

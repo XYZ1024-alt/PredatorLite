@@ -1,119 +1,195 @@
 <UserControl
     x:Class="PredatorLite.App.Views.MainShell"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Grid Background="Transparent">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="Transparent">
+    <Grid x:Name="RootLayout" Background="Transparent">
         <Grid.RowDefinitions>
-            <RowDefinition Height="48" />
+            <RowDefinition Height="40" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="36" />
+            <RowDefinition Height="66" />
         </Grid.RowDefinitions>
 
         <Grid
             x:Name="AppTitleBar"
-            Padding="16,0,148,0"
-            Background="{ThemeResource PredatorPaneBrush}">
+            Padding="12,0,148,0"
+            Background="Transparent"
+            ColumnSpacing="8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
+
             <Image
-                Width="24"
-                Height="24"
+                x:Name="AppIcon"
+                Width="20"
+                Height="20"
                 VerticalAlignment="Center"
-                Source="ms-appx:///Assets/PredatorLite.png" />
+                Source="ms-appx:///Assets/PredatorLiteFluent.png" />
             <TextBlock
+                x:Name="AppTitleText"
                 Grid.Column="1"
-                Margin="10,0,0,0"
                 VerticalAlignment="Center"
-                FontFamily="Segoe UI Variable Display"
-                FontSize="15"
-                FontWeight="SemiBold"
-                Foreground="{ThemeResource PredatorTextBrush}"
+                Style="{StaticResource CompactTitleTextStyle}"
                 Text="{StaticResource App.Name}" />
-            <Border
-                Grid.Column="3"
-                Padding="8,3"
+            <TextBlock
+                x:Name="PageTitleText"
+                Grid.Column="2"
                 VerticalAlignment="Center"
-                Background="{ThemeResource PredatorSurfaceSecondaryBrush}"
-                CornerRadius="6">
-                <TextBlock
-                    Style="{StaticResource MutedTextStyle}"
-                    Text="{x:Bind ViewModel.DeviceModel, Mode=OneWay}" />
-            </Border>
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Style="{StaticResource CaptionTextBlockStyle}"
+                Visibility="Collapsed" />
+            <TextBlock
+                x:Name="DeviceModelText"
+                Grid.Column="3"
+                VerticalAlignment="Center"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Style="{StaticResource CaptionTextBlockStyle}"
+                Text="{x:Bind ViewModel.DeviceModel, Mode=OneWay}"
+                TextTrimming="CharacterEllipsis" />
+            <Border
+                Grid.ColumnSpan="4"
+                Height="1"
+                Margin="-12,0,-148,0"
+                VerticalAlignment="Bottom"
+                Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
         </Grid>
 
         <InfoBar
+            x:Name="ShellInfoBar"
             Grid.Row="1"
-            Margin="12,10,12,0"
+            Margin="12,8,12,0"
+            AutomationProperties.AutomationId="Shell.Notice"
             IsClosable="False"
-            IsOpen="{x:Bind ViewModel.RebootRequired, Mode=OneWay}"
-            Message="{StaticResource Status.RebootRequired}"
-            Severity="Warning" />
+            IsOpen="{x:Bind ViewModel.IsShellNoticeOpen, Mode=OneWay}"
+            Message="{x:Bind ViewModel.ShellNoticeMessage, Mode=OneWay}"
+            Severity="{x:Bind ViewModel.ShellNotice, Mode=OneWay, Converter={StaticResource ShellNoticeSeverityConverter}}">
+            <InfoBar.ActionButton>
+                <Button
+                    AutomationProperties.AutomationId="Shell.RetryInitialization"
+                    Command="{x:Bind ViewModel.RetryInitializationCommand}"
+                    Content="{StaticResource Action.Retry}"
+                    Style="{StaticResource SecondaryButtonStyle}"
+                    Visibility="{x:Bind ViewModel.InitializationFailed, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" />
+            </InfoBar.ActionButton>
+        </InfoBar>
 
-        <NavigationView
-            x:Name="Navigation"
+        <Frame
+            x:Name="ContentFrame"
             Grid.Row="2"
-            AlwaysShowHeader="False"
-            CompactPaneLength="48"
-            IsBackButtonVisible="Collapsed"
-            IsSettingsVisible="False"
-            OpenPaneLength="196"
-            PaneDisplayMode="Auto"
-            SelectionChanged="Navigation_SelectionChanged">
-            <NavigationView.MenuItems>
-                <NavigationViewItem Content="{StaticResource Nav.Home}" Tag="home">
-                    <NavigationViewItem.Icon><SymbolIcon Symbol="Home" /></NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItem Content="{StaticResource Nav.Lighting}" Tag="lighting">
-                    <NavigationViewItem.Icon><FontIcon Glyph="&#xE706;" /></NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItem Content="{StaticResource Nav.Monitor}" Tag="monitor">
-                    <NavigationViewItem.Icon><FontIcon Glyph="&#xE9D9;" /></NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItem Content="{StaticResource Nav.Settings}" Tag="settings">
-                    <NavigationViewItem.Icon><SymbolIcon Symbol="Setting" /></NavigationViewItem.Icon>
-                </NavigationViewItem>
-            </NavigationView.MenuItems>
-            <Frame x:Name="ContentFrame" />
-        </NavigationView>
+            Background="Transparent"
+            IsTabStop="False" />
 
         <Border
             Grid.Row="3"
-            Background="{ThemeResource PredatorPaneBrush}"
-            BorderBrush="{ThemeResource PredatorBorderBrush}"
+            Background="{ThemeResource AppChromeBackgroundBrush}"
+            BorderBrush="{ThemeResource AppCardBorderBrush}"
             BorderThickness="0,1,0,0">
-            <Grid Padding="14,0">
+            <Grid
+                Padding="8,4"
+                ColumnSpacing="4"
+                XYFocusKeyboardNavigation="Enabled">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <ProgressRing
-                    Width="16"
-                    Height="16"
-                    IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}"
-                    Visibility="{x:Bind ViewModel.IsBusy, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                <Ellipse
-                    Width="8"
-                    Height="8"
-                    Margin="0,0,9,0"
-                    Fill="{ThemeResource PredatorAccentBrush}"
-                    Visibility="{x:Bind ViewModel.IsBusy, Mode=OneWay, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
-                <TextBlock
+
+                <RadioButton
+                    x:Name="HomeNavigation"
+                    AutomationProperties.AutomationId="Shell.Nav.Home"
+                    AutomationProperties.Name="{StaticResource Nav.Home}"
+                    Checked="Navigation_Checked"
+                    GroupName="ShellNavigation"
+                    IsChecked="{x:Bind ViewModel.SelectedSection, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Home}"
+                    Style="{StaticResource BottomNavigationRadioButtonStyle}"
+                    Tag="Home"
+                    ToolTipService.ToolTip="{StaticResource Nav.Home}">
+                    <StackPanel HorizontalAlignment="Center" Spacing="2">
+                        <SymbolIcon Symbol="Home" />
+                        <TextBlock
+                            Style="{StaticResource BottomNavigationTextStyle}"
+                            Text="{StaticResource Nav.Home}" />
+                    </StackPanel>
+                </RadioButton>
+
+                <RadioButton
+                    x:Name="CoolingNavigation"
                     Grid.Column="1"
-                    VerticalAlignment="Center"
-                    Foreground="{ThemeResource PredatorMutedTextBrush}"
-                    Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
-                    TextTrimming="CharacterEllipsis" />
-                <TextBlock
+                    AutomationProperties.AutomationId="Shell.Nav.Cooling"
+                    AutomationProperties.Name="{StaticResource Nav.Cooling}"
+                    Checked="Navigation_Checked"
+                    GroupName="ShellNavigation"
+                    IsChecked="{x:Bind ViewModel.SelectedSection, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Cooling}"
+                    Style="{StaticResource BottomNavigationRadioButtonStyle}"
+                    Tag="Cooling"
+                    ToolTipService.ToolTip="{StaticResource Nav.Cooling}">
+                    <StackPanel HorizontalAlignment="Center" Spacing="2">
+                        <FontIcon FontSize="18" Glyph="&#xE9CA;" />
+                        <TextBlock
+                            Style="{StaticResource BottomNavigationTextStyle}"
+                            Text="{StaticResource Nav.Cooling}" />
+                    </StackPanel>
+                </RadioButton>
+                <RadioButton
+                    x:Name="LightingNavigation"
                     Grid.Column="2"
-                    VerticalAlignment="Center"
-                    Style="{StaticResource MutedTextStyle}"
-                    Text="{x:Bind ViewModel.BiosVersion, Mode=OneWay}" />
+                    AutomationProperties.AutomationId="Shell.Nav.Lighting"
+                    AutomationProperties.Name="{StaticResource Nav.Lighting}"
+                    Checked="Navigation_Checked"
+                    GroupName="ShellNavigation"
+                    IsChecked="{x:Bind ViewModel.SelectedSection, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Lighting}"
+                    Style="{StaticResource BottomNavigationRadioButtonStyle}"
+                    Tag="Lighting"
+                    ToolTipService.ToolTip="{StaticResource Nav.Lighting}">
+                    <StackPanel HorizontalAlignment="Center" Spacing="2">
+                        <FontIcon FontSize="18" Glyph="&#xE706;" />
+                        <TextBlock
+                            Style="{StaticResource BottomNavigationTextStyle}"
+                            Text="{StaticResource Nav.Lighting}" />
+                    </StackPanel>
+                </RadioButton>
+                <RadioButton
+                    x:Name="MonitorNavigation"
+                    Grid.Column="3"
+                    AutomationProperties.AutomationId="Shell.Nav.Monitor"
+                    AutomationProperties.Name="{StaticResource Nav.Monitor}"
+                    Checked="Navigation_Checked"
+                    GroupName="ShellNavigation"
+                    IsChecked="{x:Bind ViewModel.SelectedSection, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Monitor}"
+                    Style="{StaticResource BottomNavigationRadioButtonStyle}"
+                    Tag="Monitor"
+                    ToolTipService.ToolTip="{StaticResource Nav.Monitor}">
+                    <StackPanel HorizontalAlignment="Center" Spacing="2">
+                        <FontIcon FontSize="18" Glyph="&#xE9D9;" />
+                        <TextBlock
+                            Style="{StaticResource BottomNavigationTextStyle}"
+                            Text="{StaticResource Nav.Monitor}" />
+                    </StackPanel>
+                </RadioButton>
+                <RadioButton
+                    x:Name="SettingsNavigation"
+                    Grid.Column="4"
+                    AutomationProperties.AutomationId="Shell.Nav.Settings"
+                    AutomationProperties.Name="{StaticResource Nav.Settings}"
+                    Checked="Navigation_Checked"
+                    GroupName="ShellNavigation"
+                    IsChecked="{x:Bind ViewModel.SelectedSection, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Settings}"
+                    Style="{StaticResource BottomNavigationRadioButtonStyle}"
+                    Tag="Settings"
+                    ToolTipService.ToolTip="{StaticResource Nav.Settings}">
+                    <StackPanel HorizontalAlignment="Center" Spacing="2">
+                        <SymbolIcon Symbol="Setting" />
+                        <TextBlock
+                            Style="{StaticResource BottomNavigationTextStyle}"
+                            Text="{StaticResource Nav.Settings}" />
+                    </StackPanel>
+                </RadioButton>
             </Grid>
         </Border>
     </Grid>

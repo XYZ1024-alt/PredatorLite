@@ -21,10 +21,13 @@ public static class AcerProtocol
     public const string SetBatteryHealth = "SetBatteryHealthControl";
 
     public const int CommandPort = 46933;
+    public const int TelemetryPort = 46753;
     public const uint InitializationPacket = 0;
+    public const uint MonitorPacket = 10;
     public const uint QueryPacket = 20;
     public const uint SetPacket = 100;
 
+    public const string GetMonitorData = "GET_MONITOR_DATA";
     public const string Lighting = "LIGHTING";
     public const string OperatingMode = "OPERATING_MODE";
     public const string FanControl = "FAN_CONTROL";

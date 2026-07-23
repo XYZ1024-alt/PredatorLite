@@ -1,114 +1,232 @@
 <Page
     x:Class="PredatorLite.App.Views.SettingsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-        <Grid MaxWidth="1080" Padding="28,22,28,32" HorizontalAlignment="Stretch">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    xmlns:models="using:PredatorLite.Core.Models"
+    Background="Transparent">
+    <ScrollViewer
+        AutomationProperties.AutomationId="Settings.Scroll"
+        HorizontalScrollBarVisibility="Disabled"
+        VerticalScrollBarVisibility="Auto">
+        <Grid Style="{StaticResource PageContentGridStyle}">
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <StackPanel Spacing="4">
-                <TextBlock Style="{StaticResource PageTitleStyle}" Text="{StaticResource Page.Settings}" />
-                <TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource App.Name}" />
+            <StackPanel Spacing="8">
+                <StackPanel Spacing="4">
+                    <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{StaticResource Section.Application}" />
+                    <TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Description.Application}" />
+                </StackPanel>
+                <controls:SettingsCard
+                    MinHeight="48"
+                    Description="{StaticResource Description.Language}"
+                    Header="{StaticResource Label.Language}">
+                    <RadioButtons
+                        AutomationProperties.AutomationId="Settings.Language"
+                        MaxColumns="2">
+                        <RadioButton
+                            AutomationProperties.AutomationId="Settings.Language.zh-CN"
+                            Command="{x:Bind ViewModel.ChangeLanguageCommand}"
+                            CommandParameter="zh-CN"
+                            Content="{StaticResource Label.LanguageChinese}"
+                            IsChecked="{x:Bind ViewModel.CurrentLanguage, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=zh-CN}" />
+                        <RadioButton
+                            AutomationProperties.AutomationId="Settings.Language.en-US"
+                            Command="{x:Bind ViewModel.ChangeLanguageCommand}"
+                            CommandParameter="en-US"
+                            Content="{StaticResource Label.LanguageEnglish}"
+                            IsChecked="{x:Bind ViewModel.CurrentLanguage, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=en-US}" />
+                    </RadioButtons>
+                </controls:SettingsCard>
+                <controls:SettingsCard
+                    MinHeight="48"
+                    Description="{StaticResource Description.RunAtStartup}"
+                    Header="{StaticResource Label.RunAtStartup}">
+                    <ToggleSwitch
+                        AutomationProperties.AutomationId="Settings.RunAtStartup"
+                        IsOn="{x:Bind ViewModel.RunAtStartup, Mode=OneWay}"
+                        OffContent="{StaticResource State.Off}"
+                        OnContent="{StaticResource State.On}"
+                        Toggled="RunAtStartup_Toggled" />
+                </controls:SettingsCard>
+                <controls:SettingsCard
+                    MinHeight="48"
+                    Description="{StaticResource Description.StartMinimized}"
+                    Header="{StaticResource Label.StartMinimized}">
+                    <ToggleSwitch
+                        AutomationProperties.AutomationId="Settings.StartMinimized"
+                        IsOn="{x:Bind ViewModel.StartMinimized, Mode=TwoWay}"
+                        OffContent="{StaticResource State.Off}"
+                        OnContent="{StaticResource State.On}"
+                        Toggled="Preference_Toggled" />
+                </controls:SettingsCard>
+                <controls:SettingsCard
+                    MinHeight="48"
+                    Description="{StaticResource Description.AutoEco}"
+                    Header="{StaticResource Label.AutoEco}">
+                    <ToggleSwitch
+                        AutomationProperties.AutomationId="Settings.AutoEco"
+                        IsOn="{x:Bind ViewModel.AutoEcoOnBattery, Mode=TwoWay}"
+                        OffContent="{StaticResource State.Off}"
+                        OnContent="{StaticResource State.On}"
+                        Toggled="Preference_Toggled" />
+                </controls:SettingsCard>
+                <controls:SettingsCard
+                    MinHeight="48"
+                    Description="{StaticResource Description.AutoRefresh}"
+                    Header="{StaticResource Label.AutoRefresh}">
+                    <ToggleSwitch
+                        AutomationProperties.AutomationId="Settings.AutoRefresh"
+                        IsOn="{x:Bind ViewModel.AutoRefreshRate, Mode=TwoWay}"
+                        OffContent="{StaticResource State.Off}"
+                        OnContent="{StaticResource State.On}"
+                        Toggled="Preference_Toggled" />
+                </controls:SettingsCard>
+                <controls:SettingsCard
+                    MinHeight="48"
+                    Description="{StaticResource Description.ShowOsd}"
+                    Header="{StaticResource Label.ShowOsd}">
+                    <ToggleSwitch
+                        AutomationProperties.AutomationId="Settings.ShowOsd"
+                        IsOn="{x:Bind ViewModel.ShowOsd, Mode=TwoWay}"
+                        OffContent="{StaticResource State.Off}"
+                        OnContent="{StaticResource State.On}"
+                        Toggled="Preference_Toggled" />
+                </controls:SettingsCard>
+                <controls:SettingsCard
+                    MinHeight="48"
+                    Description="{StaticResource Description.ShowFps}"
+                    Header="{StaticResource Label.ShowFps}">
+                    <ToggleSwitch
+                        AutomationProperties.AutomationId="Settings.ShowFps"
+                        IsOn="{x:Bind ViewModel.ShowFps, Mode=OneWay}"
+                        OffContent="{StaticResource State.Off}"
+                        OnContent="{StaticResource State.On}"
+                        Toggled="ShowFps_Toggled" />
+                </controls:SettingsCard>
+                <controls:SettingsCard
+                    MinHeight="48"
+                    Description="{StaticResource Description.GlobalHotkeys}"
+                    Header="{StaticResource Label.GlobalHotkeys}">
+                    <ToggleSwitch
+                        AutomationProperties.AutomationId="Settings.GlobalHotkeys"
+                        IsOn="{x:Bind ViewModel.EnableGlobalHotkeys, Mode=TwoWay}"
+                        OffContent="{StaticResource State.Off}"
+                        OnContent="{StaticResource State.On}"
+                        Toggled="Preference_Toggled" />
+                </controls:SettingsCard>
             </StackPanel>
 
-            <Border Grid.Row="1" Margin="0,18,0,0" Style="{StaticResource SectionPanelStyle}">
-                <Grid ColumnSpacing="28">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="220" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                    <StackPanel Spacing="5">
-                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{StaticResource Section.Application}" />
-                        <TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Label.Language}" />
-                    </StackPanel>
-                    <StackPanel Grid.Column="1" Spacing="13">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <RadioButton Content="中文" GroupName="Language" IsChecked="{x:Bind ViewModel.CurrentLanguage, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=zh-CN}" Command="{x:Bind ViewModel.ChangeLanguageCommand}" CommandParameter="zh-CN" />
-                            <RadioButton Content="English" GroupName="Language" IsChecked="{x:Bind ViewModel.CurrentLanguage, Mode=OneWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=en-US}" Command="{x:Bind ViewModel.ChangeLanguageCommand}" CommandParameter="en-US" />
-                        </StackPanel>
-                        <Grid><TextBlock VerticalAlignment="Center" Text="{StaticResource Label.RunAtStartup}" /><ToggleSwitch HorizontalAlignment="Right" IsOn="{x:Bind ViewModel.RunAtStartup, Mode=OneWay}" Toggled="RunAtStartup_Toggled" /></Grid>
-                        <Grid><TextBlock VerticalAlignment="Center" Text="{StaticResource Label.StartMinimized}" /><ToggleSwitch HorizontalAlignment="Right" IsOn="{x:Bind ViewModel.StartMinimized, Mode=TwoWay}" Toggled="Preference_Toggled" /></Grid>
-                        <Grid><TextBlock VerticalAlignment="Center" Text="{StaticResource Label.AutoEco}" /><ToggleSwitch HorizontalAlignment="Right" IsOn="{x:Bind ViewModel.AutoEcoOnBattery, Mode=TwoWay}" Toggled="Preference_Toggled" /></Grid>
-                        <Grid><TextBlock VerticalAlignment="Center" Text="{StaticResource Label.AutoRefresh}" /><ToggleSwitch HorizontalAlignment="Right" IsOn="{x:Bind ViewModel.AutoRefreshRate, Mode=TwoWay}" Toggled="Preference_Toggled" /></Grid>
-                        <Grid><TextBlock VerticalAlignment="Center" Text="{StaticResource Label.ShowOsd}" /><ToggleSwitch HorizontalAlignment="Right" IsOn="{x:Bind ViewModel.ShowOsd, Mode=TwoWay}" Toggled="Preference_Toggled" /></Grid>
-                        <Grid><TextBlock VerticalAlignment="Center" Text="{StaticResource Label.ShowFps}" /><ToggleSwitch HorizontalAlignment="Right" IsOn="{x:Bind ViewModel.ShowFps, Mode=OneWay}" Toggled="ShowFps_Toggled" /></Grid>
-                        <Grid><TextBlock VerticalAlignment="Center" Text="{StaticResource Label.GlobalHotkeys}" /><ToggleSwitch HorizontalAlignment="Right" IsOn="{x:Bind ViewModel.EnableGlobalHotkeys, Mode=TwoWay}" Toggled="Preference_Toggled" /></Grid>
-                    </StackPanel>
-                </Grid>
-            </Border>
+            <StackPanel Grid.Row="1" Spacing="8">
+                <StackPanel Spacing="4">
+                    <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{StaticResource Section.Advanced}" />
+                    <TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Description.Services}" />
+                </StackPanel>
+                <controls:SettingsExpander
+                    AutomationProperties.AutomationId="Settings.Services"
+                    Description="{StaticResource Description.Services}"
+                    Header="{StaticResource Section.Services}"
+                    ItemsSource="{x:Bind ViewModel.ManagedServices, Mode=OneWay}">
+                    <Button
+                        AutomationProperties.AutomationId="Settings.RefreshServices"
+                        AutomationProperties.Name="{StaticResource Tip.Refresh}"
+                        Command="{x:Bind ViewModel.RefreshServicesCommand}"
+                        Style="{StaticResource CompactIconButtonStyle}"
+                        ToolTipService.ToolTip="{StaticResource Tip.Refresh}">
+                        <SymbolIcon Symbol="Refresh" />
+                    </Button>
+                    <controls:SettingsExpander.ItemTemplate>
+                        <DataTemplate x:DataType="models:ManagedServiceInfo">
+                            <controls:SettingsCard
+                                MinHeight="56"
+                                Description="{x:Bind Name, Mode=OneTime}"
+                                Header="{x:Bind DisplayName, Mode=OneTime}">
+                                <StackPanel MinWidth="156" Spacing="4">
+                                    <TextBlock Style="{StaticResource CaptionTextBlockStyle}">
+                                        <Run Text="{StaticResource Label.ServiceState}" />
+                                        <Run Text=": " />
+                                        <Run Text="{x:Bind Status, Mode=OneTime}" />
+                                    </TextBlock>
+                                    <TextBlock Style="{StaticResource CaptionTextBlockStyle}">
+                                        <Run Text="{StaticResource Label.StartMode}" />
+                                        <Run Text=": " />
+                                        <Run Text="{x:Bind StartMode, Mode=OneTime}" />
+                                    </TextBlock>
+                                    <TextBlock
+                                        Foreground="{ThemeResource SemanticCautionBrush}"
+                                        Style="{StaticResource CaptionTextBlockStyle}"
+                                        Text="{StaticResource Label.Required}"
+                                        Visibility="{x:Bind IsRequired, Mode=OneTime, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                    <TextBlock
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        Style="{StaticResource CaptionTextBlockStyle}"
+                                        Text="{StaticResource Label.Optional}"
+                                        Visibility="{x:Bind IsRequired, Mode=OneTime, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
+                                </StackPanel>
+                            </controls:SettingsCard>
+                        </DataTemplate>
+                    </controls:SettingsExpander.ItemTemplate>
+                </controls:SettingsExpander>
+                <controls:SettingsCard
+                    MinHeight="56"
+                    Description="{StaticResource Description.ServiceActions}"
+                    Header="{StaticResource Section.Services}">
+                    <Grid Width="328" ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Button
+                            HorizontalAlignment="Stretch"
+                            AutomationProperties.AutomationId="Settings.RestoreServices"
+                            Command="{x:Bind ViewModel.RestoreConflictingServicesCommand}"
+                            Content="{StaticResource Action.RestoreServices}"
+                            Style="{StaticResource SecondaryButtonStyle}" />
+                        <Button
+                            Grid.Column="1"
+                            HorizontalAlignment="Stretch"
+                            AutomationProperties.AutomationId="Settings.DisableConflicts"
+                            Command="{x:Bind ViewModel.DisableConflictingServicesCommand}"
+                            Content="{StaticResource Action.DisableConflicts}"
+                            Style="{StaticResource PrimaryButtonStyle}" />
+                    </Grid>
+                </controls:SettingsCard>
+            </StackPanel>
 
-            <Border Grid.Row="2" Style="{StaticResource SectionPanelStyle}">
-                <Grid ColumnSpacing="28">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="220" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                    <StackPanel Spacing="5">
-                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{StaticResource Section.DeviceSettings}" />
-                        <TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Status.Writable}" />
-                    </StackPanel>
-                    <ItemsControl Grid.Column="1" IsEnabled="{x:Bind ViewModel.IsBusy, Mode=OneWay, Converter={StaticResource InverseBooleanConverter}}" ItemsSource="{x:Bind ViewModel.DeviceSettings}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Grid MinHeight="48" ColumnSpacing="14">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="180" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                    <TextBlock VerticalAlignment="Center" Text="{Binding Name}" />
-                                    <TextBlock Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource MutedTextStyle}" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />
-                                    <ToggleSwitch Grid.Column="2" VerticalAlignment="Center" IsEnabled="{Binding IsWritable}" IsOn="{Binding Enabled, Mode=TwoWay}" Toggled="DeviceSetting_Toggled" />
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </Grid>
-            </Border>
-
-            <Border Grid.Row="3" Style="{StaticResource SectionPanelStyle}">
-                <Grid ColumnSpacing="28">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="220" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                    <StackPanel Spacing="8">
-                        <Grid>
-                            <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{StaticResource Section.Services}" />
-                            <Button HorizontalAlignment="Right" Style="{StaticResource CompactIconButtonStyle}" Command="{x:Bind ViewModel.RefreshServicesCommand}" ToolTipService.ToolTip="{StaticResource Tip.Refresh}">
-                                <FontIcon FontSize="15" Glyph="&#xE72C;" />
-                            </Button>
-                        </Grid>
-                        <TextBlock Style="{StaticResource MutedTextStyle}" Text="AcerService / WMI" />
-                    </StackPanel>
-                    <StackPanel Grid.Column="1" Spacing="14">
-                        <ItemsControl ItemsSource="{x:Bind ViewModel.ManagedServices}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid MinHeight="48" ColumnSpacing="12">
-                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="90" /><ColumnDefinition Width="100" /><ColumnDefinition Width="100" /></Grid.ColumnDefinitions>
-                                        <StackPanel VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
-                                            <TextBlock Style="{StaticResource MutedTextStyle}" Text="{Binding Name}" />
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="1" VerticalAlignment="Center" Foreground="{ThemeResource PredatorAccentBrush}" Text="{StaticResource Label.Required}" Visibility="{Binding IsRequired, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                                        <TextBlock Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource MutedTextStyle}" Text="{StaticResource Label.Optional}" Visibility="{Binding IsRequired, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
-                                        <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding Status}" />
-                                        <TextBlock Grid.Column="3" VerticalAlignment="Center" Style="{StaticResource MutedTextStyle}" Text="{Binding StartMode}" />
-                                    </Grid>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                        <StackPanel HorizontalAlignment="Right" Orientation="Horizontal" Spacing="8">
-                            <Button Foreground="{ThemeResource PredatorDangerBrush}" Content="{StaticResource Action.DisableConflicts}" Command="{x:Bind ViewModel.DisableConflictingServicesCommand}" />
-                            <Button Content="{StaticResource Action.RestoreServices}" Command="{x:Bind ViewModel.RestoreConflictingServicesCommand}" />
-                        </StackPanel>
-                    </StackPanel>
-                </Grid>
-            </Border>
-
-            <Border Grid.Row="4" Style="{StaticResource SectionPanelStyle}">
-                <Grid ColumnSpacing="28">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="220" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                    <StackPanel Spacing="5">
-                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{StaticResource Section.Diagnostics}" />
-                        <TextBlock Style="{StaticResource MutedTextStyle}" Text="{x:Bind ViewModel.CompatibilityMessage, Mode=OneWay}" />
-                    </StackPanel>
-                    <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Orientation="Horizontal" Spacing="8">
-                        <Button Content="{StaticResource Action.OpenLogs}" Command="{x:Bind ViewModel.OpenLogsCommand}" />
-                        <Button Style="{StaticResource AccentButtonStyle}" Content="{StaticResource Action.ExportDiagnostics}" Command="{x:Bind ViewModel.ExportDiagnosticsCommand}" />
-                    </StackPanel>
-                </Grid>
-            </Border>
+            <StackPanel Grid.Row="2" Spacing="8">
+                <StackPanel Spacing="4">
+                    <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{StaticResource Section.Diagnostics}" />
+                    <TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Description.Diagnostics}" />
+                </StackPanel>
+                <controls:SettingsCard
+                    MinHeight="48"
+                    Description="{StaticResource Description.Diagnostics}"
+                    Header="{StaticResource Section.Diagnostics}">
+                    <Grid Width="328" ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Button
+                            HorizontalAlignment="Stretch"
+                            AutomationProperties.AutomationId="Settings.OpenLogs"
+                            Command="{x:Bind ViewModel.OpenLogsCommand}"
+                            Content="{StaticResource Action.OpenLogs}"
+                            Style="{StaticResource SecondaryButtonStyle}" />
+                        <Button
+                            Grid.Column="1"
+                            HorizontalAlignment="Stretch"
+                            AutomationProperties.AutomationId="Settings.ExportDiagnostics"
+                            Command="{x:Bind ViewModel.ExportDiagnosticsCommand}"
+                            Content="{StaticResource Action.ExportDiagnostics}"
+                            Style="{StaticResource PrimaryButtonStyle}" />
+                    </Grid>
+                </controls:SettingsCard>
+            </StackPanel>
         </Grid>
     </ScrollViewer>
 </Page>

@@ -1,122 +1,188 @@
 <Page
     x:Class="PredatorLite.App.Views.LightingPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-        <Grid MaxWidth="1080" Padding="28,22,28,32" HorizontalAlignment="Stretch">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    xmlns:viewModels="using:PredatorLite.App.ViewModels"
+    Background="Transparent">
+    <ScrollViewer
+        AutomationProperties.AutomationId="Lighting.Scroll"
+        HorizontalScrollBarVisibility="Disabled"
+        VerticalScrollBarVisibility="Auto">
+        <Grid RowSpacing="8" Style="{StaticResource PageContentGridStyle}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <StackPanel Spacing="4">
-                <TextBlock Style="{StaticResource PageTitleStyle}" Text="{StaticResource Page.Lighting}" />
-                <TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Section.LightingEffect}" />
+            <StackPanel Spacing="8">
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Spacing="4">
+                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{StaticResource Section.KeyboardPreview}" />
+                        <TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Description.LightingPreview}" />
+                    </StackPanel>
+                    <Border
+                        Grid.Column="1"
+                        Style="{StaticResource CautionBadgeStyle}"
+                        Visibility="{x:Bind ViewModel.LightingAvailable, Mode=OneWay, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                        <TextBlock
+                            Foreground="{ThemeResource SemanticCautionBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="{StaticResource Status.ReadOnly}" />
+                    </Border>
+                </Grid>
+                <ContentControl
+                    HorizontalContentAlignment="Stretch"
+                    IsEnabled="{x:Bind ViewModel.LightingAvailable, Mode=OneWay}">
+                    <ItemsRepeater ItemsSource="{x:Bind ViewModel.LightingZones, Mode=OneWay}">
+                        <ItemsRepeater.Layout>
+                            <UniformGridLayout
+                                ItemsStretch="Fill"
+                                MaximumRowsOrColumns="4"
+                                MinColumnSpacing="8"
+                                MinItemHeight="80"
+                                MinItemWidth="96"
+                                Orientation="Horizontal" />
+                        </ItemsRepeater.Layout>
+                        <ItemsRepeater.ItemTemplate>
+                            <DataTemplate x:DataType="viewModels:LightingZoneViewModel">
+                                <Button
+                                    Margin="0,0,0,4"
+                                    AutomationProperties.AutomationId="{x:Bind AutomationId, Mode=OneTime}"
+                                    Click="ZoneColor_Click"
+                                    Style="{StaticResource KeyboardZoneButtonStyle}">
+                                    <StackPanel HorizontalAlignment="Stretch" Spacing="8">
+                                        <Grid>
+                                            <TextBlock
+                                                HorizontalAlignment="Left"
+                                                Style="{StaticResource MetricLabelTextStyle}">
+                                                <Run Text="{StaticResource Label.Zone}" />
+                                                <Run Text=" " />
+                                                <Run Text="{x:Bind Index, Mode=OneTime}" />
+                                            </TextBlock>
+                                            <FontIcon
+                                                HorizontalAlignment="Right"
+                                                Glyph="&#xE790;" />
+                                        </Grid>
+                                        <Border
+                                            Height="24"
+                                            Background="{x:Bind Color, Mode=OneWay, Converter={StaticResource HexColorToBrushConverter}}"
+                                            BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="{ThemeResource ControlCornerRadius}" />
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            Text="{x:Bind Color, Mode=OneWay}" />
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsRepeater.ItemTemplate>
+                    </ItemsRepeater>
+                </ContentControl>
             </StackPanel>
 
-            <Border Grid.Row="1" Margin="0,18,0,0" Style="{StaticResource SectionPanelStyle}">
-                <Grid ColumnSpacing="28">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="220" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <StackPanel Spacing="5">
-                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{StaticResource Section.LightingEffect}" />
-                        <TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Label.Effect}" />
-                    </StackPanel>
-                    <StackPanel Grid.Column="1" Spacing="18">
-                        <ComboBox
-                            Width="260"
-                            HorizontalAlignment="Left"
-                            IsEnabled="{x:Bind ViewModel.LightingAvailable, Mode=OneWay}"
-                            DisplayMemberPath="Name"
-                            ItemsSource="{x:Bind ViewModel.LightingEffects}"
-                            SelectedValue="{x:Bind ViewModel.SelectedLightingEffect, Mode=TwoWay}"
-                            SelectedValuePath="Value" />
-                        <Grid ColumnSpacing="18">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="{StaticResource Label.Brightness}" />
-                                <Slider IsEnabled="{x:Bind ViewModel.LightingAvailable, Mode=OneWay}" Minimum="0" Maximum="5" StepFrequency="1" TickFrequency="1" Value="{x:Bind ViewModel.LightingBrightness, Mode=TwoWay}" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" Spacing="6">
-                                <TextBlock Text="{StaticResource Label.AnimationSpeed}" />
-                                <Slider IsEnabled="{x:Bind ViewModel.LightingAvailable, Mode=OneWay}" Minimum="1" Maximum="5" StepFrequency="1" TickFrequency="1" Value="{x:Bind ViewModel.LightingSpeed, Mode=TwoWay}" />
-                            </StackPanel>
-                        </Grid>
-                        <Grid ColumnSpacing="18">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Spacing="7">
-                                <TextBlock Text="{StaticResource Label.Direction}" />
-                                <ComboBox Width="130" HorizontalAlignment="Left" IsEnabled="{x:Bind ViewModel.LightingAvailable, Mode=OneWay}" ItemsSource="{x:Bind ViewModel.LightingDirections}" SelectedItem="{x:Bind ViewModel.LightingDirection, Mode=TwoWay}" />
-                            </StackPanel>
-                            <Grid Grid.Column="1">
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                <StackPanel Spacing="7">
-                                    <TextBlock Text="{StaticResource Label.PrimaryColor}" />
-                                    <Button
-                                        IsEnabled="{x:Bind ViewModel.LightingAvailable, Mode=OneWay}"
-                                        Style="{StaticResource ColorSwatchButtonStyle}"
-                                        Background="{x:Bind ViewModel.LightingPrimaryColor, Mode=OneWay, Converter={StaticResource HexColorToBrushConverter}}"
-                                        Command="{x:Bind ViewModel.PickPrimaryColorCommand}"
-                                        ToolTipService.ToolTip="{StaticResource Tip.PickColor}" />
-                                </StackPanel>
-                                <ToggleSwitch Grid.Column="1" Header="{StaticResource Label.LogoLighting}" IsEnabled="{x:Bind ViewModel.LightingAvailable, Mode=OneWay}" IsOn="{x:Bind ViewModel.LogoLightingEnabled, Mode=TwoWay}" />
-                            </Grid>
-                        </Grid>
-                    </StackPanel>
-                </Grid>
-            </Border>
+            <StackPanel Grid.Row="1" Spacing="8">
+                <StackPanel Spacing="4">
+                    <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{StaticResource Section.LightingControls}" />
+                    <TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Description.LightingControls}" />
+                </StackPanel>
+                <controls:SettingsCard
+                    MinHeight="48"
+                    Header="{StaticResource Label.Effect}">
+                    <ComboBox
+                        Width="168"
+                        AutomationProperties.AutomationId="Lighting.Effect"
+                        DisplayMemberPath="Name"
+                        IsEnabled="{x:Bind ViewModel.LightingAvailable, Mode=OneWay}"
+                        ItemsSource="{x:Bind ViewModel.LightingEffects, Mode=OneWay}"
+                        SelectedItem="{x:Bind ViewModel.SelectedLightingEffectOption, Mode=TwoWay}" />
+                </controls:SettingsCard>
+                <controls:SettingsCard
+                    MinHeight="48"
+                    Header="{StaticResource Label.PrimaryColor}">
+                    <Button
+                        AutomationProperties.AutomationId="Lighting.PrimaryColor"
+                        AutomationProperties.Name="{StaticResource Tip.PickColor}"
+                        Command="{x:Bind ViewModel.PickPrimaryColorCommand}"
+                        IsEnabled="{x:Bind ViewModel.LightingAvailable, Mode=OneWay}"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        ToolTipService.ToolTip="{StaticResource Tip.PickColor}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border
+                                Width="24"
+                                Height="24"
+                                Background="{x:Bind ViewModel.LightingPrimaryColor, Mode=OneWay, Converter={StaticResource HexColorToBrushConverter}}"
+                                BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="{ThemeResource ControlCornerRadius}" />
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                Text="{x:Bind ViewModel.LightingPrimaryColor, Mode=OneWay}" />
+                        </StackPanel>
+                    </Button>
+                </controls:SettingsCard>
+                <controls:SettingsCard
+                    MinHeight="48"
+                    Description="{x:Bind ViewModel.LightingBrightness, Mode=OneWay}"
+                    Header="{StaticResource Label.Brightness}">
+                    <Slider
+                        Width="168"
+                        AutomationProperties.AutomationId="Lighting.Brightness"
+                        IsEnabled="{x:Bind ViewModel.LightingAvailable, Mode=OneWay}"
+                        Maximum="5"
+                        Minimum="1"
+                        SmallChange="1"
+                        StepFrequency="1"
+                        Value="{x:Bind ViewModel.LightingBrightness, Mode=TwoWay}" />
+                </controls:SettingsCard>
+                <controls:SettingsCard
+                    MinHeight="48"
+                    Description="{x:Bind ViewModel.LightingSpeed, Mode=OneWay}"
+                    Header="{StaticResource Label.AnimationSpeed}">
+                    <Slider
+                        Width="168"
+                        AutomationProperties.AutomationId="Lighting.Speed"
+                        IsEnabled="{x:Bind ViewModel.LightingAvailable, Mode=OneWay}"
+                        Maximum="5"
+                        Minimum="1"
+                        SmallChange="1"
+                        StepFrequency="1"
+                        Value="{x:Bind ViewModel.LightingSpeed, Mode=TwoWay}" />
+                </controls:SettingsCard>
+                <controls:SettingsCard
+                    MinHeight="48"
+                    Header="{StaticResource Label.Direction}">
+                    <ComboBox
+                        Width="96"
+                        AutomationProperties.AutomationId="Lighting.Direction"
+                        IsEnabled="{x:Bind ViewModel.LightingAvailable, Mode=OneWay}"
+                        ItemsSource="{x:Bind ViewModel.LightingDirections, Mode=OneWay}"
+                        SelectedItem="{x:Bind ViewModel.LightingDirection, Mode=TwoWay}" />
+                </controls:SettingsCard>
+                <controls:SettingsCard
+                    MinHeight="48"
+                    Header="{StaticResource Label.LogoLighting}">
+                    <ToggleSwitch
+                        AutomationProperties.AutomationId="Lighting.Logo"
+                        IsEnabled="{x:Bind ViewModel.LightingAvailable, Mode=OneWay}"
+                        IsOn="{x:Bind ViewModel.LogoLightingEnabled, Mode=TwoWay}" />
+                </controls:SettingsCard>
+            </StackPanel>
 
-            <Border Grid.Row="2" Margin="0,4,0,0" Style="{StaticResource SectionPanelStyle}">
-                <Grid ColumnSpacing="28">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="220" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <StackPanel Spacing="5">
-                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{StaticResource Section.StaticZones}" />
-                        <TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Tip.PickColor}" />
-                    </StackPanel>
-                    <StackPanel Grid.Column="1" Spacing="18">
-                        <ItemsControl IsEnabled="{x:Bind ViewModel.LightingAvailable, Mode=OneWay}" ItemsSource="{x:Bind ViewModel.LightingZones}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="10" /></ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Button
-                                        Width="112"
-                                        Height="82"
-                                        Padding="8"
-                                        HorizontalContentAlignment="Stretch"
-                                        VerticalContentAlignment="Bottom"
-                                        Background="{Binding Color, Converter={StaticResource HexColorToBrushConverter}}"
-                                        BorderBrush="{ThemeResource PredatorBorderBrush}"
-                                        BorderThickness="1"
-                                        Click="ZoneColor_Click"
-                                        CornerRadius="8">
-                                        <Border Padding="7,3" HorizontalAlignment="Left" Background="#B0101416" CornerRadius="5">
-                                            <StackPanel Orientation="Horizontal" Spacing="3">
-                                                <TextBlock Foreground="White" Text="{StaticResource Label.Zone}" />
-                                                <TextBlock Foreground="White" Text="{Binding Index}" />
-                                            </StackPanel>
-                                        </Border>
-                                    </Button>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                        <Button HorizontalAlignment="Right" IsEnabled="{x:Bind ViewModel.LightingAvailable, Mode=OneWay}" Style="{StaticResource AccentButtonStyle}" Content="{StaticResource Action.Apply}" Command="{x:Bind ViewModel.ApplyLightingCommand}" />
-                    </StackPanel>
-                </Grid>
-            </Border>
+            <Button
+                Grid.Row="2"
+                HorizontalAlignment="Right"
+                AutomationProperties.AutomationId="Lighting.Apply"
+                Command="{x:Bind ViewModel.ApplyLightingCommand}"
+                Content="{StaticResource Action.Apply}"
+                IsEnabled="{x:Bind ViewModel.LightingAvailable, Mode=OneWay}"
+                Style="{StaticResource PrimaryButtonStyle}" />
         </Grid>
     </ScrollViewer>
 </Page>

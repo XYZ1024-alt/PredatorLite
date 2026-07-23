@@ -1,5 +1,13 @@
 namespace PredatorLite.Core.Models;
 
+public enum HardwareWriteBlockReason
+{
+    None,
+    UnsupportedModel,
+    UnvalidatedBios,
+    ControlBackendUnavailable
+}
+
 public sealed record DeviceIdentity(
     string Manufacturer,
     string Model,
@@ -19,11 +27,15 @@ public sealed record DeviceCapabilities
 
     public bool IsValidatedModel { get; init; }
 
+    public required HardwareWriteBlockReason WriteBlockReason { get; init; }
+
     public string CompatibilityMessage { get; init; } = string.Empty;
 
     public bool AcerServiceAvailable { get; init; }
 
     public bool AcerWmiAvailable { get; init; }
+
+    public bool AcerSystemMonitorAvailable { get; init; }
 
     public bool BatteryControlAvailable { get; init; }
 
@@ -40,7 +52,10 @@ public sealed record DeviceCapabilities
     public IReadOnlyDictionary<DeviceSettingId, DeviceSettingState> DeviceSettings { get; init; } =
         new Dictionary<DeviceSettingId, DeviceSettingState>();
 
-    public bool CanWriteHardware => IsValidatedModel && (AcerServiceAvailable || AcerWmiAvailable);
+    public bool CanWriteHardware =>
+        IsValidatedModel &&
+        WriteBlockReason == HardwareWriteBlockReason.None &&
+        (AcerServiceAvailable || AcerWmiAvailable);
 }
 
 public sealed record HardwareSnapshot
@@ -60,6 +75,8 @@ public sealed record HardwareSnapshot
     public double? GpuLoadPercent { get; init; }
 
     public double? CpuPowerWatts { get; init; }
+
+    public bool CpuPowerSupported { get; init; }
 
     public double? GpuPowerWatts { get; init; }
 
@@ -86,6 +103,16 @@ public sealed record HardwareSnapshot
     public GpuMuxMode? GpuMuxMode { get; init; }
 
     public FanMode? FanMode { get; init; }
+
+    public bool HasLivePrimaryTelemetry =>
+        CpuTemperatureC.HasValue ||
+        GpuTemperatureC.HasValue ||
+        CpuFanRpm.HasValue ||
+        GpuFanRpm.HasValue ||
+        CpuLoadPercent.HasValue ||
+        GpuLoadPercent.HasValue ||
+        CpuClockMhz.HasValue ||
+        GpuClockMhz.HasValue;
 }
 
 public sealed record ManagedServiceInfo(
