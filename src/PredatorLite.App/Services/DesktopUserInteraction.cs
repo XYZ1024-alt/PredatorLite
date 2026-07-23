@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using PredatorLite.Core.Abstractions;
 using Windows.Storage.Pickers;
@@ -117,6 +118,11 @@ public sealed class DesktopUserInteraction(
             IsMoreButtonVisible = true
         };
         AutomationProperties.SetAutomationId(picker, "LightingColorPicker");
+        Grid dialogContent = new();
+        dialogContent.Children.Add(picker);
+        AutomationProperties.SetAutomationId(dialogContent, "LightingColorDialog");
+        AutomationProperties.SetName(dialogContent, localization.Get("Tip.PickColor"));
+        AutomationProperties.SetAccessibilityView(dialogContent, AccessibilityView.Content);
 
         await _dialogGate.WaitAsync();
         try
@@ -125,12 +131,11 @@ public sealed class DesktopUserInteraction(
             {
                 XamlRoot = root,
                 Title = localization.Get("Tip.PickColor"),
-                Content = picker,
+                Content = dialogContent,
                 PrimaryButtonText = localization.Get("Action.Confirm"),
                 CloseButtonText = localization.Get("Action.Cancel"),
                 DefaultButton = ContentDialogButton.Primary
             };
-            AutomationProperties.SetAutomationId(dialog, "LightingColorDialog");
             if (await dialog.ShowAsync() != ContentDialogResult.Primary)
             {
                 return null;

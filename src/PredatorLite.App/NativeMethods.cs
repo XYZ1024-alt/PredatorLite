@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Windows.Graphics;
 
 namespace PredatorLite.App;
 
@@ -21,14 +22,35 @@ internal static partial class NativeMethods
     internal static partial bool SetForegroundWindow(IntPtr window);
 
     [LibraryImport("user32.dll")]
+    internal static partial IntPtr GetForegroundWindow();
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool IsWindowVisible(IntPtr window);
+
+    [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool ShowWindow(IntPtr window, int command);
 
     [LibraryImport("user32.dll")]
     internal static partial uint GetDpiForWindow(IntPtr window);
 
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetCursorPos(out Point point);
+
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr MonitorFromPoint(Point point, uint flags);
+
     [LibraryImport("user32.dll")]
     private static partial IntPtr MonitorFromWindow(IntPtr window, uint flags);
+
+    [LibraryImport("shcore.dll")]
+    private static partial int GetDpiForMonitor(
+        IntPtr monitor,
+        int dpiType,
+        out uint dpiX,
+        out uint dpiY);
 
     [LibraryImport("user32.dll", EntryPoint = "GetMonitorInfoW", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -45,6 +67,34 @@ internal static partial class NativeMethods
 
     internal static void ShowError(IntPtr window, string message, string title) =>
         MessageBox(window, message, title, 0x00000010);
+
+    internal static bool TryGetCursorPosition(out PointInt32 position)
+    {
+        if (GetCursorPos(out Point point))
+        {
+            position = new PointInt32(point.X, point.Y);
+            return true;
+        }
+
+        position = default;
+        return false;
+    }
+
+    internal static uint GetDpiForPoint(PointInt32 position, IntPtr fallbackWindow)
+    {
+        IntPtr monitor = MonitorFromPoint(
+            new Point { X = position.X, Y = position.Y },
+            MonitorDefaultToNearest);
+        if (monitor != IntPtr.Zero &&
+            GetDpiForMonitor(monitor, 0, out uint dpiX, out _) == 0 &&
+            dpiX > 0)
+        {
+            return dpiX;
+        }
+
+        uint fallbackDpi = GetDpiForWindow(fallbackWindow);
+        return fallbackDpi == 0 ? 96u : fallbackDpi;
+    }
 
     internal static void ApplySizeConstraints(
         IntPtr window,

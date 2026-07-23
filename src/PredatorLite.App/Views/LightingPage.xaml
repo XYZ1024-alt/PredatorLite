@@ -5,12 +5,48 @@
     xmlns:controls="using:CommunityToolkit.WinUI.Controls"
     xmlns:viewModels="using:PredatorLite.App.ViewModels"
     Background="Transparent">
+    <Page.Resources>
+        <DataTemplate x:Key="KeyboardKeycapZoneTemplate">
+            <Grid
+                Margin="6,6,6,48"
+                ColumnSpacing="4"
+                IsHitTestVisible="False"
+                RowSpacing="4">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="1.25*" />
+                </Grid.ColumnDefinitions>
+
+                <Border Style="{StaticResource KeyboardKeycapStyle}" />
+                <Border Grid.Column="1" Style="{StaticResource KeyboardKeycapStyle}" />
+                <Border Grid.Column="2" Style="{StaticResource KeyboardKeycapStyle}" />
+                <Border Grid.Column="3" Style="{StaticResource KeyboardKeycapStyle}" />
+                <Border Grid.Row="1" Style="{StaticResource KeyboardKeycapStyle}" />
+                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource KeyboardKeycapStyle}" />
+                <Border Grid.Row="1" Grid.Column="2" Style="{StaticResource KeyboardKeycapStyle}" />
+                <Border Grid.Row="1" Grid.Column="3" Style="{StaticResource KeyboardKeycapStyle}" />
+                <Border Grid.Row="2" Style="{StaticResource KeyboardKeycapStyle}" />
+                <Border Grid.Row="2" Grid.Column="1" Style="{StaticResource KeyboardKeycapStyle}" />
+                <Border Grid.Row="2" Grid.Column="2" Style="{StaticResource KeyboardKeycapStyle}" />
+                <Border Grid.Row="2" Grid.Column="3" Style="{StaticResource KeyboardKeycapStyle}" />
+            </Grid>
+        </DataTemplate>
+    </Page.Resources>
+
     <ScrollViewer
         AutomationProperties.AutomationId="Lighting.Scroll"
         HorizontalScrollBarVisibility="Disabled"
         VerticalScrollBarVisibility="Auto">
-        <Grid RowSpacing="8" Style="{StaticResource PageContentGridStyle}">
+        <Grid Style="{StaticResource PageContentGridStyle}">
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -22,10 +58,7 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <StackPanel Spacing="4">
-                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{StaticResource Section.KeyboardPreview}" />
-                        <TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Description.LightingPreview}" />
-                    </StackPanel>
+                    <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{StaticResource Section.LightingEffect}" />
                     <Border
                         Grid.Column="1"
                         Style="{StaticResource CautionBadgeStyle}"
@@ -36,62 +69,6 @@
                             Text="{StaticResource Status.ReadOnly}" />
                     </Border>
                 </Grid>
-                <ContentControl
-                    HorizontalContentAlignment="Stretch"
-                    IsEnabled="{x:Bind ViewModel.LightingAvailable, Mode=OneWay}">
-                    <ItemsRepeater ItemsSource="{x:Bind ViewModel.LightingZones, Mode=OneWay}">
-                        <ItemsRepeater.Layout>
-                            <UniformGridLayout
-                                ItemsStretch="Fill"
-                                MaximumRowsOrColumns="4"
-                                MinColumnSpacing="8"
-                                MinItemHeight="80"
-                                MinItemWidth="96"
-                                Orientation="Horizontal" />
-                        </ItemsRepeater.Layout>
-                        <ItemsRepeater.ItemTemplate>
-                            <DataTemplate x:DataType="viewModels:LightingZoneViewModel">
-                                <Button
-                                    Margin="0,0,0,4"
-                                    AutomationProperties.AutomationId="{x:Bind AutomationId, Mode=OneTime}"
-                                    Click="ZoneColor_Click"
-                                    Style="{StaticResource KeyboardZoneButtonStyle}">
-                                    <StackPanel HorizontalAlignment="Stretch" Spacing="8">
-                                        <Grid>
-                                            <TextBlock
-                                                HorizontalAlignment="Left"
-                                                Style="{StaticResource MetricLabelTextStyle}">
-                                                <Run Text="{StaticResource Label.Zone}" />
-                                                <Run Text=" " />
-                                                <Run Text="{x:Bind Index, Mode=OneTime}" />
-                                            </TextBlock>
-                                            <FontIcon
-                                                HorizontalAlignment="Right"
-                                                Glyph="&#xE790;" />
-                                        </Grid>
-                                        <Border
-                                            Height="24"
-                                            Background="{x:Bind Color, Mode=OneWay, Converter={StaticResource HexColorToBrushConverter}}"
-                                            BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="{ThemeResource ControlCornerRadius}" />
-                                        <TextBlock
-                                            HorizontalAlignment="Center"
-                                            Style="{StaticResource CaptionTextBlockStyle}"
-                                            Text="{x:Bind Color, Mode=OneWay}" />
-                                    </StackPanel>
-                                </Button>
-                            </DataTemplate>
-                        </ItemsRepeater.ItemTemplate>
-                    </ItemsRepeater>
-                </ContentControl>
-            </StackPanel>
-
-            <StackPanel Grid.Row="1" Spacing="8">
-                <StackPanel Spacing="4">
-                    <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{StaticResource Section.LightingControls}" />
-                    <TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Description.LightingControls}" />
-                </StackPanel>
                 <controls:SettingsCard
                     MinHeight="48"
                     Header="{StaticResource Label.Effect}">
@@ -103,12 +80,178 @@
                         ItemsSource="{x:Bind ViewModel.LightingEffects, Mode=OneWay}"
                         SelectedItem="{x:Bind ViewModel.SelectedLightingEffectOption, Mode=TwoWay}" />
                 </controls:SettingsCard>
-                <controls:SettingsCard
-                    MinHeight="48"
-                    Header="{StaticResource Label.PrimaryColor}">
+            </StackPanel>
+
+            <StackPanel Grid.Row="1" Spacing="8">
+                <StackPanel Spacing="4">
+                    <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{StaticResource Section.KeyboardPreview}" />
+                    <TextBlock
+                        Style="{StaticResource MutedTextStyle}"
+                        Text="{StaticResource Description.StaticLightingPreview}"
+                        Visibility="{x:Bind ViewModel.IsStaticLightingEffect, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <TextBlock
+                        Style="{StaticResource MutedTextStyle}"
+                        Text="{StaticResource Description.DynamicLightingPreview}"
+                        Visibility="{x:Bind ViewModel.IsStaticLightingEffect, Mode=OneWay, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
+                </StackPanel>
+
+                <ContentControl
+                    HorizontalContentAlignment="Stretch"
+                    IsEnabled="{x:Bind ViewModel.LightingAvailable, Mode=OneWay}"
+                    Visibility="{x:Bind ViewModel.IsStaticLightingEffect, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <Border
+                        AutomationProperties.AccessibilityView="Content"
+                        AutomationProperties.AutomationId="Lighting.StaticPreview"
+                        AutomationProperties.Name="{StaticResource Description.StaticLightingPreview}"
+                        Style="{StaticResource KeyboardPreviewFrameStyle}">
+                        <StackPanel Spacing="6">
+                            <Grid>
+                                <TextBlock Style="{StaticResource CaptionTextBlockStyle}" Text="{StaticResource Label.KeyboardLeft}" />
+                                <TextBlock
+                                    HorizontalAlignment="Right"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    Text="{StaticResource Label.KeyboardRight}" />
+                            </Grid>
+                            <ItemsRepeater ItemsSource="{x:Bind ViewModel.LightingZones, Mode=OneWay}">
+                                <ItemsRepeater.Layout>
+                                    <UniformGridLayout
+                                        ItemsStretch="Fill"
+                                        MaximumRowsOrColumns="4"
+                                        MinColumnSpacing="4"
+                                        MinItemHeight="112"
+                                        MinItemWidth="108"
+                                        Orientation="Horizontal" />
+                                </ItemsRepeater.Layout>
+                                <ItemsRepeater.ItemTemplate>
+                                    <DataTemplate x:DataType="viewModels:LightingZoneViewModel">
+                                        <Button
+                                            HorizontalAlignment="Stretch"
+                                            AutomationProperties.AutomationId="{x:Bind AutomationId, Mode=OneTime}"
+                                            AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}"
+                                            Click="ZoneColor_Click"
+                                            Style="{StaticResource KeyboardZoneButtonStyle}"
+                                            Tag="{x:Bind}"
+                                            ToolTipService.ToolTip="{StaticResource Tip.PickColor}">
+                                            <Grid>
+                                                <Border
+                                                    Background="{x:Bind Color, Mode=OneWay, Converter={StaticResource HexColorToBrushConverter}}"
+                                                    CornerRadius="4" />
+                                                <ContentControl
+                                                    HorizontalContentAlignment="Stretch"
+                                                    VerticalContentAlignment="Stretch"
+                                                    Content="{x:Bind Index, Mode=OneTime}"
+                                                    ContentTemplate="{StaticResource KeyboardKeycapZoneTemplate}"
+                                                    IsHitTestVisible="False" />
+                                                <Border Style="{StaticResource KeyboardPreviewInfoStripStyle}">
+                                                    <Grid ColumnSpacing="4">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel Spacing="0">
+                                                            <TextBlock
+                                                                FontWeight="SemiBold"
+                                                                Style="{StaticResource CaptionTextBlockStyle}">
+                                                                <Run Text="{StaticResource Label.Zone}" />
+                                                                <Run Text=" " />
+                                                                <Run Text="{x:Bind Index, Mode=OneTime}" />
+                                                            </TextBlock>
+                                                            <TextBlock
+                                                                Style="{StaticResource CaptionTextBlockStyle}"
+                                                                Text="{x:Bind Color, Mode=OneWay}"
+                                                                TextTrimming="None" />
+                                                        </StackPanel>
+                                                        <FontIcon
+                                                            Grid.Column="1"
+                                                            VerticalAlignment="Center"
+                                                            FontSize="14"
+                                                            Glyph="&#xE790;" />
+                                                    </Grid>
+                                                </Border>
+                                            </Grid>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsRepeater.ItemTemplate>
+                            </ItemsRepeater>
+                        </StackPanel>
+                    </Border>
+                </ContentControl>
+
+                <Border
+                    AutomationProperties.AccessibilityView="Content"
+                    AutomationProperties.AutomationId="Lighting.DynamicPreview"
+                    AutomationProperties.Name="{StaticResource Description.DynamicLightingPreview}"
+                    Style="{StaticResource KeyboardPreviewFrameStyle}"
+                    Visibility="{x:Bind ViewModel.IsStaticLightingEffect, Mode=OneWay, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                    <StackPanel Spacing="6">
+                        <Grid>
+                            <TextBlock Style="{StaticResource CaptionTextBlockStyle}" Text="{StaticResource Label.KeyboardLeft}" />
+                            <TextBlock
+                                HorizontalAlignment="Right"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="{StaticResource Label.KeyboardRight}" />
+                        </Grid>
+                        <Grid Height="112">
+                            <Border
+                                Background="{x:Bind ViewModel.LightingPrimaryColor, Mode=OneWay, Converter={StaticResource HexColorToBrushConverter}}"
+                                CornerRadius="4" />
+                            <ItemsRepeater
+                                IsHitTestVisible="False"
+                                ItemTemplate="{StaticResource KeyboardKeycapZoneTemplate}"
+                                ItemsSource="{x:Bind ViewModel.LightingZones, Mode=OneWay}">
+                                <ItemsRepeater.Layout>
+                                    <UniformGridLayout
+                                        ItemsStretch="Fill"
+                                        MaximumRowsOrColumns="4"
+                                        MinColumnSpacing="0"
+                                        MinItemHeight="112"
+                                        MinItemWidth="108"
+                                        Orientation="Horizontal" />
+                                </ItemsRepeater.Layout>
+                            </ItemsRepeater>
+                            <Border Style="{StaticResource KeyboardPreviewInfoStripStyle}">
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock
+                                        VerticalAlignment="Center"
+                                        FontWeight="SemiBold"
+                                        Style="{StaticResource CaptionTextBlockStyle}"
+                                        Text="{x:Bind ViewModel.SelectedLightingEffectOption.Name, Mode=OneWay}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Style="{StaticResource CaptionTextBlockStyle}" Text="{StaticResource Label.PrimaryColor}" />
+                                        <TextBlock
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            Text="{x:Bind ViewModel.LightingPrimaryColor, Mode=OneWay}" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <StackPanel Grid.Row="2" Spacing="8">
+                <StackPanel Spacing="4">
+                    <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{StaticResource Section.LightingControls}" />
+                    <TextBlock Style="{StaticResource MutedTextStyle}" Text="{StaticResource Description.LightingControls}" />
+                </StackPanel>
+                <controls:SettingsCard MinHeight="48">
+                    <controls:SettingsCard.Header>
+                        <Grid>
+                            <TextBlock
+                                Text="{StaticResource Label.LogoColor}"
+                                Visibility="{x:Bind ViewModel.IsStaticLightingEffect, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <TextBlock
+                                Text="{StaticResource Label.PrimaryColor}"
+                                Visibility="{x:Bind ViewModel.IsStaticLightingEffect, Mode=OneWay, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
+                        </Grid>
+                    </controls:SettingsCard.Header>
                     <Button
                         AutomationProperties.AutomationId="Lighting.PrimaryColor"
-                        AutomationProperties.Name="{StaticResource Tip.PickColor}"
+                        AutomationProperties.Name="{x:Bind ViewModel.LightingColorAutomationName, Mode=OneWay}"
                         Command="{x:Bind ViewModel.PickPrimaryColorCommand}"
                         IsEnabled="{x:Bind ViewModel.LightingAvailable, Mode=OneWay}"
                         Style="{StaticResource SecondaryButtonStyle}"
@@ -144,7 +287,8 @@
                 <controls:SettingsCard
                     MinHeight="48"
                     Description="{x:Bind ViewModel.LightingSpeed, Mode=OneWay}"
-                    Header="{StaticResource Label.AnimationSpeed}">
+                    Header="{StaticResource Label.AnimationSpeed}"
+                    Visibility="{x:Bind ViewModel.IsStaticLightingEffect, Mode=OneWay, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
                     <Slider
                         Width="168"
                         AutomationProperties.AutomationId="Lighting.Speed"
@@ -157,7 +301,8 @@
                 </controls:SettingsCard>
                 <controls:SettingsCard
                     MinHeight="48"
-                    Header="{StaticResource Label.Direction}">
+                    Header="{StaticResource Label.Direction}"
+                    Visibility="{x:Bind ViewModel.IsStaticLightingEffect, Mode=OneWay, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
                     <ComboBox
                         Width="96"
                         AutomationProperties.AutomationId="Lighting.Direction"
@@ -171,12 +316,14 @@
                     <ToggleSwitch
                         AutomationProperties.AutomationId="Lighting.Logo"
                         IsEnabled="{x:Bind ViewModel.LightingAvailable, Mode=OneWay}"
-                        IsOn="{x:Bind ViewModel.LogoLightingEnabled, Mode=TwoWay}" />
+                        IsOn="{x:Bind ViewModel.LogoLightingEnabled, Mode=TwoWay}"
+                        OffContent="{StaticResource State.Off}"
+                        OnContent="{StaticResource State.On}" />
                 </controls:SettingsCard>
             </StackPanel>
 
             <Button
-                Grid.Row="2"
+                Grid.Row="3"
                 HorizontalAlignment="Right"
                 AutomationProperties.AutomationId="Lighting.Apply"
                 Command="{x:Bind ViewModel.ApplyLightingCommand}"

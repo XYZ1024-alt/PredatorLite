@@ -16,7 +16,8 @@ public sealed partial class LightingPage : Page
 
     private void ZoneColor_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button { DataContext: LightingZoneViewModel zone })
+        if (sender is Button button &&
+            (button.Tag as LightingZoneViewModel ?? button.DataContext as LightingZoneViewModel) is { } zone)
         {
             ViewModel.PickZoneColorCommand.Execute(zone);
         }

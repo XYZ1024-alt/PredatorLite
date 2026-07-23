@@ -18,6 +18,7 @@ PredatorLite 是面向 Acer Predator PHN16-71 的轻量控制工具，用普通�
 - Windows 键、粘滞键快捷触发、开机音效和键盘灯超时等设备开关
 - CPU/GPU、风扇、内存、显存、电池与可选 FPS 监控
 - 系统托盘、单实例、中英文界面、可选 OSD 与全局快捷操作
+- 每次唤出自动停靠鼠标所在显示器右下角，并在运行期接管 PredatorSense 专用键
 - Acer 服务状态、冲突服务备份/停用/恢复和脱敏诊断包
 
 PredatorLite 不提供用户超频、电压调节、功耗墙修改、MSR/NVAPI 写入、BIOS 写入或 vBIOS 工具。
@@ -40,7 +41,7 @@ PredatorLite 复用 Acer 官方驱动和服务提供的接口，不附带或替�
 - `AcerServiceSvc`：运行模式、风扇、显卡路由和部分设备设置
 - `AcerLightingService`：键盘和标志灯光
 - `AcerApplicationBaseDriver_Device`：Acer WMI/硬件桥接驱动
-- `AcerQAAgentSvis`：可选，仅用于物理模式键通知
+- `AcerQAAgentSvis`：可选，仅用于物理性能模式键通知；PredatorSense 启动键使用独立键盘监听
 
 应用不会停用上述必需组件。设置页只允许管理经过固定白名单识别的 PredatorSense 冲突服务，并在 `%ProgramData%\PredatorLite\service-backup.json` 保存启动方式备份。
 

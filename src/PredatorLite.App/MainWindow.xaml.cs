@@ -11,6 +11,7 @@ using PredatorLite.App.Services;
 using PredatorLite.App.ViewModels;
 using PredatorLite.App.Views;
 using PredatorLite.Core.Abstractions;
+using PredatorLite.Platform.Windows.SystemIntegration;
 using Windows.Graphics;
 
 namespace PredatorLite.App;
@@ -23,6 +24,7 @@ public sealed partial class MainWindow : Window
     private const int MinimumHeightInDips = 640;
     private const int MaximumWidthInDips = 640;
     private const int MaximumHeightInDips = 900;
+    private const int WorkAreaMarginInDips = 12;
     private readonly MainViewModel _viewModel;
     private readonly LocalizationService _localization;
     private readonly IAppLogger _logger;
@@ -30,6 +32,7 @@ public sealed partial class MainWindow : Window
     private readonly UiMotionService _motion;
     private readonly AppWindow _appWindow;
     private readonly NativeWindowSubclass _windowSubclass;
+    private readonly PredatorKeySource _predatorKeySource;
     private readonly List<MainShell> _shellLayers = [];
     private MainShell? _shell;
     private TrayIconView? _trayIcon;
@@ -49,6 +52,7 @@ public sealed partial class MainWindow : Window
         _localization = localization;
         _logger = logger;
         _exitRequested = exitRequested;
+        _predatorKeySource = new PredatorKeySource(logger);
         InitializeComponent();
         Title = "PredatorLite";
         _motion = new UiMotionService(Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread());
@@ -66,6 +70,8 @@ public sealed partial class MainWindow : Window
 
         Closed += OnClosed;
         _viewModel.PropertyChanged += ViewModelOnPropertyChanged;
+        _predatorKeySource.ActivationRequested += OnPredatorKeyActivationRequested;
+        _predatorKeySource.Start();
     }
 
     public IntPtr WindowHandle { get; }
@@ -74,10 +80,14 @@ public sealed partial class MainWindow : Window
 
     public void ShowAndActivate()
     {
+        PositionAtBottomRight(useInitialSize: false);
         this.Show();
         _trayIcon?.SetWindowVisible(true);
         Activate();
-        NativeMethods.SetForegroundWindow(WindowHandle);
+        if (!NativeMethods.SetForegroundWindow(WindowHandle))
+        {
+            _logger.Info("Windows denied a request to foreground the main window.");
+        }
     }
 
     public void HideToTray()
@@ -92,6 +102,8 @@ public sealed partial class MainWindow : Window
         Activated -= OnActivated;
         _viewModel.PropertyChanged -= ViewModelOnPropertyChanged;
         _localization.LanguageChanged -= OnLanguageChanged;
+        _predatorKeySource.ActivationRequested -= OnPredatorKeyActivationRequested;
+        _predatorKeySource.Dispose();
         _shortcuts?.Dispose();
         _shortcuts = null;
         _windowSubclass.Dispose();
@@ -112,20 +124,12 @@ public sealed partial class MainWindow : Window
         SystemBackdrop = DesktopAcrylicController.IsSupported()
             ? new DesktopAcrylicBackdrop()
             : new MicaBackdrop { Kind = MicaKind.BaseAlt };
-        DisplayArea displayArea = DisplayArea.GetFromWindowId(windowId, DisplayAreaFallback.Primary);
-        RectInt32 workArea = displayArea.WorkArea;
-        double scale = Math.Max(1, NativeMethods.GetDpiForWindow(WindowHandle)) / 96d;
-        int width = Math.Min(workArea.Width, (int)Math.Ceiling(InitialWidthInDips * scale));
-        int height = Math.Min(workArea.Height, (int)Math.Ceiling(InitialHeightInDips * scale));
-        _appWindow.Resize(new SizeInt32(width, height));
         if (_appWindow.Presenter is OverlappedPresenter presenter)
         {
             presenter.IsMaximizable = false;
         }
 
-        _appWindow.Move(new PointInt32(
-            workArea.X + Math.Max(0, (workArea.Width - width) / 2),
-            workArea.Y + Math.Max(0, (workArea.Height - height) / 2)));
+        PositionAtBottomRight(windowId, useInitialSize: true);
 
         string iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "PredatorLiteFluent.ico");
         if (File.Exists(iconPath))
@@ -149,6 +153,96 @@ public sealed partial class MainWindow : Window
             MaximumWidthInDips,
             MaximumHeightInDips);
         e.Handled = true;
+    }
+
+    private void PositionAtBottomRight(bool useInitialSize) =>
+        PositionAtBottomRight(_appWindow.Id, useInitialSize);
+
+    private void PositionAtBottomRight(WindowId windowId, bool useInitialSize)
+    {
+        DisplayArea displayArea = GetTargetDisplayArea(windowId);
+        RectInt32 workArea = displayArea.WorkArea;
+        if (workArea.Width <= 0 || workArea.Height <= 0)
+        {
+            return;
+        }
+
+        PointInt32 dpiProbe = new(
+            workArea.X + (workArea.Width / 2),
+            workArea.Y + (workArea.Height / 2));
+        double targetScale = NativeMethods.GetDpiForPoint(dpiProbe, WindowHandle) / 96d;
+        int width;
+        int height;
+        if (useInitialSize)
+        {
+            width = (int)Math.Ceiling(InitialWidthInDips * targetScale);
+            height = (int)Math.Ceiling(InitialHeightInDips * targetScale);
+        }
+        else
+        {
+            uint currentDpi = NativeMethods.GetDpiForWindow(WindowHandle);
+            double currentScale = (currentDpi == 0 ? 96u : currentDpi) / 96d;
+            SizeInt32 currentSize = _appWindow.Size;
+            width = (int)Math.Round(currentSize.Width / currentScale * targetScale);
+            height = (int)Math.Round(currentSize.Height / currentScale * targetScale);
+        }
+
+        width = Math.Clamp(width, 1, workArea.Width);
+        height = Math.Clamp(height, 1, workArea.Height);
+        int margin = (int)Math.Ceiling(WorkAreaMarginInDips * targetScale);
+        int x = Math.Max(workArea.X, workArea.X + workArea.Width - width - margin);
+        int y = Math.Max(workArea.Y, workArea.Y + workArea.Height - height - margin);
+        _appWindow.MoveAndResize(new RectInt32(x, y, width, height));
+    }
+
+    private static DisplayArea GetTargetDisplayArea(WindowId windowId)
+    {
+        if (NativeMethods.TryGetCursorPosition(out PointInt32 cursorPosition))
+        {
+            return DisplayArea.GetFromPoint(cursorPosition, DisplayAreaFallback.Nearest);
+        }
+
+        return DisplayArea.GetFromWindowId(windowId, DisplayAreaFallback.Primary);
+    }
+
+    private void OnPredatorKeyActivationRequested(object? sender, EventArgs e)
+    {
+        if (_allowClose)
+        {
+            return;
+        }
+
+        if (DispatcherQueue.HasThreadAccess)
+        {
+            ToggleWindowFromPredatorKey();
+            return;
+        }
+
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (!_allowClose)
+            {
+                ToggleWindowFromPredatorKey();
+            }
+        });
+    }
+
+    private void ToggleWindowFromPredatorKey()
+    {
+        if (_allowClose)
+        {
+            return;
+        }
+
+        bool isForeground = NativeMethods.IsWindowVisible(WindowHandle) &&
+            NativeMethods.GetForegroundWindow() == WindowHandle;
+        if (isForeground)
+        {
+            HideToTray();
+            return;
+        }
+
+        ShowAndActivate();
     }
 
     private async void RebuildShell(bool animate)

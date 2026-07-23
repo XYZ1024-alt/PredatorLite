@@ -12,17 +12,18 @@ Run this checklist on Windows 11 x64. Hardware-write cases require an Acer Preda
 
 ## Window and navigation
 
-1. Verify the initial window is approximately 600x840 DIPs, cannot be resized below 560x640 DIPs, and cannot be resized above 640x900 DIPs.
-2. Resize between the minimum and maximum bounds. The bottom navigation must remain fixed while page content scrolls independently.
-3. Confirm the bottom bar exposes five equal-width navigation items: Home, Cooling, Lighting, Monitor, and Settings. Home must not contain a status icon or status message.
-4. Open each secondary page from the bottom bar. The selected state must follow the active page, and `Alt+Left` must return directly to Home.
-5. Verify all pages at 100%, 125%, and 150% display scaling and at the minimum window size. No text, toggle, action button, or setting row may overlap or clip.
-6. Switch Windows between light, dark, and a contrast theme. Desktop Acrylic, glass cards, text, semantic badges, focus indicators, and controls must remain readable. With transparency disabled, the fallback surface must remain opaque and legible.
-7. Switch between Chinese and English. The shell, bottom navigation, tray menu, dialogs, OSD, mode names, and validation messages must update.
-8. Trigger a read-only state, reboot-required state, and a recoverable error where practical. Only one notice may be visible, with priority Error, Reboot required, then Read-only; full error text must wrap instead of being truncated.
-9. Minimize or close the main window. It must hide to the tray rather than terminate.
-10. Left-click the tray icon and use its Open command. The same window must return and receive focus.
-11. Start PredatorLite again through `winapp run`. No second main process should remain, and the existing window must open.
+1. Verify the initial window is approximately 600x840 DIPs and opens at the lower-right of the display containing the mouse pointer, with about 12 DIPs between the window and the work-area right/bottom edges.
+2. At 100%, 125%, and 150% display scaling, verify the window stays fully inside `DisplayArea.WorkArea`. Repeat with the taskbar on the bottom and one side, then with the pointer on each display of a mixed-DPI dual-monitor setup.
+3. Verify the window cannot be resized below 560x640 DIPs or above 640x900 DIPs. Resize between those bounds; the bottom navigation must remain fixed while page content scrolls independently.
+4. Confirm the bottom bar exposes five equal-width navigation items: Home, Cooling, Lighting, Monitor, and Settings. Home must not contain a status icon or status message.
+5. Open each secondary page from the bottom bar. The selected state must follow the active page, and `Alt+Left` must return directly to Home.
+6. Verify all pages at 100%, 125%, and 150% display scaling and at the minimum window size. No text, toggle, action button, or setting row may overlap or clip.
+7. Switch Windows between light, dark, and a contrast theme. Desktop Acrylic, glass cards, text, semantic badges, focus indicators, and controls must remain readable. With transparency disabled, the fallback surface must remain opaque and legible.
+8. Switch between Chinese and English. The shell, bottom navigation, tray menu, dialogs, OSD, mode names, and validation messages must update.
+9. Trigger a read-only state, reboot-required state, and a recoverable error where practical. Only one notice may be visible, with priority Error, Reboot required, then Read-only; full error text must wrap instead of being truncated.
+10. Minimize or close the main window. It must hide to the tray rather than terminate.
+11. Resize the window, hide it, move the pointer to another display, then left-click the tray icon or use its Open command. The same window must retain its logical size, move to that display's lower-right, and receive focus.
+12. Start PredatorLite again through `winapp run`. No second main process should remain, and the existing window must move to the pointer display's lower-right and open.
 
 ## Page-specific UI
 
@@ -31,9 +32,11 @@ Run this checklist on Windows 11 x64. Hardware-write cases require an Acer Preda
 3. On Cooling, switch the CPU/GPU selector. Only the selected curve may be visible.
 4. Edit several fan points. Validation must update inline without issuing a hardware write; Apply must disable while invalid.
 5. Verify both final curve points are read-only at 95 degrees C and 100%.
-6. On Lighting, verify four equal-width zones show both a color swatch and the full hex value. The normal state must not show a success badge; when unavailable, the read-only warning must remain visible.
-7. On Monitor, verify normal temperatures use neutral text and no live badge is shown. After three consecutive refresh failures, the stale indicator must appear; one successful refresh must clear it.
-8. On Settings, verify application rows use SettingsCard, services use SettingsExpander, and no generic Device switches section is present. Service and diagnostic action pairs must be equal-sized with the secondary action on the left and the blue primary action on the right.
+6. On Lighting, select Static and verify the simplified keyboard shows four equal-width zones ordered from left to right. Each zone must show its number and full hex value on a neutral strip, remain readable for black, white, and bright colors, and open the color dialog without writing hardware until Apply is selected.
+7. Switch Lighting to a dynamic effect. Verify the four editable zones are replaced by one unified primary-color keyboard preview, speed and direction become available, and switching back to Static restores the previous zone colors while hiding speed and direction. The normal state must not show a success badge; when unavailable, the read-only warning and disabled controls must remain visible.
+8. Repeat the Lighting checks in Chinese and English at the minimum window width and 150% scaling, then in light, dark, and a contrast theme. The keyboard orientation labels, key outlines, hex values, focus visuals, bottom navigation, and scrolling must remain readable and unobstructed.
+9. On Monitor, verify normal temperatures use neutral text and no live badge is shown. After three consecutive refresh failures, the stale indicator must appear; one successful refresh must clear it.
+10. On Settings, verify application rows use SettingsCard, services use SettingsExpander, and no generic Device switches section is present. Service and diagnostic action pairs must be equal-sized with the secondary action on the left and the blue primary action on the right.
 
 ## Read-only telemetry
 
@@ -51,8 +54,12 @@ Run this checklist on Windows 11 x64. Hardware-write cases require an Acer Preda
 2. Enable startup, inspect `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\PredatorLite`, then disable it again.
 3. Enable the OSD and FPS separately. The overlay must stay topmost, ignore mouse input, avoid taskbar/Alt+Tab, and close during app exit. When FPS is off, its entire metric column must collapse and the remaining three columns must fill the width.
 4. Switch language while the OSD is visible. Every OSD label must update. Simulate stale telemetry and verify the OSD stale indicator appears and clears on recovery.
-5. Verify `Ctrl+Alt+F11` opens the window and `Ctrl+Alt+F12` cycles operating modes when global shortcuts are enabled.
-6. Export diagnostics and confirm a ZIP is created at the selected path. Open Logs must open `%LocalAppData%\PredatorLite\logs`.
+5. Verify `Ctrl+Alt+F11` opens the window at the pointer display's lower-right and `Ctrl+Alt+F12` cycles operating modes when global shortcuts are enabled.
+6. On a PHN16-71, hide PredatorLite and press the PredatorSense key. It must open and focus PredatorLite without also opening PredatorSense. Press it while PredatorLite is visible in the background to reposition and focus the window, then press it while PredatorLite is in the foreground to hide it.
+7. Hold the PredatorSense key and verify only one visibility change occurs on release. Disable global shortcuts and repeat; the dedicated key must remain active while `Ctrl+Alt+F11` and `Ctrl+Alt+F12` are disabled.
+8. Exit PredatorLite from the tray and press the PredatorSense key. PredatorLite must not cold-start. If Acer software still launches PredatorSense through an independent channel while PredatorLite is running, use the explicit Disable conflicts action and repeat the test.
+9. Press the separate physical Mode key and verify it still cycles exactly one operating mode per press.
+10. Export diagnostics and confirm a ZIP is created at the selected path. Open Logs must open `%LocalAppData%\PredatorLite\logs`.
 
 ## Hardware controls
 

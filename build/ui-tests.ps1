@@ -10,6 +10,7 @@ $pass = 0
 $fail = 0
 $results = @()
 $homeLightingEffectValue = $null
+$lightingZoneOneValue = $null
 
 if (-not (Get-Command winapp -ErrorAction SilentlyContinue)) {
     throw "winapp is required. Run /winui-setup, then retry this script."
@@ -100,6 +101,12 @@ function Save-UiStateScreenshot {
 }
 
 Test-Ui "Home dashboard is visible" {
+    winapp ui wait-for "Shell.Nav.Home" -a $AppPid -t 5000
+    Assert-WinAppSucceeded "Waiting for Home navigation"
+    winapp ui invoke "Shell.Nav.Home" -a $AppPid
+    Assert-WinAppSucceeded "Opening Home"
+    winapp ui wait-for "Home.Scroll" -a $AppPid -t 5000
+    Assert-WinAppSucceeded "Waiting for the Home page"
     winapp ui wait-for "Home.Mode.Balanced" -a $AppPid -t 3000
     Assert-WinAppSucceeded "Waiting for operating modes"
     winapp ui wait-for "Home.Mode.Performance" -a $AppPid -t 2000
@@ -165,9 +172,11 @@ Test-Ui "Home navigation returns to dashboard" {
     Assert-WinAppSucceeded "Opening Home"
     winapp ui wait-for "Home.Mode.Balanced" -a $AppPid -t 3000
 }
-Test-Ui "Lighting exposes four zones" {
+Test-Ui "Lighting preserves the selected effect and switches to Static context" {
     winapp ui invoke "Shell.Nav.Lighting" -a $AppPid
     Assert-WinAppSucceeded "Opening Lighting"
+    winapp ui wait-for "Lighting.Scroll" -a $AppPid -t 5000
+    Assert-WinAppSucceeded "Waiting for the Lighting page"
     winapp ui wait-for "Lighting.Effect" -a $AppPid -t 3000
     Assert-WinAppSucceeded "Waiting for the Lighting effect selector"
     $lightingEffectResult = winapp ui get-value "Lighting.Effect" -a $AppPid --json 2>$null |
@@ -180,6 +189,13 @@ Test-Ui "Lighting exposes four zones" {
     if ($lightingEffectValue -ne $script:homeLightingEffectValue) {
         throw "Home and Lighting must show the same selected effect."
     }
+
+    winapp ui send-keys "home" --target "Lighting.Effect" -a $AppPid --via send-input
+    Assert-WinAppSucceeded "Selecting the Static lighting effect"
+    winapp ui wait-for "Lighting.StaticPreview" -a $AppPid -t 3000
+    Assert-WinAppSucceeded "Waiting for the Static keyboard preview"
+    winapp ui wait-for "Lighting.DynamicPreview" -a $AppPid --gone -t 2000
+    Assert-WinAppSucceeded "Checking that the dynamic preview is hidden"
     winapp ui wait-for "LightingZone.1" -a $AppPid -t 3000
     Assert-WinAppSucceeded "Waiting for lighting zone 1"
     winapp ui wait-for "LightingZone.2" -a $AppPid -t 2000
@@ -187,7 +203,84 @@ Test-Ui "Lighting exposes four zones" {
     winapp ui wait-for "LightingZone.3" -a $AppPid -t 2000
     Assert-WinAppSucceeded "Waiting for lighting zone 3"
     winapp ui wait-for "LightingZone.4" -a $AppPid -t 2000
+    Assert-WinAppSucceeded "Waiting for lighting zone 4"
+    winapp ui wait-for "Lighting.Speed" -a $AppPid --gone -t 2000
+    Assert-WinAppSucceeded "Checking that speed is hidden for Static"
+    winapp ui wait-for "Lighting.Direction" -a $AppPid --gone -t 2000
+    Assert-WinAppSucceeded "Checking that direction is hidden for Static"
+
+    $zoneResult = winapp ui get-value "LightingZone.1" -a $AppPid --json 2>$null |
+        ConvertFrom-Json -ErrorAction Stop
+    Assert-WinAppSucceeded "Reading lighting zone 1"
+    $script:lightingZoneOneValue = "$($zoneResult.text)".Trim()
+    if ([string]::IsNullOrWhiteSpace($script:lightingZoneOneValue)) {
+        throw "Lighting zone 1 must expose its label and color."
+    }
+
+    $staticColorResult = winapp ui get-value "Lighting.PrimaryColor" -a $AppPid --json 2>$null |
+        ConvertFrom-Json -ErrorAction Stop
+    Assert-WinAppSucceeded "Reading the Static logo color control"
+    if ("$($staticColorResult.text)" -notmatch "^(Logo color|\u6807\u5FD7\u706F\u989C\u8272), #[0-9A-Fa-f]{6}$") {
+        throw "Static color control must expose its logo context and current hex value."
+    }
 }
+Save-UiStateScreenshot "03-lighting-static.png" "Shell.Nav.Lighting"
+
+Test-Ui "Static lighting zone opens and cancels the color dialog" {
+    winapp ui invoke "LightingZone.1" -a $AppPid
+    Assert-WinAppSucceeded "Opening the lighting zone color dialog"
+    winapp ui wait-for "LightingColorDialog" -a $AppPid -t 3000
+    Assert-WinAppSucceeded "Waiting for the lighting color dialog"
+    winapp ui send-keys "esc" -a $AppPid --via send-input
+    Assert-WinAppSucceeded "Cancelling the lighting color dialog"
+    winapp ui wait-for "LightingColorDialog" -a $AppPid --gone -t 3000
+    Assert-WinAppSucceeded "Waiting for the lighting color dialog to close"
+
+    $zoneResult = winapp ui get-value "LightingZone.1" -a $AppPid --json 2>$null |
+        ConvertFrom-Json -ErrorAction Stop
+    Assert-WinAppSucceeded "Reading lighting zone 1 after cancelling"
+    if ("$($zoneResult.text)".Trim() -ne $script:lightingZoneOneValue) {
+        throw "Cancelling the color dialog must preserve the zone color."
+    }
+}
+
+Test-Ui "Dynamic lighting uses one keyboard preview and contextual controls" {
+    winapp ui send-keys "down" --target "Lighting.Effect" -a $AppPid --via send-input
+    Assert-WinAppSucceeded "Selecting a dynamic lighting effect"
+    winapp ui wait-for "Lighting.DynamicPreview" -a $AppPid -t 3000
+    Assert-WinAppSucceeded "Waiting for the dynamic keyboard preview"
+    winapp ui wait-for "Lighting.StaticPreview" -a $AppPid --gone -t 2000
+    Assert-WinAppSucceeded "Checking that the Static preview is hidden"
+    winapp ui wait-for "LightingZone.1" -a $AppPid --gone -t 2000
+    Assert-WinAppSucceeded "Checking that Static zones are hidden"
+    winapp ui wait-for "Lighting.PrimaryColor" -a $AppPid -t 2000
+    Assert-WinAppSucceeded "Waiting for the primary color control"
+    $dynamicColorResult = winapp ui get-value "Lighting.PrimaryColor" -a $AppPid --json 2>$null |
+        ConvertFrom-Json -ErrorAction Stop
+    Assert-WinAppSucceeded "Reading the dynamic primary color control"
+    if ("$($dynamicColorResult.text)" -notmatch "^(Primary color|\u4E3B\u989C\u8272), #[0-9A-Fa-f]{6}$") {
+        throw "Dynamic color control must expose its primary-color context and current hex value."
+    }
+    winapp ui wait-for "Lighting.Speed" -a $AppPid -t 2000
+    Assert-WinAppSucceeded "Waiting for dynamic speed"
+    winapp ui wait-for "Lighting.Direction" -a $AppPid -t 2000
+    Assert-WinAppSucceeded "Waiting for dynamic direction"
+}
+Save-UiStateScreenshot "03-lighting-dynamic.png" "Shell.Nav.Lighting"
+
+Test-Ui "Returning to Static restores the four zone colors" {
+    winapp ui send-keys "home" --target "Lighting.Effect" -a $AppPid --via send-input
+    Assert-WinAppSucceeded "Returning to the Static lighting effect"
+    winapp ui wait-for "LightingZone.1" -a $AppPid -t 3000
+    Assert-WinAppSucceeded "Waiting for lighting zone 1 to return"
+    $zoneResult = winapp ui get-value "LightingZone.1" -a $AppPid --json 2>$null |
+        ConvertFrom-Json -ErrorAction Stop
+    Assert-WinAppSucceeded "Reading restored lighting zone 1"
+    if ("$($zoneResult.text)".Trim() -ne $script:lightingZoneOneValue) {
+        throw "Switching effects must preserve the Static zone colors."
+    }
+}
+
 Test-Ui "Lighting omits the normal-state badge" {
     $lightingTreeJson = winapp ui inspect -a $AppPid --json --depth 12 2>$null
     Assert-WinAppSucceeded "Inspecting Lighting controls"
@@ -195,7 +288,6 @@ Test-Ui "Lighting omits the normal-state badge" {
         throw "Lighting must not expose a normal-state controllable badge."
     }
 }
-Save-UiStateScreenshot "03-lighting.png" "Shell.Nav.Lighting"
 
 Test-Ui "Alt+Left returns to Home" {
     winapp ui focus "Shell.Nav.Lighting" -a $AppPid

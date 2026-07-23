@@ -323,8 +323,17 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     [ObservableProperty]
     public partial LightingEffect SelectedLightingEffect { get; set; }
 
-    partial void OnSelectedLightingEffectChanged(LightingEffect value) =>
+    public bool IsStaticLightingEffect => SelectedLightingEffect == LightingEffect.Static;
+
+    public string LightingColorAutomationName =>
+        $"{_localization.Get(IsStaticLightingEffect ? "Label.LogoColor" : "Label.PrimaryColor")}, {LightingPrimaryColor}";
+
+    partial void OnSelectedLightingEffectChanged(LightingEffect value)
+    {
         OnPropertyChanged(nameof(SelectedLightingEffectOption));
+        OnPropertyChanged(nameof(IsStaticLightingEffect));
+        OnPropertyChanged(nameof(LightingColorAutomationName));
+    }
 
     [ObservableProperty]
     public partial int LightingBrightness { get; set; } = 5;
@@ -337,6 +346,9 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     [ObservableProperty]
     public partial string LightingPrimaryColor { get; set; } = "#00A8E8";
+
+    partial void OnLightingPrimaryColorChanged(string value) =>
+        OnPropertyChanged(nameof(LightingColorAutomationName));
 
     [ObservableProperty]
     public partial bool LogoLightingEnabled { get; set; } = true;
@@ -1037,7 +1049,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             string color = index < _settings.Lighting.ZoneColors.Count
                 ? _settings.Lighting.ZoneColors[index]
                 : _settings.Lighting.PrimaryColor;
-            LightingZones.Add(new LightingZoneViewModel(index + 1, color));
+            LightingZones.Add(new LightingZoneViewModel(index + 1, color, _localization.Get("Label.Zone")));
         }
 
         RebuildLightingEffects();
@@ -1327,9 +1339,16 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             false => _localization.Get("Power.Battery"),
             null => "--"
         };
+        string zoneLabel = _localization.Get("Label.Zone");
+        foreach (LightingZoneViewModel zone in LightingZones)
+        {
+            zone.ZoneLabel = zoneLabel;
+        }
+
         RebuildModeOptions();
         RebuildLightingEffects();
         ValidateFanCurve();
+        OnPropertyChanged(nameof(LightingColorAutomationName));
         OnPropertyChanged(nameof(CpuLabel));
         OnPropertyChanged(nameof(GpuLabel));
         OnPropertyChanged(nameof(CpuFanLabel));

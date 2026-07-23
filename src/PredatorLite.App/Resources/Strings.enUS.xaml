@@ -26,7 +26,8 @@
     <sys:String x:Key="Description.FanGuard">Fan guard provides recovery protection in maximum and custom modes.</sys:String>
     <sys:String x:Key="Description.FanModes">Auto suits daily use. Max provides short-term intensive cooling.</sys:String>
     <sys:String x:Key="Description.FanCurve">Temperature range 20-95°C, fan speed range 20-100%, and 95°C is fixed at 100%.</sys:String>
-    <sys:String x:Key="Description.LightingPreview">Select any zone to change its assigned color.</sys:String>
+    <sys:String x:Key="Description.StaticLightingPreview">Static lighting uses four independent zones arranged from the left side of the keyboard to the right.</sys:String>
+    <sys:String x:Key="Description.DynamicLightingPreview">Dynamic effects use one primary color. Zone colors are kept for the next time you select Static.</sys:String>
     <sys:String x:Key="Description.LightingControls">Effect parameters are written only after you apply them.</sys:String>
     <sys:String x:Key="Hint.ApplyRequired">Apply after changes</sys:String>
     <sys:String x:Key="Description.CpuTelemetry">Processor temperature, load, clock, and fan.</sys:String>
@@ -62,7 +63,7 @@
     <sys:String x:Key="Section.FanModes">Fan modes</sys:String>
     <sys:String x:Key="Section.CpuCurve">CPU fan curve</sys:String>
     <sys:String x:Key="Section.GpuCurve">GPU fan curve</sys:String>
-    <sys:String x:Key="Section.KeyboardPreview">Keyboard zone preview</sys:String>
+    <sys:String x:Key="Section.KeyboardPreview">Keyboard color layout</sys:String>
     <sys:String x:Key="Section.LightingControls">Lighting controls</sys:String>
     <sys:String x:Key="Section.CpuTelemetry">CPU</sys:String>
     <sys:String x:Key="Section.GpuTelemetry">GPU</sys:String>
@@ -128,6 +129,9 @@
     <sys:String x:Key="Label.AnimationSpeed">Speed</sys:String>
     <sys:String x:Key="Label.Direction">Direction</sys:String>
     <sys:String x:Key="Label.PrimaryColor">Primary color</sys:String>
+    <sys:String x:Key="Label.LogoColor">Logo color</sys:String>
+    <sys:String x:Key="Label.KeyboardLeft">Keyboard left</sys:String>
+    <sys:String x:Key="Label.KeyboardRight">Keyboard right</sys:String>
     <sys:String x:Key="Label.LogoLighting">Chassis logo lighting</sys:String>
     <sys:String x:Key="Label.RefreshRate">Refresh rate</sys:String>
     <sys:String x:Key="Label.Overdrive">LCD overdrive</sys:String>

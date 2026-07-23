@@ -26,7 +26,8 @@
     <sys:String x:Key="Description.FanGuard">风扇守护会在全速或自定义模式下提供恢复保护。</sys:String>
     <sys:String x:Key="Description.FanModes">自动适合日常使用，全速用于短时强化散热。</sys:String>
     <sys:String x:Key="Description.FanCurve">温度范围 20-95°C，风扇速度范围 20-100%，95°C 固定为 100%。</sys:String>
-    <sys:String x:Key="Description.LightingPreview">选择任一区域即可修改对应颜色。</sys:String>
+    <sys:String x:Key="Description.StaticLightingPreview">静态效果使用四个独立分区，按键盘左侧到右侧排列。</sys:String>
+    <sys:String x:Key="Description.DynamicLightingPreview">动态效果使用统一主颜色；四区颜色会保留到下次切换静态效果。</sys:String>
     <sys:String x:Key="Description.LightingControls">效果参数只会在应用后写入设备。</sys:String>
     <sys:String x:Key="Hint.ApplyRequired">更改后应用</sys:String>
     <sys:String x:Key="Description.CpuTelemetry">处理器温度、负载、频率与风扇。</sys:String>
@@ -62,7 +63,7 @@
     <sys:String x:Key="Section.FanModes">风扇模式</sys:String>
     <sys:String x:Key="Section.CpuCurve">CPU 风扇曲线</sys:String>
     <sys:String x:Key="Section.GpuCurve">GPU 风扇曲线</sys:String>
-    <sys:String x:Key="Section.KeyboardPreview">键盘区域预览</sys:String>
+    <sys:String x:Key="Section.KeyboardPreview">键盘颜色布局</sys:String>
     <sys:String x:Key="Section.LightingControls">灯光参数</sys:String>
     <sys:String x:Key="Section.CpuTelemetry">CPU</sys:String>
     <sys:String x:Key="Section.GpuTelemetry">GPU</sys:String>
@@ -128,6 +129,9 @@
     <sys:String x:Key="Label.AnimationSpeed">速度</sys:String>
     <sys:String x:Key="Label.Direction">方向</sys:String>
     <sys:String x:Key="Label.PrimaryColor">主颜色</sys:String>
+    <sys:String x:Key="Label.LogoColor">标志灯颜色</sys:String>
+    <sys:String x:Key="Label.KeyboardLeft">键盘左侧</sys:String>
+    <sys:String x:Key="Label.KeyboardRight">键盘右侧</sys:String>
     <sys:String x:Key="Label.LogoLighting">机身标志灯</sys:String>
     <sys:String x:Key="Label.RefreshRate">刷新率</sys:String>
     <sys:String x:Key="Label.Overdrive">LCD 响应加速</sys:String>
