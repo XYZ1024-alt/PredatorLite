@@ -8,6 +8,14 @@ $ErrorActionPreference = "Stop"
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $project = Join-Path $repositoryRoot "src\PredatorLite.App\PredatorLite.App.csproj"
 $destination = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot $OutputPath))
+$publishRoot = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot "publish")) + [System.IO.Path]::DirectorySeparatorChar
+if (-not $destination.StartsWith($publishRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "OutputPath must resolve inside $publishRoot"
+}
+
+if (Test-Path -LiteralPath $destination) {
+    Remove-Item -LiteralPath $destination -Recurse -Force
+}
 
 $publishArguments = @(
     "publish",
@@ -16,13 +24,27 @@ $publishArguments = @(
     "--runtime", "win-x64",
     "--self-contained", "false",
     "--output", $destination,
-    "--nologo"
+    "--nologo",
+    "-p:DebugType=None",
+    "-p:DebugSymbols=false"
 )
 
 & dotnet $publishArguments
 
 if ($LASTEXITCODE -ne 0) {
     throw "dotnet publish failed with exit code $LASTEXITCODE"
+}
+
+Get-ChildItem -LiteralPath $destination -Recurse -Filter "*.pdb" -File |
+    Remove-Item -Force
+
+$licenseSource = Join-Path $repositoryRoot "licenses"
+$licenseFiles = @(
+    Get-ChildItem -LiteralPath $licenseSource -File |
+        ForEach-Object { "licenses\$($_.Name)" }
+)
+if ($licenseFiles.Count -eq 0) {
+    throw "No third-party license files were found in $licenseSource"
 }
 
 $requiredFiles = @(
@@ -56,8 +78,10 @@ $requiredFiles = @(
     "Microsoft.WindowsAppRuntime.Bootstrap.dll",
     "Microsoft.WindowsAppRuntime.Bootstrap.Net.dll",
     "Assets\PredatorLiteFluent.ico",
-    "Assets\PredatorLiteFluent.png"
-)
+    "Assets\PredatorLiteFluent.png",
+    "LICENSE",
+    "THIRD-PARTY-NOTICES.md"
+) + $licenseFiles
 $missingFiles = $requiredFiles | Where-Object {
     -not (Test-Path -LiteralPath (Join-Path $destination $_) -PathType Leaf)
 }

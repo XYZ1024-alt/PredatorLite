@@ -1,0 +1,16 @@
+* text=auto eol=lf
+
+*.png binary
+*.ico binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.zip binary
+*.7z binary
+*.exe binary
+*.dll binary
+*.pdb binary
+*.rtf binary -eol
+
+licenses/** -whitespace

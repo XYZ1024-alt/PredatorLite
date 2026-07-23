@@ -11,7 +11,7 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.251219" />
     <PackageReference Include="H.NotifyIcon.WinUI" Version="2.4.1" />
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.3.1" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260710003" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -38,7 +38,6 @@
     <AssemblyName>PredatorLite</AssemblyName>
     <Product>PredatorLite</Product>
     <Description>Lightweight Acer Predator PHN16-71 control utility</Description>
-    <Version>0.1.0</Version>
     <CompanionTargetFramework>net10.0-windows10.0.19041.0</CompanionTargetFramework>
   </PropertyGroup>
 
@@ -46,6 +45,9 @@
     <Manifest Include="$(ApplicationManifest)" />
     <Content Include="Assets\PredatorLiteFluent.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="Assets\PredatorLiteFluent.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\licenses\**\*" Link="licenses\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="Resources\Strings.zhCN.xaml" Link="Localization\Strings.zhCN.xaml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="Resources\Strings.enUS.xaml" Link="Localization\Strings.enUS.xaml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>

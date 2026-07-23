@@ -4,10 +4,10 @@ Run this checklist on Windows 11 x64. Hardware-write cases require an Acer Preda
 
 ## Preparation
 
-1. Install .NET 10 Runtime x64 and Windows App Runtime 2.3 x64. Run `/winui-setup` if `winapp` is not available.
+1. Install .NET 10 Runtime x64 and Windows App Runtime 1.8 x64. Run `/winui-setup` if `winapp` is not available.
 2. Keep `AcerServiceSvc`, `AcerLightingService`, `ASMSvc`, and `AcerApplicationBaseDriver_Device` installed and running.
 3. Close every existing PredatorLite instance, including older WPF builds, before launching the WinUI build.
-4. Build the app and launch it as an ordinary user through `winapp run --debug-output`; do not run the generated executable directly.
+4. Build and launch the app as an ordinary user with `dotnet run --project src\PredatorLite.App\PredatorLite.App.csproj`. For a validated published directory, launch `PredatorLite.exe` from that complete directory. Do not elevate the main app.
 5. For the repeatable, non-writing navigation and accessibility pass, run `build\ui-tests.ps1 -AppPid <PID>`.
 
 ## Window and navigation

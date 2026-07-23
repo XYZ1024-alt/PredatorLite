@@ -1,0 +1,34 @@
+name: Feature request
+description: Propose a scoped PredatorLite improvement
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Hardware-write requests need independent protocol evidence and must preserve the safety boundary. Do not attach proprietary Acer material.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the workflow or limitation, not only the proposed control.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: input
+    id: hardware
+    attributes:
+      label: Relevant model and BIOS
+      placeholder: N/A for platform-neutral requests
+  - type: textarea
+    id: safety
+    attributes:
+      label: Hardware and safety considerations
+      description: Explain whether this reads hardware, writes hardware, requires elevation, or affects recovery.
+    validations:
+      required: true

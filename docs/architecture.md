@@ -19,7 +19,7 @@ MainViewModel -- named-pipe heartbeat --> FanGuard
 Settings UI  -- explicit UAC action --> ElevatedHelper
 ```
 
-`PredatorLite.Core` has no WinUI or Acer implementation dependency. The application talks to hardware only through `IPredatorPlatform`, which keeps protocol code and UI state separate. `PredatorLite.App` is an unpackaged, framework-dependent Windows App SDK 2.3 application targeting Windows 11 x64.
+`PredatorLite.Core` has no WinUI or Acer implementation dependency. The application talks to hardware only through `IPredatorPlatform`, which keeps protocol code and UI state separate. `PredatorLite.App` is an unpackaged, framework-dependent Windows App SDK 1.8 application targeting Windows 11 x64.
 
 ## Startup sequence
 
@@ -47,7 +47,7 @@ Every control action follows the same boundary:
 2. Serialize commands so AcerService/WMI operations cannot overlap.
 3. Send only the command associated with the selected UI control.
 4. Query the resulting state when the transport supports verification.
-5. Report success only after verification; otherwise preserve the visible previous state.
+5. Report success from verified read-back or an explicit successful transport response; preserve the visible previous state on rejection or failure.
 
 There is no BIOS fallback for GPU routing and no generic arbitrary command endpoint exposed to the UI.
 

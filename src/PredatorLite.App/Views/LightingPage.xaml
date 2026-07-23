@@ -219,7 +219,7 @@
                                         VerticalAlignment="Center"
                                         FontWeight="SemiBold"
                                         Style="{StaticResource CaptionTextBlockStyle}"
-                                        Text="{x:Bind ViewModel.SelectedLightingEffectOption.Name, Mode=OneWay}" />
+                                        Text="{x:Bind ViewModel.SelectedLightingEffectOption.Name, Mode=OneWay, FallbackValue=''}" />
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal" Spacing="6">
                                         <TextBlock Style="{StaticResource CaptionTextBlockStyle}" Text="{StaticResource Label.PrimaryColor}" />
                                         <TextBlock

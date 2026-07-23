@@ -1,5 +1,8 @@
 # PredatorLite
 
+[![build](https://github.com/XYZ1024-alt/PredatorLite/actions/workflows/build.yml/badge.svg)](https://github.com/XYZ1024-alt/PredatorLite/actions/workflows/build.yml)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 PredatorLite 是面向 Acer Predator PHN16-71 的轻量控制工具，用普通用户权限提供 PredatorSense 中与日常使用相关的功能。当前硬件写入白名单仅验证到：
 
 - Acer Predator PHN16-71
@@ -7,6 +10,9 @@ PredatorLite 是面向 Acer Predator PHN16-71 的轻量控制工具，用普通�
 - Windows 11 x64
 
 其他机型或 BIOS 版本仍可查看诊断信息，但所有硬件写入都会被禁用。
+
+> [!WARNING]
+> PredatorLite 仍处于预发布阶段。硬件控制存在固有风险；请先确认型号和 BIOS 完全匹配，并阅读[硬件安全边界](docs/hardware-safety.md)。
 
 ## 功能
 
@@ -27,7 +33,7 @@ PredatorLite 不提供用户超频、电压调节、功耗墙修改、MSR/NVAPI 
 
 - 启动阶段只执行能力探测和遥测读取，不自动恢复上次硬件设置。
 - 每次写入都来自明确的用户操作，或来自用户主动启用的供电状态自动化。
-- 写入仅在 PHN16-71 / V1.20 白名单匹配后开放，并进行结果回读验证。
+- 写入仅在 PHN16-71 / V1.20 白名单匹配后开放；端点支持查询时执行结果回读，其余操作要求明确的传输成功响应。
 - GPU 路由只有 `Hybrid = 2` 和 `Discrete = 1`，没有 iGPU-only 或禁用 Windows 显卡设备的路径。
 - 全速或自定义风扇启用前必须启动独立 FanGuard。主程序失联 5 秒或异常退出时，FanGuard 会恢复 EC 自动风扇。
 - 主程序以普通用户权限运行。只有停用或恢复冲突服务时启动固定命令白名单的管理员辅助程序。
@@ -49,12 +55,18 @@ PredatorLite 复用 Acer 官方驱动和服务提供的接口，不附带或替�
 
 ## 构建
 
-需要 Windows 11 x64 和 .NET SDK 10.0.302 或兼容的 10.0.x SDK。界面使用 WinUI 3，项目固定使用 Microsoft Windows App SDK 2.3.1：
+需要 Windows 11 x64 和 .NET SDK 10.0.302 或兼容的 10.0.x SDK。界面使用 WinUI 3，项目固定使用 Microsoft Windows App SDK 1.8.260710003 稳定版：
 
 ```powershell
 dotnet restore PredatorLite.slnx
 dotnet build PredatorLite.slnx -c Release --no-restore
 dotnet test PredatorLite.slnx -c Release --no-build
+```
+
+从源码启动本地界面：
+
+```powershell
+dotnet run --project src\PredatorLite.App\PredatorLite.App.csproj
 ```
 
 框架依赖发布：
@@ -66,9 +78,9 @@ dotnet test PredatorLite.slnx -c Release --no-build
 输出位于 `publish\win-x64`，其中包含主程序、FanGuard 和管理员辅助程序。这是免安装、框架依赖的 x64 目录发布，不使用 MSIX。目标机器需要同时安装：
 
 - .NET 10 Runtime x64
-- Windows App Runtime 2.3 x64
+- Windows App Runtime 1.8 x64
 
-发布目录必须整体保留，不能只复制 `PredatorLite.exe`。运行 `build\publish.ps1` 后脚本会检查三个 EXE、运行时配置、WinUI PRI/XBF、Bootstrap DLL 和图标资源是否齐全。
+发布目录必须整体保留，不能只复制 `PredatorLite.exe`。在完整目录中启动 `PredatorLite.exe`；运行 `build\publish.ps1` 后脚本会检查三个 EXE、运行时配置、WinUI PRI/XBF、Bootstrap DLL 和图标资源是否齐全。
 
 ## 项目结构
 
@@ -83,12 +95,16 @@ tests/PredatorLite.Tests          协议、曲线、设置与能力边界测试
 
 ## 来源边界
 
-根目录中的 `PreySense/` 仅作为行为研究参考，已被 `.gitignore` 排除。PredatorLite 不复用其中的代码、UI、资源、字体、二进制文件、ROM 或固件。
+PredatorLite 是独立实现的互操作项目，不分发 Acer 源码、反编译代码、驱动、固件、ROM 或厂商素材。固定协议值、验证方法和贡献要求见[协议来源说明](docs/protocol-provenance.md)。本地忽略的研究目录不属于项目或 Git 历史，也不能作为贡献代码与素材的来源。
 
-PredatorLite 不是 Acer 官方产品，也不隶属于 Acer。使用硬件控制功能前应确认型号与 BIOS 版本完全匹配。
+PredatorLite 不是 Acer 官方产品，也不隶属于 Acer。Acer、Predator 和 PredatorSense 名称仅用于说明兼容性。
 
-完整的发布前检查见 [手动测试清单](docs/manual-testing.md)。
+完整的发布前检查见[手动测试清单](docs/manual-testing.md)。
+
+## 贡献与安全
+
+提交代码前请阅读[贡献指南](CONTRIBUTING.md)。安全问题请按[安全策略](SECURITY.md)私下报告，不要在公开 Issue 中披露漏洞、机器密钥或未经脱敏的诊断信息。
 
 ## License
 
-[MIT](LICENSE)
+PredatorLite 源码和原创项目素材采用 [MIT License](LICENSE)。素材范围见 [ASSET-LICENSE.md](ASSET-LICENSE.md)，依赖组件及其许可证见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
