@@ -59,12 +59,18 @@ function Resolve-SignTool {
         return [System.IO.Path]::GetFullPath($env:SIGNTOOL_PATH)
     }
     $kitsBin = Join-Path ${env:ProgramFiles(x86)} "Windows Kits\10\bin"
-    $signTool = Get-ChildItem -LiteralPath $kitsBin -Filter "signtool.exe" -File -Recurse -ErrorAction SilentlyContinue |
-        Where-Object { $_.Directory.Name -eq "x64" } |
-        Sort-Object { [version]$_.Directory.Parent.Name } -Descending |
-        Select-Object -First 1
-    if (-not $signTool) { throw "Windows SDK SignTool was not found." }
-    return $signTool.FullName
+    $versionDirectories = @(
+        Get-ChildItem -LiteralPath $kitsBin -Directory -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match '^\d+(\.\d+){3}$' } |
+            Sort-Object { [version]$_.Name } -Descending
+    )
+    foreach ($directory in $versionDirectories) {
+        $candidate = Join-Path $directory.FullName "x64\signtool.exe"
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+            return [System.IO.Path]::GetFullPath($candidate)
+        }
+    }
+    throw "Windows SDK SignTool was not found."
 }
 
 function New-TestRsaKey {
@@ -197,7 +203,9 @@ $initialReleaseFingerprint = Get-DirectoryFingerprint -Path $releaseOutputDirect
 $version = [string]($buildProperties.Project.PropertyGroup.Version | Select-Object -First 1)
 $setupPath = Join-Path $testOutputDirectory "PredatorLite-Setup-$version-win-x64-test-signed.exe"
 $unsignedSetupPath = Join-Path $unsignedOutputDirectory "PredatorLite-Setup-$version-win-x64-unsigned.exe"
+Write-Host "Resolving Windows SDK SignTool..."
 $signTool = Resolve-SignTool
+Write-Host "Using SignTool: $signTool"
 $rootKey = $null
 $leafKey = $null
 $rootRsa = $null
@@ -212,6 +220,7 @@ $testSucceeded = $false
 $cleanupFailures = [System.Collections.Generic.List[string]]::new()
 
 try {
+    Write-Host "Creating temporary installer-signing test certificates..."
     $rootKey = New-TestRsaKey -Name $rootKeyName
     $leafKey = New-TestRsaKey -Name $leafKeyName
     $rootRsa = [System.Security.Cryptography.RSACng]::new($rootKey)

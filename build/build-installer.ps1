@@ -87,15 +87,19 @@ function Resolve-SignTool {
     }
 
     $kitsBin = Join-Path ${env:ProgramFiles(x86)} "Windows Kits\10\bin"
-    $signTool = Get-ChildItem -LiteralPath $kitsBin -Filter "signtool.exe" -File -Recurse -ErrorAction SilentlyContinue |
-        Where-Object { $_.Directory.Name -eq "x64" } |
-        Sort-Object { [version]$_.Directory.Parent.Name } -Descending |
-        Select-Object -First 1
-    if (-not $signTool) {
-        throw "Windows SDK SignTool was not found. Install the Windows 10/11 SDK or set SIGNTOOL_PATH."
+    $versionDirectories = @(
+        Get-ChildItem -LiteralPath $kitsBin -Directory -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match '^\d+(\.\d+){3}$' } |
+            Sort-Object { [version]$_.Name } -Descending
+    )
+    foreach ($directory in $versionDirectories) {
+        $candidate = Join-Path $directory.FullName "x64\signtool.exe"
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+            return [System.IO.Path]::GetFullPath($candidate)
+        }
     }
 
-    return $signTool.FullName
+    throw "Windows SDK SignTool was not found. Install the Windows 10/11 SDK or set SIGNTOOL_PATH."
 }
 
 function Test-WindowsPublicAuthRoot {
