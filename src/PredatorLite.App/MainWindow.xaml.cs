@@ -28,7 +28,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private readonly MainViewModel _viewModel;
     private readonly LocalizationService _localization;
     private readonly IAppLogger _logger;
-    private readonly Func<Task> _exitRequested;
+    private readonly Func<int, Task> _exitRequested;
     private readonly UiMotionService _motion;
     private readonly AppWindow _appWindow;
     private readonly NativeWindowSubclass _windowSubclass;
@@ -48,7 +48,7 @@ public sealed partial class MainWindow : Window, IDisposable
         LocalizationService localization,
         IAppLogger logger,
         bool startHidden,
-        Func<Task> exitRequested)
+        Func<int, Task> exitRequested)
     {
         _viewModel = viewModel;
         _localization = localization;
@@ -85,7 +85,21 @@ public sealed partial class MainWindow : Window, IDisposable
 
     public void ShowAndActivate()
     {
-        EnsureShell();
+        try
+        {
+            EnsureShell();
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError("UI shell creation failed during activation", exception);
+            NativeMethods.ShowError(
+                WindowHandle,
+                _localization.Get("Status.InitializationFailed"),
+                "PredatorLite");
+            _ = _exitRequested(1);
+            return;
+        }
+
         PositionAtBottomRight(useInitialSize: false);
         this.Show();
         TrayIconView.SetWindowVisible(true);
@@ -280,18 +294,9 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private void EnsureShell()
     {
-        if (_shell is not null)
-        {
-            return;
-        }
-
-        try
+        if (_shell is null)
         {
             ReplaceShell(out _);
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError("UI shell creation failed", exception);
         }
     }
 
@@ -340,7 +345,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private void CreateTrayIcon()
     {
         _trayIcon = new TrayIconView();
-        _trayIcon.Configure(ShowAndActivate, () => _ = _exitRequested());
+        _trayIcon.Configure(ShowAndActivate, () => _ = _exitRequested(0));
         _trayIcon.RebuildMenu(_localization);
         WindowHost.Children.Add(_trayIcon);
         _trayIcon.ForceCreate();

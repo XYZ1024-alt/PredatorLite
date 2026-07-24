@@ -1,11 +1,12 @@
 using System.Globalization;
+using System.Xml.Linq;
 using Microsoft.UI.Xaml;
 
 namespace PredatorLite.App.Services;
 
 public sealed class LocalizationService
 {
-    private ResourceDictionary _strings = new();
+    private Dictionary<string, string> _strings = new();
     private int _resourcePosition = -1;
 
     public event EventHandler? LanguageChanged;
@@ -23,10 +24,12 @@ public sealed class LocalizationService
         }
 
         string resourceName = normalized == "en-US" ? "enUS" : "zhCN";
-        ResourceDictionary strings = new()
+        Dictionary<string, string> strings = LoadStrings(resourceName);
+        ResourceDictionary dictionary = new();
+        foreach ((string key, string value) in strings)
         {
-            Source = new Uri($"ms-appx:///Resources/Strings.{resourceName}.xaml")
-        };
+            dictionary.Add(key, value);
+        }
 
         IList<ResourceDictionary> dictionaries = Application.Current.Resources.MergedDictionaries;
         if (_resourcePosition >= 0 && _resourcePosition < dictionaries.Count)
@@ -35,7 +38,7 @@ public sealed class LocalizationService
         }
 
         _resourcePosition = Math.Min(1, dictionaries.Count);
-        dictionaries.Insert(_resourcePosition, strings);
+        dictionaries.Insert(_resourcePosition, dictionary);
         _strings = strings;
         CurrentLanguage = normalized;
         CultureInfo culture = CultureInfo.GetCultureInfo(normalized);
@@ -44,16 +47,29 @@ public sealed class LocalizationService
         LanguageChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public string Get(string key)
+    public string Get(string key) =>
+        _strings.TryGetValue(key, out string? value) ? value : key;
+
+    private static Dictionary<string, string> LoadStrings(string resourceName)
     {
-        try
-        {
-            return _strings[key] is string text ? text : key;
-        }
-        catch (Exception exception) when (
-            exception is KeyNotFoundException or System.Runtime.InteropServices.ExternalException)
-        {
-            return key;
-        }
+        string resourcePath = $"PredatorLite.Localization.Strings.{resourceName}.xml";
+        using Stream stream = typeof(LocalizationService).Assembly
+            .GetManifestResourceStream(resourcePath) ??
+            throw new InvalidOperationException($"Localization resource not found: {resourcePath}");
+        XDocument document = XDocument.Load(stream, LoadOptions.None);
+        XNamespace xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
+        return document
+            .Descendants()
+            .Where(element => element.Name.LocalName == "String")
+            .Select(element => new
+            {
+                Key = element.Attribute(xaml + "Key")?.Value,
+                Value = element.Value
+            })
+            .Where(item => !string.IsNullOrWhiteSpace(item.Key))
+            .ToDictionary(
+                item => item.Key!,
+                item => item.Value,
+                StringComparer.Ordinal);
     }
 }

@@ -77,7 +77,7 @@ public partial class App : Application
                 localization,
                 _logger,
                 startHidden,
-                () => ExitAsync(0));
+                ExitAsync);
             _mainWindow = window;
             window.Activate();
             if (startHidden)
