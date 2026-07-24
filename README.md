@@ -80,7 +80,7 @@ dotnet run --project src\PredatorLite.App\PredatorLite.App.csproj
 - .NET 10 Runtime x64
 - Windows App Runtime 1.8 x64
 
-发布目录必须整体保留，不能只复制 `PredatorLite.exe`。在完整目录中启动 `PredatorLite.exe`；运行 `build\publish.ps1` 后脚本会检查三个 EXE、运行时配置、WinUI PRI/XBF、Bootstrap DLL 和图标资源是否齐全。
+发布目录必须整体保留，不能只复制 `PredatorLite.exe`。在完整目录中启动 `PredatorLite.exe`；运行 `build\publish.ps1` 后脚本会检查三个 EXE、运行时配置、WinUI PRI/XBF、Bootstrap DLL 和图标资源是否齐全。该目录版默认没有 Authenticode 签名，不属于下述签名安装器流水线。
 
 Inno Setup 本地安装测试包：
 
@@ -88,14 +88,16 @@ Inno Setup 本地安装测试包：
 .\build\build-installer.ps1 -SkipSigning
 ```
 
-输出为 `artifacts\installer\unsigned\PredatorLite-Setup-0.1.0-win-x64-unsigned.exe`。未签名测试包位于忽略的本地测试目录，不会进入 `publish`，不能公开发布。生产构建要求把带私钥、Code Signing EKU 且由公共信任 CA 签发的 Authenticode 证书导入 `CurrentUser\My`，然后执行：
+输出为 `artifacts\installer\unsigned\PredatorLite-Setup-0.1.0-win-x64-unsigned.exe`。未签名载荷和测试包都位于忽略的 `artifacts`，不会读写 `publish`，不能公开发布。可重复的临时证书签名、安装、卸载与时间戳测试使用 `build\test-installer-signing.ps1`；其 `-test-signed` 产物同样只存在于 `artifacts` 并在测试结束时删除。
+
+生产构建要求把带私钥、Code Signing EKU 且由公共信任 CA 签发的 Authenticode 证书导入 `CurrentUser\My`，且证书链根必须存在于 Windows `LocalMachine\AuthRoot`，然后执行：
 
 ```powershell
 $env:PREDATORLITE_SIGNING_THUMBPRINT = "<certificate SHA-1 thumbprint>"
 .\build\build-installer.ps1
 ```
 
-生产产物写入 `publish\installer`，构建前会整体清空该目录。流水线先签署 8 个 PredatorLite 自有 EXE/DLL，再由 Inno Setup 签署安装程序和内嵌卸载器，逐个执行 SignTool 验证并生成 `.sha256` 文件。测试与生产目录完全隔离；证书自签名、不受信任、缺少私钥、用途错误或已过期时构建会失败。第三方 DLL 保留其原始发布者签名，不会被 PredatorLite 重新签署。
+生产构建不会修改 `publish\win-x64`。它在每次调用的独立 `artifacts` 工作目录中签署 8 个 PredatorLite 自有 EXE/DLL，并用 SignTool 固定到预期证书验证 SHA-256 签名和 RFC 3161 时间戳；Inno Setup 同样签署 Setup 与内嵌卸载器，测试脚本会安装后验证卸载器。Setup 验证和 `.sha256` 生成全部成功后，脚本才通过同父目录移动将两个文件提升到 `publish\installer`。提升前失败会保留已有正式安装包；提升开始后失败会删除候选和不完整目标。证书自签名、仅受本机私有根信任、已吊销、缺少私钥、用途错误或已过期时构建会失败。第三方 DLL 保留其原始发布者签名，不会被 PredatorLite 重新签署。
 
 ## 项目结构
 

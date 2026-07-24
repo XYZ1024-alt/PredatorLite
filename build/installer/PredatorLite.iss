@@ -6,6 +6,10 @@
   #define OutputSuffix "-unsigned"
 #endif
 
+#ifndef PayloadDirectory
+  #define PayloadDirectory "..\..\artifacts\installer\work\win-x64"
+#endif
+
 #define AppName "PredatorLite"
 #define AppExe "PredatorLite.exe"
 
@@ -50,11 +54,14 @@ RestartApplications=no
 
 #ifdef SignInstaller
 SignTool=PredatorLiteSign
+SignToolMinimumTimeBetween=1000
+SignToolRetryCount=3
+SignToolRetryDelay=2000
 SignedUninstaller=yes
 #endif
 
 [Files]
-Source: "..\..\publish\win-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#PayloadDirectory}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; When a release removes or renames a payload file, add an exact [InstallDelete]
 ; entry for that obsolete path. Avoid broad wildcards under {app}.
