@@ -56,4 +56,4 @@ Do not add arbitrary fields or effect identifiers without a captured request/res
 
 ## Persistence and query behavior
 
-Packet `20` with `{"Function":"LIGHTING"}` is used only to probe/query the service state. PredatorLite preferences are stored in `%LocalAppData%\PredatorLite\settings.json` and are not automatically replayed as hardware writes during startup.
+Packet `20` with `{"Function":"LIGHTING"}` is used only to probe/query the service state. PredatorLite preferences are stored in `%LocalAppData%\PredatorLite\settings.json`. Lighting preferences are not replayed as hardware writes during startup; the only automatically restored hardware selection is the separately validated operating mode.

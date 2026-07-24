@@ -18,6 +18,11 @@ public sealed class LocalizationService
         string normalized = string.Equals(language, "en-US", StringComparison.OrdinalIgnoreCase)
             ? "en-US"
             : "zh-CN";
+        if (_strings.Count > 0 && string.Equals(normalized, CurrentLanguage, StringComparison.Ordinal))
+        {
+            return;
+        }
+
         string resourceName = normalized == "en-US" ? "enUS" : "zhCN";
         IReadOnlyDictionary<string, string> strings = LoadStrings(resourceName);
         ResourceDictionary dictionary = new();

@@ -14,6 +14,13 @@ public sealed record DeviceIdentity(
     string BiosVersion,
     string WindowsVersion);
 
+public sealed record PowerState(bool? IsOnAcPower, int? BatteryPercent);
+
+public sealed record PlatformStartupState(
+    DeviceCapabilities Capabilities,
+    PowerState Power,
+    OperatingMode? OperatingMode);
+
 public sealed record DeviceSettingState(
     DeviceSettingId Id,
     bool IsSupported,

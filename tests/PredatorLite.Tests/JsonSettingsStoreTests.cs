@@ -38,6 +38,33 @@ public sealed class JsonSettingsStoreTests
         }
     }
 
+    [Theory]
+    [InlineData(OperatingMode.Silent)]
+    [InlineData(OperatingMode.Balanced)]
+    [InlineData(OperatingMode.Performance)]
+    [InlineData(OperatingMode.Turbo)]
+    public async Task SchemaOneRoundTripsEveryRememberedModeAsString(OperatingMode mode)
+    {
+        string directory = CreateTestDirectory();
+        string path = Path.Combine(directory, "settings.json");
+        try
+        {
+            JsonSettingsStore store = new(path);
+            await store.SaveAsync(new AppSettings { LastAcMode = mode });
+
+            string json = await File.ReadAllTextAsync(path);
+            AppSettings actual = await store.LoadAsync();
+
+            Assert.Contains("\"SchemaVersion\": 1", json);
+            Assert.Contains($"\"LastAcMode\": \"{mode}\"", json);
+            Assert.Equal(mode, actual.LastAcMode);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task SecondSaveCreatesBackupOfPreviousSettings()
     {

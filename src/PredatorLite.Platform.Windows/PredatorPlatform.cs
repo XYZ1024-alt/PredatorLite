@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json.Nodes;
 using PredatorLite.Core.Abstractions;
 using PredatorLite.Core.Models;
@@ -8,22 +9,32 @@ namespace PredatorLite.Platform.Windows;
 
 public sealed class PredatorPlatform : IPredatorPlatform
 {
+    private static readonly TimeSpan StartupBackendRetryTimeout = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan StartupBackendInitialDelay = TimeSpan.FromMilliseconds(250);
+    private static readonly TimeSpan StartupBackendMaximumDelay = TimeSpan.FromSeconds(2);
+
     private readonly AcerServiceClient _service;
     private readonly AcerSystemMonitorClient _systemMonitor;
     private readonly AcerWmiClient _wmi;
     private readonly DisplayController _display = new();
     private readonly IAppLogger _logger;
     private readonly SemaphoreSlim _operationGate = new(1, 1);
+    private readonly SemaphoreSlim _probeGate = new(1, 1);
     private readonly WindowsCpuTelemetryReader _windowsCpuTelemetry;
 
     private DeviceCapabilities? _capabilities;
+    private PlatformStartupState? _startupState;
+    private AcerMonitorTelemetry? _initialAcerTelemetry;
     private OperatingMode? _operatingMode;
+    private OperatingMode? _startupObservedOperatingMode;
+    private bool _startupObservationAvailable;
     private GpuMuxMode? _gpuMuxMode;
     private FanMode? _fanMode;
     private bool _fanWriteOwned;
     private DateTimeOffset _lastServiceStateRead = DateTimeOffset.MinValue;
     private HardwareMonitorReader? _hardwareMonitor;
     private bool _extendedTelemetryEnabled;
+    private bool _fullProbeCompleted;
 
     public PredatorPlatform(IAppLogger logger)
     {
@@ -34,81 +45,151 @@ public sealed class PredatorPlatform : IPredatorPlatform
         _windowsCpuTelemetry = new WindowsCpuTelemetryReader(logger);
     }
 
+    public async Task<PlatformStartupState> ProbeStartupAsync(CancellationToken cancellationToken = default)
+    {
+        await _probeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (_startupState is not null)
+            {
+                return _startupState;
+            }
+
+            Stopwatch stopwatch = Stopwatch.StartNew();
+            Task<DeviceIdentity> identityTask = Task.Run(SystemIdentityReader.Read, cancellationToken);
+            Task<AcerResponse?> serviceModeTask = TryQueryAsync(
+                AcerProtocol.OperatingMode,
+                cancellationToken);
+            Task<OperatingMode?> wmiModeTask = _wmi.ReadOperatingModeAsync(cancellationToken);
+            (bool? onAcPower, int? batteryPercent) = PowerStatusReader.Read();
+
+            await Task.WhenAll(identityTask, serviceModeTask, wmiModeTask).ConfigureAwait(false);
+            DeviceIdentity identity = await identityTask.ConfigureAwait(false);
+            AcerResponse? serviceMode = await serviceModeTask.ConfigureAwait(false);
+            OperatingMode? wmiMode = await wmiModeTask.ConfigureAwait(false);
+            bool serviceAvailable = serviceMode?.IsSuccess == true;
+            bool wmiAvailable = wmiMode.HasValue;
+
+            if (AcerControlStateParser.TryReadOperatingMode(serviceMode, out OperatingMode operatingMode))
+            {
+                SetVerifiedOperatingMode(operatingMode, allowStartupIdempotence: true);
+            }
+            else if (!serviceAvailable && wmiMode is OperatingMode fallbackMode)
+            {
+                SetVerifiedOperatingMode(fallbackMode, allowStartupIdempotence: true);
+            }
+
+            bool validated = IsValidatedIdentity(identity);
+            if (validated && !serviceAvailable && !wmiAvailable)
+            {
+                serviceMode = await RetryStartupServiceModeAsync(stopwatch, cancellationToken)
+                    .ConfigureAwait(false);
+                serviceAvailable = serviceMode?.IsSuccess == true;
+                if (AcerControlStateParser.TryReadOperatingMode(serviceMode, out operatingMode))
+                {
+                    SetVerifiedOperatingMode(operatingMode, allowStartupIdempotence: true);
+                }
+            }
+
+            DeviceCapabilities capabilities = CreateCapabilities(
+                identity,
+                serviceAvailable,
+                wmiAvailable);
+            _capabilities = capabilities;
+            _startupState = new PlatformStartupState(
+                capabilities,
+                new PowerState(onAcPower, batteryPercent),
+                _operatingMode);
+            _logger.Info(
+                $"Startup control probe completed in {stopwatch.ElapsedMilliseconds} ms: " +
+                $"AcerService={serviceAvailable}, WMI={wmiAvailable}, validated={validated}.");
+            return _startupState;
+        }
+        finally
+        {
+            _probeGate.Release();
+        }
+    }
+
     public async Task<DeviceCapabilities> ProbeAsync(CancellationToken cancellationToken = default)
     {
-        DeviceIdentity identity = await Task.Run(SystemIdentityReader.Read, cancellationToken).ConfigureAwait(false);
-        bool serviceAvailable = await _service.IsAvailableAsync(cancellationToken).ConfigureAwait(false);
-        bool wmiAvailable = await _wmi.IsGamingInterfaceAvailableAsync(cancellationToken).ConfigureAwait(false);
-        bool systemMonitorAvailable = await _systemMonitor.IsAvailableAsync(cancellationToken).ConfigureAwait(false);
-        bool batteryAvailable = await _wmi.IsBatteryInterfaceAvailableAsync(cancellationToken).ConfigureAwait(false);
-        bool? chargeLimitEnabled = batteryAvailable
-            ? await _wmi.ReadChargeLimitAsync(cancellationToken).ConfigureAwait(false)
-            : null;
-        IReadOnlyList<int> refreshRates = await Task.Run(_display.GetSupportedRefreshRates, cancellationToken)
-            .ConfigureAwait(false);
+        PlatformStartupState startup = _startupState ??
+            await ProbeStartupAsync(cancellationToken).ConfigureAwait(false);
 
-        bool modelMatches = identity.Manufacturer.Contains("Acer", StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(identity.Model, "Predator PHN16-71", StringComparison.OrdinalIgnoreCase);
-        bool biosMatches = string.Equals(identity.BiosVersion, "V1.20", StringComparison.OrdinalIgnoreCase);
-        bool validated = modelMatches && biosMatches;
-        HardwareWriteBlockReason writeBlockReason = !modelMatches
-            ? HardwareWriteBlockReason.UnsupportedModel
-            : !biosMatches
-                ? HardwareWriteBlockReason.UnvalidatedBios
-                : !serviceAvailable && !wmiAvailable
-                    ? HardwareWriteBlockReason.ControlBackendUnavailable
-                    : HardwareWriteBlockReason.None;
-
-        AcerResponse? fanState = serviceAvailable
-            ? await TryQueryAsync(AcerProtocol.FanControl, cancellationToken).ConfigureAwait(false)
-            : null;
-        AcerResponse? lightingState = serviceAvailable
-            ? await TryQueryAsync(AcerProtocol.Lighting, cancellationToken).ConfigureAwait(false)
-            : null;
-        AcerResponse? gpuState = serviceAvailable
-            ? await TryQueryAsync(AcerProtocol.GpuMode, cancellationToken).ConfigureAwait(false)
-            : null;
-
-        await RefreshServiceStateAsync(cancellationToken).ConfigureAwait(false);
-        Dictionary<DeviceSettingId, DeviceSettingState> settings =
-            await QueryDeviceSettingsCoreAsync(serviceAvailable, validated, cancellationToken).ConfigureAwait(false);
-        _capabilities = new DeviceCapabilities
+        await _probeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            Device = identity,
-            IsValidatedModel = validated,
-            WriteBlockReason = writeBlockReason,
-            CompatibilityMessage = writeBlockReason switch
+            if (_fullProbeCompleted && _capabilities is not null)
             {
-                HardwareWriteBlockReason.None => "Predator PHN16-71 BIOS V1.20 validated.",
-                HardwareWriteBlockReason.UnsupportedModel =>
-                    $"Model {identity.Model} is not yet supported; diagnostics remain available.",
-                HardwareWriteBlockReason.UnvalidatedBios =>
-                    $"BIOS {identity.BiosVersion} is not yet validated; hardware writes are disabled.",
-                HardwareWriteBlockReason.ControlBackendUnavailable =>
-                    "No supported Acer control backend is available; hardware writes are disabled.",
-                _ => "Hardware writes are disabled."
-            },
-            AcerServiceAvailable = serviceAvailable,
-            AcerWmiAvailable = wmiAvailable,
-            AcerSystemMonitorAvailable = systemMonitorAvailable,
-            BatteryControlAvailable = batteryAvailable,
-            ChargeLimitEnabled = chargeLimitEnabled,
-            LightingAvailable = lightingState?.IsSuccess == true,
-            FanControlAvailable = fanState?.IsSuccess == true || wmiAvailable,
-            GpuMuxAvailable = gpuState?.IsSuccess == true,
-            RefreshRates = refreshRates,
-            DeviceSettings = settings
-        };
+                return _capabilities;
+            }
 
-        _logger.Info($"Capability probe: {identity.Model}, BIOS {identity.BiosVersion}, " +
-            $"AcerService={serviceAvailable}, AcerSystemMonitor={systemMonitorAvailable}, " +
-            $"WMI={wmiAvailable}, validated={validated}.");
-        return _capabilities;
+            Stopwatch stopwatch = Stopwatch.StartNew();
+            Task<AcerMonitorTelemetry?> systemMonitorTask = _systemMonitor.ReadAsync(cancellationToken);
+            Task<(bool Available, bool? Enabled)> batteryTask = ProbeBatteryAsync(cancellationToken);
+            Task<IReadOnlyList<int>> refreshRatesTask = Task.Run(
+                _display.GetSupportedRefreshRates,
+                cancellationToken);
+            Task<ServiceProbeResult> serviceTask = ProbeServiceCapabilitiesAsync(
+                startup.Capabilities.AcerServiceAvailable,
+                startup.Capabilities.IsValidatedModel,
+                cancellationToken);
+
+            ServiceProbeResult service = await serviceTask.ConfigureAwait(false);
+            AcerMonitorTelemetry? initialTelemetry = await systemMonitorTask.ConfigureAwait(false);
+            (bool batteryAvailable, bool? chargeLimitEnabled) = await batteryTask.ConfigureAwait(false);
+            IReadOnlyList<int> refreshRates = await refreshRatesTask.ConfigureAwait(false);
+            bool serviceAvailable = service.ServiceAvailable;
+            bool wmiAvailable = startup.Capabilities.AcerWmiAvailable;
+            DeviceIdentity identity = startup.Capabilities.Device;
+            HardwareWriteBlockReason writeBlockReason = GetWriteBlockReason(
+                identity,
+                serviceAvailable,
+                wmiAvailable);
+
+            _capabilities = new DeviceCapabilities
+            {
+                Device = identity,
+                IsValidatedModel = IsValidatedIdentity(identity),
+                WriteBlockReason = writeBlockReason,
+                CompatibilityMessage = GetCompatibilityMessage(identity, writeBlockReason),
+                AcerServiceAvailable = serviceAvailable,
+                AcerWmiAvailable = wmiAvailable,
+                AcerSystemMonitorAvailable = initialTelemetry?.HasPrimaryTelemetry == true,
+                BatteryControlAvailable = batteryAvailable,
+                ChargeLimitEnabled = chargeLimitEnabled,
+                LightingAvailable = service.Lighting?.IsSuccess == true,
+                FanControlAvailable = service.Fan?.IsSuccess == true || wmiAvailable,
+                GpuMuxAvailable = service.Gpu?.IsSuccess == true,
+                RefreshRates = refreshRates,
+                DeviceSettings = service.DeviceSettings
+            };
+
+            _initialAcerTelemetry = initialTelemetry;
+            _startupState = startup with
+            {
+                Capabilities = _capabilities,
+                OperatingMode = _operatingMode
+            };
+            _fullProbeCompleted = true;
+            _logger.Info($"Capability probe completed in {stopwatch.ElapsedMilliseconds} ms: " +
+                $"{identity.Model}, BIOS {identity.BiosVersion}, AcerService={serviceAvailable}, " +
+                $"AcerSystemMonitor={_capabilities.AcerSystemMonitorAvailable}, " +
+                $"WMI={wmiAvailable}, validated={_capabilities.IsValidatedModel}.");
+            return _capabilities;
+        }
+        finally
+        {
+            _probeGate.Release();
+        }
     }
 
     public async Task<HardwareSnapshot> ReadSnapshotAsync(CancellationToken cancellationToken = default)
     {
-        Task<AcerMonitorTelemetry?> acerMonitorTask = _systemMonitor.ReadAsync(cancellationToken);
+        AcerMonitorTelemetry? initialTelemetry = Interlocked.Exchange(ref _initialAcerTelemetry, null);
+        Task<AcerMonitorTelemetry?> acerMonitorTask = initialTelemetry is not null
+            ? Task.FromResult<AcerMonitorTelemetry?>(initialTelemetry)
+            : _systemMonitor.ReadAsync(cancellationToken);
         bool useWmiSensors = _capabilities?.AcerWmiAvailable == true;
         Task<int?> cpuTemperatureTask = useWmiSensors
             ? _wmi.ReadSensorAsync(AcerProtocol.CpuTemperatureSensor, cancellationToken)
@@ -197,19 +278,57 @@ public sealed class PredatorPlatform : IPredatorPlatform
         return states;
     }
 
-    public async Task<ApplyResult> SetOperatingModeAsync(
+    public Task<ApplyResult> EnsureStartupOperatingModeAsync(
         OperatingMode mode,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        SetOperatingModeCoreAsync(mode, useStartupObservation: true, cancellationToken);
+
+    public Task<ApplyResult> SetOperatingModeAsync(
+        OperatingMode mode,
+        CancellationToken cancellationToken = default) =>
+        SetOperatingModeCoreAsync(mode, useStartupObservation: false, cancellationToken);
+
+    private async Task<ApplyResult> SetOperatingModeCoreAsync(
+        OperatingMode mode,
+        bool useStartupObservation,
+        CancellationToken cancellationToken)
     {
+        if (mode is not (
+            OperatingMode.Silent or
+            OperatingMode.Balanced or
+            OperatingMode.Performance or
+            OperatingMode.Turbo or
+            OperatingMode.Eco))
+        {
+            return ApplyResult.Failure("The operating mode value is invalid.");
+        }
+
         ApplyResult? blocked = EnsureWriteAllowed();
         if (blocked is not null)
         {
+            if (useStartupObservation)
+            {
+                _startupObservationAvailable = false;
+                _startupObservedOperatingMode = null;
+            }
+
             return blocked;
         }
 
         await _operationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            bool matchesStartupObservation = useStartupObservation &&
+                _startupObservationAvailable &&
+                _startupObservedOperatingMode == mode;
+            _startupObservationAvailable = false;
+            _startupObservedOperatingMode = null;
+            if (matchesStartupObservation)
+            {
+                _wmi.ApplyWindowsPowerOverlay(mode);
+                return ApplyResult.Success($"Operating mode {mode} is already active.");
+            }
+
             if (_capabilities!.AcerServiceAvailable)
             {
                 AcerResponse response = await _service.SetAsync(
@@ -222,7 +341,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
                         (int)mode,
                         cancellationToken).ConfigureAwait(false))
                 {
-                    _operatingMode = mode;
+                    SetVerifiedOperatingMode(mode);
                     _wmi.ApplyWindowsPowerOverlay(mode);
                     return ApplyResult.Success($"Operating mode changed to {mode}.");
                 }
@@ -234,13 +353,17 @@ public sealed class PredatorPlatform : IPredatorPlatform
                 OperatingMode? readBack = await _wmi.ReadOperatingModeAsync(cancellationToken).ConfigureAwait(false);
                 if (readBack == mode)
                 {
-                    _operatingMode = mode;
+                    SetVerifiedOperatingMode(mode);
                     _wmi.ApplyWindowsPowerOverlay(mode);
                     return ApplyResult.Success($"Operating mode changed to {mode} through WMI.");
                 }
             }
 
             return ApplyResult.Failure("The operating mode could not be verified.");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception exception)
         {
@@ -554,7 +677,188 @@ public sealed class PredatorPlatform : IPredatorPlatform
         _hardwareMonitor?.Dispose();
         await _systemMonitor.DisposeAsync().ConfigureAwait(false);
         await _service.DisposeAsync().ConfigureAwait(false);
+        _probeGate.Dispose();
         _operationGate.Dispose();
+    }
+
+    private async Task<AcerResponse?> RetryStartupServiceModeAsync(
+        Stopwatch stopwatch,
+        CancellationToken cancellationToken)
+    {
+        TimeSpan remaining = StartupBackendRetryTimeout - stopwatch.Elapsed;
+        if (remaining <= TimeSpan.Zero)
+        {
+            return null;
+        }
+
+        using CancellationTokenSource deadline =
+            CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(remaining);
+        TimeSpan delay = StartupBackendInitialDelay;
+        try
+        {
+            while (!deadline.IsCancellationRequested)
+            {
+                await Task.Delay(delay, deadline.Token).ConfigureAwait(false);
+                AcerResponse? response = await TryQueryAsync(
+                    AcerProtocol.OperatingMode,
+                    deadline.Token).ConfigureAwait(false);
+                if (response?.IsSuccess == true)
+                {
+                    return response;
+                }
+
+                delay = TimeSpan.FromTicks(Math.Min(
+                    delay.Ticks * 2,
+                    StartupBackendMaximumDelay.Ticks));
+            }
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger.Info("Startup control backend probe reached its 10 second deadline.");
+        }
+
+        return null;
+    }
+
+    private async Task<(bool Available, bool? Enabled)> ProbeBatteryAsync(
+        CancellationToken cancellationToken)
+    {
+        bool available = await _wmi.IsBatteryInterfaceAvailableAsync(cancellationToken)
+            .ConfigureAwait(false);
+        bool? enabled = available
+            ? await _wmi.ReadChargeLimitAsync(cancellationToken).ConfigureAwait(false)
+            : null;
+        return (available, enabled);
+    }
+
+    private async Task<ServiceProbeResult> ProbeServiceCapabilitiesAsync(
+        bool serviceAvailable,
+        bool isValidatedModel,
+        CancellationToken cancellationToken)
+    {
+        bool backendDiscovered = !serviceAvailable;
+        if (!serviceAvailable)
+        {
+            AcerResponse? operating = await TryQueryAsync(
+                AcerProtocol.OperatingMode,
+                cancellationToken).ConfigureAwait(false);
+            serviceAvailable = operating?.IsSuccess == true;
+            if (AcerControlStateParser.TryReadOperatingMode(operating, out OperatingMode mode))
+            {
+                SetVerifiedOperatingMode(mode);
+            }
+        }
+
+        AcerResponse? fan = serviceAvailable
+            ? await TryQueryAsync(AcerProtocol.FanControl, cancellationToken).ConfigureAwait(false)
+            : null;
+        AcerResponse? lighting = serviceAvailable
+            ? await TryQueryAsync(AcerProtocol.Lighting, cancellationToken).ConfigureAwait(false)
+            : null;
+        AcerResponse? gpu = serviceAvailable
+            ? await TryQueryAsync(AcerProtocol.GpuMode, cancellationToken).ConfigureAwait(false)
+            : null;
+
+        if (AcerControlStateParser.TryReadFanMode(fan, out FanMode fanMode))
+        {
+            _fanMode = fanMode;
+        }
+
+        if (AcerControlStateParser.TryReadGpuMuxMode(gpu, out GpuMuxMode gpuMode))
+        {
+            _gpuMuxMode = gpuMode;
+        }
+
+        Dictionary<DeviceSettingId, DeviceSettingState> settings =
+            await QueryDeviceSettingsCoreAsync(
+                serviceAvailable,
+                isValidatedModel,
+                cancellationToken).ConfigureAwait(false);
+        if (backendDiscovered && serviceAvailable)
+        {
+            AcerResponse? latestOperating = await TryQueryAsync(
+                AcerProtocol.OperatingMode,
+                cancellationToken).ConfigureAwait(false);
+            if (AcerControlStateParser.TryReadOperatingMode(latestOperating, out OperatingMode mode))
+            {
+                SetVerifiedOperatingMode(mode, allowStartupIdempotence: true);
+            }
+        }
+
+        _lastServiceStateRead = DateTimeOffset.UtcNow;
+        return new ServiceProbeResult(serviceAvailable, fan, lighting, gpu, settings);
+    }
+
+    private static DeviceCapabilities CreateCapabilities(
+        DeviceIdentity identity,
+        bool serviceAvailable,
+        bool wmiAvailable)
+    {
+        HardwareWriteBlockReason writeBlockReason = GetWriteBlockReason(
+            identity,
+            serviceAvailable,
+            wmiAvailable);
+        return new DeviceCapabilities
+        {
+            Device = identity,
+            IsValidatedModel = IsValidatedIdentity(identity),
+            WriteBlockReason = writeBlockReason,
+            CompatibilityMessage = GetCompatibilityMessage(identity, writeBlockReason),
+            AcerServiceAvailable = serviceAvailable,
+            AcerWmiAvailable = wmiAvailable,
+            FanControlAvailable = wmiAvailable
+        };
+    }
+
+    private static HardwareWriteBlockReason GetWriteBlockReason(
+        DeviceIdentity identity,
+        bool serviceAvailable,
+        bool wmiAvailable)
+    {
+        bool modelMatches = identity.Manufacturer.Contains("Acer", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(identity.Model, "Predator PHN16-71", StringComparison.OrdinalIgnoreCase);
+        if (!modelMatches)
+        {
+            return HardwareWriteBlockReason.UnsupportedModel;
+        }
+
+        if (!string.Equals(identity.BiosVersion, "V1.20", StringComparison.OrdinalIgnoreCase))
+        {
+            return HardwareWriteBlockReason.UnvalidatedBios;
+        }
+
+        return serviceAvailable || wmiAvailable
+            ? HardwareWriteBlockReason.None
+            : HardwareWriteBlockReason.ControlBackendUnavailable;
+    }
+
+    private static bool IsValidatedIdentity(DeviceIdentity identity) =>
+        GetWriteBlockReason(identity, serviceAvailable: true, wmiAvailable: false) ==
+        HardwareWriteBlockReason.None;
+
+    private static string GetCompatibilityMessage(
+        DeviceIdentity identity,
+        HardwareWriteBlockReason writeBlockReason) => writeBlockReason switch
+        {
+            HardwareWriteBlockReason.None => "Predator PHN16-71 BIOS V1.20 validated.",
+            HardwareWriteBlockReason.UnsupportedModel =>
+                $"Model {identity.Model} is not yet supported; diagnostics remain available.",
+            HardwareWriteBlockReason.UnvalidatedBios =>
+                $"BIOS {identity.BiosVersion} is not yet validated; hardware writes are disabled.",
+            HardwareWriteBlockReason.ControlBackendUnavailable =>
+                "No supported Acer control backend is available; hardware writes are disabled.",
+            _ => "Hardware writes are disabled."
+        };
+
+    private void SetVerifiedOperatingMode(OperatingMode mode, bool allowStartupIdempotence = false)
+    {
+        _operatingMode = mode;
+        if (allowStartupIdempotence)
+        {
+            _startupObservedOperatingMode = mode;
+            _startupObservationAvailable = true;
+        }
     }
 
     private async Task RefreshServiceStateAsync(CancellationToken cancellationToken)
@@ -563,22 +867,21 @@ public sealed class PredatorPlatform : IPredatorPlatform
         {
             AcerResponse operating = await _service.QueryAsync(AcerProtocol.OperatingMode, cancellationToken)
                 .ConfigureAwait(false);
-            if (operating.IsSuccess && operating.TryGetInt("mode", out int operatingMode) &&
-                Enum.IsDefined(typeof(OperatingMode), (byte)operatingMode))
+            if (AcerControlStateParser.TryReadOperatingMode(operating, out OperatingMode operatingMode))
             {
-                _operatingMode = (OperatingMode)(byte)operatingMode;
+                SetVerifiedOperatingMode(operatingMode);
             }
 
             AcerResponse fan = await _service.QueryAsync(AcerProtocol.FanControl, cancellationToken).ConfigureAwait(false);
-            if (fan.IsSuccess && fan.TryGetInt("mode", out int fanMode) && Enum.IsDefined(typeof(FanMode), fanMode))
+            if (AcerControlStateParser.TryReadFanMode(fan, out FanMode fanMode))
             {
-                _fanMode = (FanMode)fanMode;
+                _fanMode = fanMode;
             }
 
             AcerResponse gpu = await _service.QueryAsync(AcerProtocol.GpuMode, cancellationToken).ConfigureAwait(false);
-            if (gpu.IsSuccess && gpu.TryGetInt("mode", out int gpuMode) && Enum.IsDefined(typeof(GpuMuxMode), gpuMode))
+            if (AcerControlStateParser.TryReadGpuMuxMode(gpu, out GpuMuxMode gpuMode))
             {
-                _gpuMuxMode = (GpuMuxMode)gpuMode;
+                _gpuMuxMode = gpuMode;
             }
 
             _lastServiceStateRead = DateTimeOffset.UtcNow;
@@ -659,7 +962,11 @@ public sealed class PredatorPlatform : IPredatorPlatform
         {
             return await _service.QueryAsync(function, cancellationToken).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
         {
             _logger.Info($"AcerService capability query {function} timed out.");
             return null;
@@ -749,6 +1056,13 @@ public sealed class PredatorPlatform : IPredatorPlatform
         DeviceSettingId.SoundMode => AcerProtocol.SoundMode,
         _ => null
     };
+
+    private sealed record ServiceProbeResult(
+        bool ServiceAvailable,
+        AcerResponse? Fan,
+        AcerResponse? Lighting,
+        AcerResponse? Gpu,
+        IReadOnlyDictionary<DeviceSettingId, DeviceSettingState> DeviceSettings);
 
     private static int? NormalizeTemperature(int? value) => value is > 0 and < 130 ? value : null;
 

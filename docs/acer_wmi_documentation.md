@@ -99,7 +99,7 @@ PredatorLite does not expose iGPU-only/Endurance routing, disable a Windows disp
 
 ## Persistence
 
-Application settings are stored in `%LocalAppData%\PredatorLite\settings.json` using temporary-file replacement and a `.bak` backup. Saved hardware selections are not replayed as writes during startup.
+Application settings are stored in `%LocalAppData%\PredatorLite\settings.json` using temporary-file replacement and a `.bak` backup. On each primary-instance launch, PredatorLite restores only the saved non-Eco operating mode, or Eco when battery automation requires it, after the exact hardware gate succeeds. Fan, lighting, GPU-routing, charge-limit and device-setting selections are not replayed.
 
 Service-conflict backups are stored separately at `%ProgramData%\PredatorLite\service-backup.json` and are accessible only through the fixed elevated-helper command surface.
 

@@ -3,21 +3,25 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using PredatorLite.App.Services;
 using PredatorLite.App.ViewModels;
+using PredatorLite.Core.Abstractions;
 using Windows.System;
 
 namespace PredatorLite.App.Views;
 
 public sealed partial class MainShell : UserControl
 {
-    private readonly IReadOnlyDictionary<AppSection, Page> _pages;
+    private readonly IReadOnlyDictionary<AppSection, Func<Page>> _pageFactories;
+    private readonly Dictionary<AppSection, Page> _pages = [];
     private readonly UiMotionService _motion;
+    private readonly IAppLogger _logger;
     private AppSection? _currentSection;
     private bool _loaded;
 
-    public MainShell(MainViewModel viewModel, UiMotionService motion)
+    public MainShell(MainViewModel viewModel, UiMotionService motion, IAppLogger logger)
     {
         ViewModel = viewModel;
         _motion = motion;
+        _logger = logger;
         try
         {
             InitializeComponent();
@@ -28,13 +32,13 @@ public sealed partial class MainShell : UserControl
         }
 
         RootLayout.AddHandler(UIElement.KeyDownEvent, new KeyEventHandler(OnRootKeyDown), true);
-        _pages = new Dictionary<AppSection, Page>
+        _pageFactories = new Dictionary<AppSection, Func<Page>>
         {
-            [AppSection.Home] = CreatePage(() => new HomePage(viewModel), AppSection.Home),
-            [AppSection.Cooling] = CreatePage(() => new CoolingPage(viewModel), AppSection.Cooling),
-            [AppSection.Lighting] = CreatePage(() => new LightingPage(viewModel), AppSection.Lighting),
-            [AppSection.Monitor] = CreatePage(() => new MonitorPage(viewModel), AppSection.Monitor),
-            [AppSection.Settings] = CreatePage(() => new SettingsPage(viewModel), AppSection.Settings)
+            [AppSection.Home] = () => new HomePage(viewModel),
+            [AppSection.Cooling] = () => new CoolingPage(viewModel),
+            [AppSection.Lighting] = () => new LightingPage(viewModel),
+            [AppSection.Monitor] = () => new MonitorPage(viewModel),
+            [AppSection.Settings] = () => new SettingsPage(viewModel)
         };
         _motion.AttachPressFeedback(RootLayout);
         Loaded += OnLoaded;
@@ -51,16 +55,24 @@ public sealed partial class MainShell : UserControl
             return false;
         }
 
-        _ = NavigateAsync(AppSection.Home, animate: true);
+        Navigate(AppSection.Home, animate: true);
         return true;
     }
 
-    private static TPage CreatePage<TPage>(Func<TPage> factory, AppSection section)
-        where TPage : Page
+    private Page GetOrCreatePage(AppSection section)
     {
+        if (_pages.TryGetValue(section, out Page? page))
+        {
+            return page;
+        }
+
+        Func<Page> factory = _pageFactories[section];
         try
         {
-            return factory();
+            page = factory();
+            _pages.Add(section, page);
+            _logger.Info($"UI page created: {section}.");
+            return page;
         }
         catch (Exception exception)
         {
@@ -76,16 +88,32 @@ public sealed partial class MainShell : UserControl
         }
 
         _loaded = true;
-        _ = NavigateAsync(ViewModel.SelectedSection, animate: false);
+        Navigate(ViewModel.SelectedSection, animate: false);
+    }
+
+    private void Navigate(AppSection section, bool animate) =>
+        _ = NavigateSafelyAsync(section, animate);
+
+    private async Task NavigateSafelyAsync(AppSection section, bool animate)
+    {
+        try
+        {
+            await NavigateAsync(section, animate);
+        }
+        catch (Exception exception)
+        {
+            _logger.Error($"Navigation to {section} failed", exception);
+        }
     }
 
     private async Task NavigateAsync(AppSection section, bool animate)
     {
-        if (!_pages.TryGetValue(section, out Page? page))
+        if (!_pageFactories.ContainsKey(section))
         {
             section = AppSection.Home;
-            page = _pages[section];
         }
+
+        Page page = GetOrCreatePage(section);
 
         if (_currentSection == section && ContentFrame.Content is not null)
         {
@@ -135,7 +163,7 @@ public sealed partial class MainShell : UserControl
         if (sender is RadioButton { Tag: string tag } &&
             Enum.TryParse(tag, ignoreCase: true, out AppSection section))
         {
-            _ = NavigateAsync(section, animate: true);
+            Navigate(section, animate: true);
         }
     }
 }

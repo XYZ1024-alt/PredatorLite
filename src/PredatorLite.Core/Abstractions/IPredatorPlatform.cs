@@ -4,6 +4,8 @@ namespace PredatorLite.Core.Abstractions;
 
 public interface IPredatorPlatform : IAsyncDisposable
 {
+    Task<PlatformStartupState> ProbeStartupAsync(CancellationToken cancellationToken = default);
+
     Task<DeviceCapabilities> ProbeAsync(CancellationToken cancellationToken = default);
 
     Task<HardwareSnapshot> ReadSnapshotAsync(CancellationToken cancellationToken = default);
@@ -11,6 +13,10 @@ public interface IPredatorPlatform : IAsyncDisposable
     void SetExtendedTelemetryEnabled(bool enabled);
 
     Task<IReadOnlyDictionary<DeviceSettingId, DeviceSettingState>> ReadDeviceSettingsAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<ApplyResult> EnsureStartupOperatingModeAsync(
+        OperatingMode mode,
         CancellationToken cancellationToken = default);
 
     Task<ApplyResult> SetOperatingModeAsync(

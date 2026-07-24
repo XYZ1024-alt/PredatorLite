@@ -39,18 +39,20 @@ public sealed partial class MainWindow : Window
     private GlobalShortcutManager? _shortcuts;
     private OsdWindow? _osdWindow;
     private bool _allowClose;
-    private bool _startHidden;
+    private readonly bool _startHidden;
     private int _shellRebuildGeneration;
 
     public MainWindow(
         MainViewModel viewModel,
         LocalizationService localization,
         IAppLogger logger,
+        bool startHidden,
         Func<Task> exitRequested)
     {
         _viewModel = viewModel;
         _localization = localization;
         _logger = logger;
+        _startHidden = startHidden;
         _exitRequested = exitRequested;
         _predatorKeySource = new PredatorKeySource(logger);
         InitializeComponent();
@@ -64,7 +66,11 @@ public sealed partial class MainWindow : Window
         _appWindow = AppWindow.GetFromWindowId(windowId);
         ConfigureWindow(windowId);
         Activated += OnActivated;
-        RebuildShell(animate: false);
+        if (!startHidden)
+        {
+            EnsureShell();
+        }
+
         CreateTrayIcon();
         _localization.LanguageChanged += OnLanguageChanged;
 
@@ -76,10 +82,9 @@ public sealed partial class MainWindow : Window
 
     public IntPtr WindowHandle { get; }
 
-    public void SetStartHidden(bool hidden) => _startHidden = hidden;
-
     public void ShowAndActivate()
     {
+        EnsureShell();
         PositionAtBottomRight(useInitialSize: false);
         this.Show();
         _trayIcon?.SetWindowVisible(true);
@@ -245,22 +250,48 @@ public sealed partial class MainWindow : Window
         ShowAndActivate();
     }
 
+    private void EnsureShell()
+    {
+        if (_shell is not null)
+        {
+            return;
+        }
+
+        try
+        {
+            ReplaceShell(out _);
+        }
+        catch (Exception exception)
+        {
+            _logger.Error("UI shell creation failed", exception);
+        }
+    }
+
     private async void RebuildShell(bool animate)
     {
         try
         {
-            await RebuildShellAsync(animate);
+            MainShell replacement = ReplaceShell(out int generation);
+            if (animate)
+            {
+                await _motion.AnimateShellInAsync(replacement);
+            }
+
+            if (generation != _shellRebuildGeneration)
+            {
+                return;
+            }
         }
         catch (Exception exception)
         {
-            _logger.Error($"UI shell rebuild failed: {exception}");
+            _logger.Error("UI shell rebuild failed", exception);
         }
     }
 
-    private async Task RebuildShellAsync(bool animate)
+    private MainShell ReplaceShell(out int generation)
     {
-        int generation = ++_shellRebuildGeneration;
-        MainShell replacement = new(_viewModel, _motion);
+        generation = ++_shellRebuildGeneration;
+        MainShell replacement = new(_viewModel, _motion, _logger);
         foreach (MainShell staleShell in _shellLayers.ToArray())
         {
             WindowHost.Children.Remove(staleShell);
@@ -274,15 +305,8 @@ public sealed partial class MainWindow : Window
         _shellLayers.Add(replacement);
         _shell = replacement;
         SetTitleBar(replacement.TitleBarDragRegion);
-
-        if (animate)
-        {
-            await _motion.AnimateShellInAsync(replacement);
-        }
-        if (generation != _shellRebuildGeneration)
-        {
-            return;
-        }
+        _logger.Info($"UI shell created: section={_viewModel.SelectedSection}.");
+        return replacement;
     }
 
     private void CreateTrayIcon()
@@ -326,25 +350,38 @@ public sealed partial class MainWindow : Window
     {
         if (e.PropertyName is nameof(MainViewModel.ShowOsd) or nameof(MainViewModel.ShowFps))
         {
-            UpdateOsdVisibility();
+            if (_viewModel.IntegrationsReady)
+            {
+                UpdateOsdVisibility();
+            }
         }
         else if (e.PropertyName == nameof(MainViewModel.EnableGlobalHotkeys))
         {
-            ConfigureShortcuts();
+            if (_viewModel.IntegrationsReady)
+            {
+                ConfigureShortcuts();
+            }
         }
         else if (e.PropertyName == nameof(MainViewModel.CurrentLanguage))
         {
-            RebuildShell(animate: true);
+            if (_shell is not null)
+            {
+                RebuildShell(animate: true);
+            }
+
             _osdWindow?.RebuildContent();
         }
         else if (e.PropertyName == nameof(MainViewModel.IsInitialized) && _viewModel.IsInitialized)
         {
-            ConfigureShortcuts();
-            UpdateOsdVisibility();
             if (_startHidden || _viewModel.StartMinimized)
             {
                 HideToTray();
             }
+        }
+        else if (e.PropertyName == nameof(MainViewModel.IntegrationsReady) && _viewModel.IntegrationsReady)
+        {
+            ConfigureShortcuts();
+            UpdateOsdVisibility();
         }
     }
 

@@ -61,6 +61,17 @@ Run this checklist on Windows 11 x64. Hardware-write cases require an Acer Preda
 9. Press the separate physical Mode key and verify it still cycles exactly one operating mode per press.
 10. Export diagnostics and confirm a ZIP is created at the selected path. Open Logs must open `%LocalAppData%\PredatorLite\logs`.
 
+## Startup mode restoration
+
+1. On a validated PHN16-71 / BIOS V1.20, select Silent, Balanced, Performance, and Turbo in turn. After each selection, exit PredatorLite, change the hardware mode, and launch PredatorLite manually; the saved mode must be restored and verified.
+2. Repeat with Start with Windows enabled and `StartMinimized` on. The tray must appear before full telemetry and the saved mode must be restored without opening the shell.
+3. Launch while the hardware already uses the saved mode. The startup log must report `already-active`; no Acer operating-mode set packet may be sent, while the matching Windows power overlay is still selected.
+4. With battery Eco automation enabled, launch on battery and verify Eco, then reconnect AC and verify the saved non-Eco mode returns once. With automation disabled, a battery launch must restore the saved non-Eco mode.
+5. Delay or stop AcerService on the validated machine. Verify read-only startup probes stop at the ten-second deadline, never bypass the whitelist, and do not loop hardware writes. If the deferred probe first discovers the backend, it may perform only one pending restore.
+6. On an unsupported model or unvalidated BIOS, verify startup remains read-only and sends no hardware setter. A denied Acer WMI mode read must not make `CanWriteHardware` true when AcerService is unavailable.
+7. During hidden startup, verify no `MainShell` or page is created until the tray, dedicated key, or existing-instance activation shows the window. Navigate through every page after opening and confirm each page initializes once and remains functional.
+8. Review the startup timing lines from at least five healthy cold launches. The critical-path mode result must precede the full capability, first-snapshot, integration, and service-inventory completion; APGe, ETW, service inventory, and non-current page construction must remain outside the critical path.
+
 ## Hardware controls
 
 1. Change one operating mode at a time and verify the visible state matches the next telemetry read.

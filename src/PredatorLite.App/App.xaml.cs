@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using PredatorLite.App.Services;
@@ -26,6 +27,7 @@ public partial class App : Application
 
     protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
+        Stopwatch stopwatch = Stopwatch.StartNew();
         if (Interlocked.Exchange(ref _launchStarted, 1) != 0)
         {
             return;
@@ -76,11 +78,15 @@ public partial class App : Application
                 interaction,
                 new WinUiDispatcher(dispatcher, _logger));
 
-            window = new MainWindow(_viewModel, localization, _logger, () => ExitAsync(0));
-            _mainWindow = window;
             bool startHidden = Environment.GetCommandLineArgs().Skip(1).Any(argument =>
                 string.Equals(argument, "--background", StringComparison.OrdinalIgnoreCase));
-            window.SetStartHidden(startHidden);
+            window = new MainWindow(
+                _viewModel,
+                localization,
+                _logger,
+                startHidden,
+                () => ExitAsync(0));
+            _mainWindow = window;
             _singleInstance.StartListening(() => dispatcher.TryEnqueue(window.ShowAndActivate));
             window.Activate();
             if (startHidden)
@@ -88,6 +94,8 @@ public partial class App : Application
                 window.HideToTray();
             }
 
+            _logger.Info(
+                $"Startup tray ready in {stopwatch.ElapsedMilliseconds} ms: hidden={startHidden}.");
             await _viewModel.InitializeAsync();
             if (_viewModel.StartMinimized)
             {

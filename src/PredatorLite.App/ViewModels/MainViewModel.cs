@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -41,6 +42,10 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     private IReadOnlyDictionary<DeviceSettingId, DeviceSettingState> _deviceSettingStates =
         new Dictionary<DeviceSettingId, DeviceSettingState>();
     private Task? _monitorTask;
+    private Task? _criticalInitializationTask;
+    private Task? _deferredInitializationTask;
+    private OperatingMode? _pendingStartupMode;
+    private bool _startupRestoreAwaitingBackend;
     private bool? _lastAcState;
     private bool _customFanActive;
     private FanCurve? _activeFanCurve;
@@ -49,6 +54,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     private DateTimeOffset _lastFanWrite = DateTimeOffset.MinValue;
     private int _telemetryFailureCount;
     private bool _modeKeyStarted;
+    private bool _settingsLoaded;
     private bool _disposed;
 
     public MainViewModel(
@@ -115,6 +121,9 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     [ObservableProperty]
     public partial bool IsInitialized { get; set; }
+
+    [ObservableProperty]
+    public partial bool IntegrationsReady { get; set; }
 
     [ObservableProperty]
     public partial bool IsBusy { get; set; }
@@ -353,62 +362,113 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     [ObservableProperty]
     public partial bool LogoLightingEnabled { get; set; } = true;
 
-    public async Task InitializeAsync()
+    public Task InitializeAsync()
+    {
+        if (IsInitialized)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (_criticalInitializationTask is { IsCompleted: false })
+        {
+            return _criticalInitializationTask;
+        }
+
+        _criticalInitializationTask = InitializeCoreAsync();
+        return _criticalInitializationTask;
+    }
+
+    private async Task InitializeCoreAsync()
     {
         if (IsInitialized || IsBusy)
         {
             return;
         }
 
+        Stopwatch stopwatch = Stopwatch.StartNew();
         IsBusy = true;
         InitializationFailed = false;
         StatusIsError = false;
         try
         {
             _settings = await _settingsStore.LoadAsync(_lifetime.Token);
+            _settingsLoaded = true;
+            _settings.LastAcMode = StartupOperatingModePolicy.NormalizeSavedMode(_settings.LastAcMode);
             _localization.SetLanguage(_settings.Language);
             CurrentLanguage = _localization.CurrentLanguage;
             ApplySettingsToView();
-            UpdateExtendedTelemetryState();
             StatusMessage = _localization.Get("Status.Probing");
+            long settingsMilliseconds = stopwatch.ElapsedMilliseconds;
 
-            _capabilities = await _platform.ProbeAsync(_lifetime.Token);
+            long probeStarted = stopwatch.ElapsedMilliseconds;
+            PlatformStartupState startup = await _platform.ProbeStartupAsync(_lifetime.Token);
+            long probeMilliseconds = stopwatch.ElapsedMilliseconds - probeStarted;
+            _capabilities = startup.Capabilities;
             ApplyCapabilities(_capabilities);
-            _deviceSettingStates = _capabilities.DeviceSettings;
-            await RefreshServicesCoreAsync(_lifetime.Token);
-
-            _snapshot = await _platform.ReadSnapshotAsync(_lifetime.Token);
+            _snapshot = _snapshot with
+            {
+                BatteryPercent = startup.Power.BatteryPercent,
+                IsOnAcPower = startup.Power.IsOnAcPower,
+                OperatingMode = startup.OperatingMode
+            };
             ApplySnapshot(_snapshot);
-            UpdateTelemetryFreshness(_snapshot);
-            _lastAcState = _snapshot.IsOnAcPower;
-            if (_snapshot.DisplayRefreshRate is int currentRate && RefreshRates.Contains(currentRate))
+            _lastAcState = startup.Power.IsOnAcPower;
+
+            long modeStarted = stopwatch.ElapsedMilliseconds;
+            OperatingMode? startupMode = StartupOperatingModePolicy.Resolve(
+                _settings.LastAcMode,
+                AutoEcoOnBattery,
+                startup.Power.IsOnAcPower);
+            _pendingStartupMode = startupMode;
+            string modeOutcome;
+            bool restoreFailed = false;
+            if (!startupMode.HasValue)
             {
-                SelectedRefreshRate = _settings.PreferredRefreshRate is int preferred && RefreshRates.Contains(preferred)
-                    ? preferred
-                    : currentRate;
+                modeOutcome = "skipped-power-unknown";
             }
-            else if (RefreshRates.Count > 0)
+            else if (!_capabilities.CanWriteHardware)
             {
-                SelectedRefreshRate = RefreshRates[^1];
+                _startupRestoreAwaitingBackend =
+                    _capabilities.IsValidatedModel &&
+                    _capabilities.WriteBlockReason == HardwareWriteBlockReason.ControlBackendUnavailable;
+                modeOutcome = $"skipped-{_capabilities.WriteBlockReason}";
+            }
+            else
+            {
+                ApplyResult result = await EnsureStartupOperatingModeAsync(
+                    startupMode.Value,
+                    _lifetime.Token);
+                if (result.IsSuccess)
+                {
+                    modeOutcome = result.Message.Contains(
+                        "already active",
+                        StringComparison.OrdinalIgnoreCase)
+                            ? "already-active"
+                            : "applied";
+                }
+                else
+                {
+                    modeOutcome = "failed";
+                    restoreFailed = true;
+                    PublishResult(result);
+                }
             }
 
-            if (!_modeKeyStarted)
-            {
-                await _modeKeySource.StartAsync(_lifetime.Token);
-                _modeKeySource.ModeKeyPressed += OnModeKeyPressed;
-                _modeKeyStarted = true;
-            }
-
-            if (ShowFps && !await _fpsSource.StartAsync(_lifetime.Token))
-            {
-                ShowFps = false;
-            }
-
+            long modeMilliseconds = stopwatch.ElapsedMilliseconds - modeStarted;
             IsInitialized = true;
-            StatusMessage = HardwareWritesEnabled
-                ? _localization.Get("Status.Ready")
-                : CompatibilityMessage;
-            _monitorTask ??= MonitorAsync(_lifetime.Token);
+            if (!restoreFailed)
+            {
+                StatusIsError = false;
+                StatusMessage = HardwareWritesEnabled
+                    ? _localization.Get("Status.Ready")
+                    : CompatibilityMessage;
+            }
+
+            _deferredInitializationTask ??= CompleteDeferredInitializationAsync();
+            _logger.Info(
+                $"Startup critical path completed in {stopwatch.ElapsedMilliseconds} ms: " +
+                $"settings={settingsMilliseconds} ms, probe={probeMilliseconds} ms, " +
+                $"mode={modeMilliseconds} ms ({modeOutcome}, target={startupMode?.ToString() ?? "none"}).");
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
         {
@@ -425,6 +485,178 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
+    private async Task<ApplyResult> EnsureStartupOperatingModeAsync(
+        OperatingMode mode,
+        CancellationToken cancellationToken)
+    {
+        await _hardwareGate.WaitAsync(cancellationToken);
+        try
+        {
+            ApplyResult result = await _platform.EnsureStartupOperatingModeAsync(mode, cancellationToken);
+            if (result.IsSuccess)
+            {
+                CurrentOperatingMode = mode;
+                CurrentOperatingModeName = LocalizeMode(mode);
+            }
+
+            return result;
+        }
+        finally
+        {
+            _hardwareGate.Release();
+        }
+    }
+
+    private async Task CompleteDeferredInitializationAsync()
+    {
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        try
+        {
+            try
+            {
+                DeviceCapabilities capabilities = await _platform.ProbeAsync(_lifetime.Token);
+                if (_startupRestoreAwaitingBackend &&
+                    _pendingStartupMode is OperatingMode pendingMode &&
+                    capabilities.CanWriteHardware)
+                {
+                    _startupRestoreAwaitingBackend = false;
+                    ApplyResult recovery = await EnsureStartupOperatingModeAsync(
+                        pendingMode,
+                        _lifetime.Token);
+                    string outcome = recovery.IsSuccess ? "applied-after-backend-recovery" : "failed";
+                    _logger.Info($"Startup mode recovery {outcome}: target={pendingMode}.");
+                    if (!recovery.IsSuccess)
+                    {
+                        PublishResult(recovery);
+                    }
+                }
+
+                _capabilities = capabilities;
+                _deviceSettingStates = capabilities.DeviceSettings;
+                ApplyCapabilities(capabilities);
+                if (!StatusIsError)
+                {
+                    StatusMessage = HardwareWritesEnabled
+                        ? _localization.Get("Status.Ready")
+                        : CompatibilityMessage;
+                }
+            }
+            catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception exception)
+            {
+                _logger.Error("Deferred capability probe failed", exception);
+            }
+
+            UpdateExtendedTelemetryState();
+            try
+            {
+                HardwareSnapshot snapshot = await _platform.ReadSnapshotAsync(_lifetime.Token);
+                _snapshot = snapshot;
+                ApplySnapshot(snapshot);
+                UpdateTelemetryFreshness(snapshot);
+                await HandlePowerTransitionAsync(snapshot, _lifetime.Token);
+                UpdateInitialRefreshRateSelection(snapshot);
+            }
+            catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception exception)
+            {
+                _logger.Error("Deferred initial telemetry read failed", exception);
+                MarkTelemetryFailure();
+            }
+
+            _monitorTask ??= MonitorAsync(_lifetime.Token);
+
+            try
+            {
+                if (!_modeKeyStarted)
+                {
+                    _modeKeySource.ModeKeyPressed += OnModeKeyPressed;
+                    try
+                    {
+                        await _modeKeySource.StartAsync(_lifetime.Token);
+                        _modeKeyStarted = true;
+                    }
+                    catch
+                    {
+                        _modeKeySource.ModeKeyPressed -= OnModeKeyPressed;
+                        throw;
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception exception)
+            {
+                _logger.Error("Deferred mode-key initialization failed", exception);
+            }
+
+            try
+            {
+                if (ShowFps && !await _fpsSource.StartAsync(_lifetime.Token))
+                {
+                    ShowFps = false;
+                    _logger.Error("Deferred FPS initialization failed");
+                }
+            }
+            catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception exception)
+            {
+                ShowFps = false;
+                _logger.Error("Deferred FPS initialization failed", exception);
+            }
+
+            IntegrationsReady = true;
+
+            try
+            {
+                await RefreshServicesCoreAsync(_lifetime.Token);
+            }
+            catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception exception)
+            {
+                _logger.Error("Deferred service inventory failed", exception);
+            }
+
+            _logger.Info(
+                $"Startup deferred initialization completed in {stopwatch.ElapsedMilliseconds} ms.");
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            _logger.Error("Deferred initialization failed", exception);
+        }
+    }
+
+    private void UpdateInitialRefreshRateSelection(HardwareSnapshot snapshot)
+    {
+        if (snapshot.DisplayRefreshRate is int currentRate && RefreshRates.Contains(currentRate))
+        {
+            SelectedRefreshRate = _settings.PreferredRefreshRate is int preferred && RefreshRates.Contains(preferred)
+                ? preferred
+                : currentRate;
+        }
+        else if (RefreshRates.Count > 0)
+        {
+            SelectedRefreshRate = RefreshRates[^1];
+        }
+    }
+
     [RelayCommand]
     private Task RetryInitializationAsync() => InitializeAsync();
 
@@ -433,15 +665,15 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     [RelayCommand]
     private async Task SetOperatingModeAsync(OperatingMode mode)
     {
-        if (CurrentOperatingMode == mode)
-        {
-            return;
-        }
-
         await _hardwareGate.WaitAsync(_lifetime.Token);
-        IsBusy = true;
         try
         {
+            if (CurrentOperatingMode == mode)
+            {
+                return;
+            }
+
+            IsBusy = true;
             if (mode is OperatingMode.Silent or OperatingMode.Eco && _customFanActive)
             {
                 ApplyResult autoResult = await _platform.SetFanModeAsync(
@@ -466,7 +698,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             {
                 CurrentOperatingMode = mode;
                 CurrentOperatingModeName = LocalizeMode(mode);
-                if (_snapshot.IsOnAcPower != false && mode != OperatingMode.Eco)
+                if (StartupOperatingModePolicy.ShouldRemember(mode))
                 {
                     _settings.LastAcMode = mode;
                 }
@@ -925,6 +1157,11 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     [RelayCommand]
     private async Task ExportDiagnosticsAsync()
     {
+        if (_deferredInitializationTask is not null)
+        {
+            await _deferredInitializationTask;
+        }
+
         if (_capabilities is null)
         {
             return;
@@ -974,6 +1211,28 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
 
         _disposed = true;
         _lifetime.Cancel();
+        if (_criticalInitializationTask is not null)
+        {
+            try
+            {
+                await _criticalInitializationTask.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
+        if (_deferredInitializationTask is not null)
+        {
+            try
+            {
+                await _deferredInitializationTask.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
         _modeKeySource.ModeKeyPressed -= OnModeKeyPressed;
         if (_monitorTask is not null)
         {
@@ -986,12 +1245,15 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             }
         }
 
-        try
+        if (_settingsLoaded)
         {
-            await SaveSettingsAsync().ConfigureAwait(false);
-        }
-        catch
-        {
+            try
+            {
+                await SaveSettingsAsync().ConfigureAwait(false);
+            }
+            catch
+            {
+            }
         }
 
         await _fpsSource.DisposeAsync().ConfigureAwait(false);
@@ -1193,7 +1455,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         {
             if (AutoEcoOnBattery)
             {
-                if (snapshot.OperatingMode is OperatingMode mode && mode != OperatingMode.Eco)
+                if (snapshot.OperatingMode is OperatingMode mode &&
+                    StartupOperatingModePolicy.ShouldRemember(mode))
                 {
                     _settings.LastAcMode = mode;
                 }

@@ -28,6 +28,12 @@ privileged service.
 | Device switches | only individually probed writable functions | AcerService or documented WMI |
 | Refresh rate | modes already advertised by the active display | Windows display API |
 
+## Startup operating-mode automation
+
+Each primary-instance launch may restore one operating mode after identity, BIOS, power state and a usable control backend have been read. The target is the last successfully selected non-Eco mode, except that enabled battery automation selects Eco while on battery. Unknown power with battery automation enabled causes no write.
+
+A freshly read matching mode sends no Acer write and only synchronizes the Windows power overlay. A changed mode uses the same serialized setter and read-back verification as an interactive request. Unsupported hardware, an unvalidated BIOS, a missing backend or an invalid saved enum value cannot bypass the write gate. No fan, lighting, GPU-routing, battery or device setting is replayed during startup.
+
 ## Explicitly excluded
 
 - iGPU-only or Endurance modes

@@ -23,13 +23,17 @@ Settings UI  -- explicit UAC action --> ElevatedHelper
 
 ## Startup sequence
 
-1. Acquire the per-session single-instance mutex.
-2. Load versioned JSON settings and select the language resource dictionary.
-3. Probe identity, AcerService, Acer system monitor, Acer WMI, supported display rates and individual device capabilities.
-4. Read the initial hardware snapshot and service state.
-5. Start lightweight Acer/power polling, tray integration and optional input listeners.
+Startup is split into a control-critical phase and deferred initialization:
 
-No hardware setter is called in this sequence. Saved modes, fan settings, lighting and MUX state are not replayed at startup.
+1. Acquire the per-session single-instance mutex and create the tray icon. A `--background` launch does not create the shell or any page.
+2. Load versioned JSON settings and select the language resource dictionary.
+3. In parallel, read identity/BIOS, power state, the AcerService operating-mode state and an operational Acer WMI mode fallback.
+4. After the exact model/BIOS gate succeeds, restore the saved non-Eco mode, or Eco on battery when that automation is enabled. A freshly verified matching mode only reapplies the Windows power overlay and sends no Acer write.
+5. Mark the critical path ready, then load full capabilities, the initial telemetry snapshot, optional listeners and the service inventory asynchronously.
+
+A validated machine whose control backend is still starting receives read-only retries within one cancellation-aware ten-second deadline. Failure leaves the app usable and read-only; a backend first discovered by the deferred probe gets at most one pending startup restore attempt.
+
+Only the operating mode is restored at startup. Fan settings, lighting, GPU routing, charge limits and device settings are never replayed. Hidden startup defers the complete `MainShell`; visible startup creates pages only when first navigated to.
 
 The ordinary-user `AcerSysMonitorService` endpoint on `127.0.0.1:46753` supplies CPU/GPU temperature,
 frequency, load and fan speed on every telemetry cycle. Acer WMI remains a temperature/fan fallback,
@@ -72,6 +76,6 @@ The WinUI process uses an `asInvoker` manifest. `PredatorLite.ElevatedHelper.exe
 
 ## Persistence and diagnostics
 
-Settings are written to `%LocalAppData%\PredatorLite\settings.json` through a temporary file followed by atomic replacement. The previous valid file is kept as `.bak`; invalid JSON is moved aside.
+Settings are written to `%LocalAppData%\PredatorLite\settings.json` through a temporary file followed by atomic replacement. The previous valid file is kept as `.bak`; invalid JSON is moved aside. `LastAcMode` retains the last successfully selected non-Eco operating mode and remains compatible with schema version 1.
 
 Logs retain seven days and redact the current user profile path. Diagnostic ZIP files include identity, capabilities, one telemetry snapshot, service state, settings and up to three redacted logs. They do not include protocol secrets or the AcerService AES registry value.
