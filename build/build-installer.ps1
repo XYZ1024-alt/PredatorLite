@@ -509,7 +509,7 @@ if ($null -ne $operationFailure) {
 }
 
 if ($SkipSigning) {
-    Write-Warning "Created an unsigned installer for local testing only. Do not publish it."
+    Write-Warning "Created an unsigned installer for test use only. Do not attach it to a GitHub Release or present it as a production release."
 }
 elseif ($TestSigning) {
     Write-Warning "Created a test-signed installer outside publish. Do not publish it."

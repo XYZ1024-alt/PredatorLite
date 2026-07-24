@@ -80,7 +80,7 @@ dotnet run --project src\PredatorLite.App\PredatorLite.App.csproj
 - .NET 10 Runtime x64
 - Windows App Runtime 1.8 x64
 
-发布目录必须整体保留，不能只复制 `PredatorLite.exe`。在完整目录中启动 `PredatorLite.exe`；运行 `build\publish.ps1` 后脚本会检查三个 EXE、运行时配置、WinUI PRI/XBF、Bootstrap DLL 和图标资源是否齐全。该目录版默认没有 Authenticode 签名，不属于下述签名安装器流水线。
+发布目录必须整体保留，不能只复制 `PredatorLite.exe`。在完整目录中启动 `PredatorLite.exe`；运行 `build\publish.ps1` 后脚本会检查三个 EXE、运行时配置、WinUI PRI/XBF、Bootstrap DLL 和图标资源是否齐全。该目录版默认没有 Authenticode 签名，不属于下述签名安装器流水线。`main` 推送和手动运行的 CI 会把该目录保存 14 天，artifact 名称包含 `UNSIGNED-TEST-ONLY`；PR 只验证构建，不上传可下载产物。
 
 Inno Setup 本地安装测试包：
 
@@ -88,7 +88,7 @@ Inno Setup 本地安装测试包：
 .\build\build-installer.ps1 -SkipSigning
 ```
 
-输出为 `artifacts\installer\unsigned\PredatorLite-Setup-0.1.0-win-x64-unsigned.exe`。未签名载荷和测试包都位于忽略的 `artifacts`，不会读写 `publish`，不能公开发布。可重复的临时证书签名、安装、卸载与时间戳测试使用 `build\test-installer-signing.ps1`；其 `-test-signed` 产物同样只存在于 `artifacts` 并在测试结束时删除。
+输出为 `artifacts\installer\unsigned\PredatorLite-Setup-0.1.0-win-x64-unsigned.exe`。未签名载荷和测试包都位于忽略的 `artifacts`，不会读写 `publish`。`main` 推送和手动运行的 CI 还会生成同类安装器，并把它作为保留 14 天的 `PredatorLite-installer-UNSIGNED-TEST-ONLY` Actions artifact；artifact 内含未签名警告，只能用于测试，不能附加到 GitHub Release 或作为正式版本分发。当前 CI 没有创建或修改 GitHub Release 的权限。可重复的临时证书签名、安装、卸载与时间戳测试使用 `build\test-installer-signing.ps1`；其 `-test-signed` 产物同样只存在于 `artifacts` 并在测试结束时删除。
 
 生产构建要求把带私钥、Code Signing EKU 且由公共信任 CA 签发的 Authenticode 证书导入 `CurrentUser\My`，且证书链根必须存在于 Windows `LocalMachine\AuthRoot`，然后执行：
 

@@ -80,13 +80,60 @@ jobs:
         shell: pwsh
         run: .\build\test-installer-signing.ps1
 
-      - name: Publish
+      - name: Publish portable test layout
         shell: pwsh
         run: .\build\publish.ps1 -Configuration Release -OutputPath publish\win-x64
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - name: Build unsigned installer test artifact
+        if: github.event_name != 'pull_request'
+        shell: pwsh
+        run: .\build\build-installer.ps1 -SkipSigning
+
+      - name: Add unsigned artifact notices
+        if: github.event_name != 'pull_request'
+        shell: pwsh
+        run: |
+          $portableNotice = @(
+            "UNSIGNED TEST BUILD",
+            "",
+            "This portable build is a temporary GitHub Actions artifact.",
+            "It has no publicly trusted Authenticode signature.",
+            "Do not attach it to a GitHub Release or present it as a production release."
+          ) -join [Environment]::NewLine
+          $installerNotice = @(
+            "UNSIGNED TEST BUILD",
+            "",
+            "This installer is a temporary GitHub Actions artifact.",
+            "It has no publicly trusted Authenticode signature.",
+            "Do not attach it to a GitHub Release or present it as a production release."
+          ) -join [Environment]::NewLine
+          [System.IO.File]::WriteAllText(
+            "publish\win-x64\UNSIGNED-TEST-ONLY.txt",
+            "$portableNotice$([Environment]::NewLine)",
+            [System.Text.Encoding]::ASCII)
+          [System.IO.File]::WriteAllText(
+            "artifacts\installer\unsigned\UNSIGNED-TEST-ONLY.txt",
+            "$installerNotice$([Environment]::NewLine)",
+            [System.Text.Encoding]::ASCII)
+
+      - name: Upload unsigned portable test artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: PredatorLite-win-x64
+          name: PredatorLite-win-x64-portable-UNSIGNED-TEST-ONLY
           path: publish/win-x64
           retention-days: 14
+          if-no-files-found: error
+
+      - name: Upload unsigned installer test artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: PredatorLite-installer-UNSIGNED-TEST-ONLY
+          path: |
+            artifacts/installer/unsigned/*-unsigned.exe
+            artifacts/installer/unsigned/*-unsigned.exe.sha256
+            artifacts/installer/unsigned/UNSIGNED-TEST-ONLY.txt
+          retention-days: 14
+          compression-level: 0
           if-no-files-found: error
