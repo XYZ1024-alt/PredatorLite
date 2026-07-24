@@ -11,51 +11,92 @@
             <RowDefinition Height="66" />
         </Grid.RowDefinitions>
 
-        <Grid
-            x:Name="AppTitleBar"
-            Padding="12,0,148,0"
-            Background="Transparent"
-            ColumnSpacing="8">
+        <Grid x:Name="AppTitleBar" Background="Transparent">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <Image
-                x:Name="AppIcon"
-                Width="20"
-                Height="20"
-                VerticalAlignment="Center"
-                Source="ms-appx:///Assets/PredatorLiteFluent.png" />
-            <TextBlock
-                x:Name="AppTitleText"
+            <Grid
+                x:Name="TitleBarDragSurface"
+                Padding="12,0,8,0"
+                Background="Transparent"
+                ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Image
+                    x:Name="AppIcon"
+                    Width="20"
+                    Height="20"
+                    VerticalAlignment="Center"
+                    Source="ms-appx:///Assets/PredatorLiteFluent.png" />
+                <TextBlock
+                    x:Name="AppTitleText"
+                    Grid.Column="1"
+                    VerticalAlignment="Center"
+                    Style="{StaticResource CompactTitleTextStyle}"
+                    Text="{StaticResource App.Name}" />
+                <TextBlock
+                    x:Name="PageTitleText"
+                    Grid.Column="2"
+                    VerticalAlignment="Center"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Visibility="Collapsed" />
+                <TextBlock
+                    x:Name="DeviceModelText"
+                    Grid.Column="3"
+                    VerticalAlignment="Center"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Text="{x:Bind ViewModel.DeviceModel, Mode=OneWay}"
+                    TextTrimming="CharacterEllipsis" />
+            </Grid>
+
+            <StackPanel
+                x:Name="CaptionButtonRegion"
                 Grid.Column="1"
-                VerticalAlignment="Center"
-                Style="{StaticResource CompactTitleTextStyle}"
-                Text="{StaticResource App.Name}" />
-            <TextBlock
-                x:Name="PageTitleText"
-                Grid.Column="2"
-                VerticalAlignment="Center"
-                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                Style="{StaticResource CaptionTextBlockStyle}"
-                Visibility="Collapsed" />
-            <TextBlock
-                x:Name="DeviceModelText"
-                Grid.Column="3"
-                VerticalAlignment="Center"
-                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                Style="{StaticResource CaptionTextBlockStyle}"
-                Text="{x:Bind ViewModel.DeviceModel, Mode=OneWay}"
-                TextTrimming="CharacterEllipsis" />
+                Orientation="Horizontal"
+                Spacing="0">
+                <Button
+                    x:Name="MinimizeWindowButton"
+                    AutomationProperties.AutomationId="Shell.TitleBar.Minimize"
+                    AutomationProperties.Name="{StaticResource Tip.Minimize}"
+                    Click="MinimizeWindowButton_Click"
+                    IsTabStop="False"
+                    Style="{StaticResource TitleBarCaptionButtonStyle}"
+                    ToolTipService.ToolTip="{StaticResource Tip.Minimize}">
+                    <FontIcon
+                        FontFamily="Segoe Fluent Icons"
+                        FontSize="10"
+                        Glyph="&#xE921;" />
+                </Button>
+                <Button
+                    x:Name="CloseWindowButton"
+                    AutomationProperties.AutomationId="Shell.TitleBar.Close"
+                    AutomationProperties.Name="{StaticResource Tip.Close}"
+                    Click="CloseWindowButton_Click"
+                    IsTabStop="False"
+                    Style="{StaticResource TitleBarCloseCaptionButtonStyle}"
+                    ToolTipService.ToolTip="{StaticResource Tip.Close}">
+                    <FontIcon
+                        FontFamily="Segoe Fluent Icons"
+                        FontSize="10"
+                        Glyph="&#xE8BB;" />
+                </Button>
+            </StackPanel>
+
             <Border
-                Grid.ColumnSpan="4"
+                Grid.ColumnSpan="2"
                 Height="1"
-                Margin="-12,0,-148,0"
                 VerticalAlignment="Bottom"
-                Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                Background="{ThemeResource DividerStrokeColorDefaultBrush}"
+                IsHitTestVisible="False" />
         </Grid>
 
         <InfoBar

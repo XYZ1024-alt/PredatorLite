@@ -198,7 +198,6 @@
     <sys:String x:Key="Confirm.Mux">切换到“{0}”需要重新启动 Windows。是否继续？</sys:String>
     <sys:String x:Key="Confirm.DisableServices">将以管理员身份停用已识别的冲突服务，并备份它们的启动方式。是否继续？</sys:String>
     <sys:String x:Key="Tip.Minimize">最小化</sys:String>
-    <sys:String x:Key="Tip.Maximize">最大化或还原</sys:String>
     <sys:String x:Key="Tip.Close">隐藏到托盘</sys:String>
     <sys:String x:Key="Tip.PickColor">选择颜色</sys:String>
     <sys:String x:Key="Tip.Refresh">刷新服务状态</sys:String>

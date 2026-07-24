@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using H.NotifyIcon;
 using Microsoft.UI;
 using Microsoft.UI.Composition.SystemBackdrops;
+using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
@@ -31,10 +32,12 @@ public sealed partial class MainWindow : Window, IDisposable
     private readonly Func<int, Task> _exitRequested;
     private readonly UiMotionService _motion;
     private readonly AppWindow _appWindow;
+    private readonly InputNonClientPointerSource _nonClientPointerSource;
     private readonly NativeWindowSubclass _windowSubclass;
     private readonly PredatorKeySource _predatorKeySource;
     private readonly List<MainShell> _shellLayers = [];
     private MainShell? _shell;
+    private XamlRoot? _shellXamlRoot;
     private TrayIconView? _trayIcon;
     private GlobalShortcutManager? _shortcuts;
     private OsdWindow? _osdWindow;
@@ -65,6 +68,7 @@ public sealed partial class MainWindow : Window, IDisposable
         _windowSubclass.MessageReceived += OnWindowMessage;
         WindowId windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(WindowHandle);
         _appWindow = AppWindow.GetFromWindowId(windowId);
+        _nonClientPointerSource = InputNonClientPointerSource.GetForWindowId(windowId);
         ConfigureWindow(windowId);
         Activated += OnActivated;
         if (!startHidden)
@@ -100,6 +104,15 @@ public sealed partial class MainWindow : Window, IDisposable
             return;
         }
 
+        _shell?.ResetCaptionButtonVisualStates();
+        if (_appWindow.Presenter is OverlappedPresenter
+            {
+                State: OverlappedPresenterState.Minimized
+            } presenter)
+        {
+            presenter.Restore(activateWindow: false);
+        }
+
         PositionAtBottomRight(useInitialSize: false);
         this.Show();
         TrayIconView.SetWindowVisible(true);
@@ -112,6 +125,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
     public void HideToTray()
     {
+        _shell?.ResetCaptionButtonVisualStates();
         this.Hide(enableEfficiencyMode: true);
         TrayIconView.SetWindowVisible(false);
     }
@@ -140,6 +154,7 @@ public sealed partial class MainWindow : Window, IDisposable
         TryCleanup(_predatorKeySource.Dispose, "Predator key source");
         TryCleanup(() => _shortcuts?.Dispose(), "global shortcuts");
         _shortcuts = null;
+        TryCleanup(ReleaseTitleBarInput, "title-bar input regions");
         TryCleanup(_windowSubclass.Dispose, "window subclass");
         TryCleanup(() => _osdWindow?.Dispose(), "OSD window");
         _osdWindow = null;
@@ -161,6 +176,23 @@ public sealed partial class MainWindow : Window, IDisposable
         }
     }
 
+    private void ReleaseTitleBarInput()
+    {
+        foreach (MainShell shell in _shellLayers)
+        {
+            shell.Loaded -= OnShellLoaded;
+            shell.SizeChanged -= OnShellSizeChanged;
+        }
+
+        if (_shellXamlRoot is not null)
+        {
+            _shellXamlRoot.Changed -= OnShellXamlRootChanged;
+            _shellXamlRoot = null;
+        }
+
+        _nonClientPointerSource.ClearRegionRects(NonClientRegionKind.Passthrough);
+    }
+
     private void OnActivated(object sender, WindowActivatedEventArgs args) =>
         WindowActivationSurface.SetWindowActive(
             args.WindowActivationState != WindowActivationState.Deactivated);
@@ -168,6 +200,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private void ConfigureWindow(WindowId windowId)
     {
         ExtendsContentIntoTitleBar = true;
+        _appWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Collapsed;
         SystemBackdrop = DesktopAcrylicController.IsSupported()
             ? new DesktopAcrylicBackdrop()
             : new MicaBackdrop { Kind = MicaKind.BaseAlt };
@@ -292,6 +325,15 @@ public sealed partial class MainWindow : Window, IDisposable
         ShowAndActivate();
     }
 
+    private void MinimizeWindow()
+    {
+        _shell?.ResetCaptionButtonVisualStates();
+        if (_appWindow.Presenter is OverlappedPresenter presenter)
+        {
+            presenter.Minimize(activateWindow: false);
+        }
+    }
+
     private void EnsureShell()
     {
         if (_shell is null)
@@ -324,13 +366,22 @@ public sealed partial class MainWindow : Window, IDisposable
     private MainShell ReplaceShell(out int generation)
     {
         generation = ++_shellRebuildGeneration;
-        MainShell replacement = new(_viewModel, _motion, _logger);
+        MainShell replacement = new(
+            _viewModel,
+            _motion,
+            _logger,
+            MinimizeWindow,
+            HideToTray);
         foreach (MainShell staleShell in _shellLayers.ToArray())
         {
+            staleShell.Loaded -= OnShellLoaded;
+            staleShell.SizeChanged -= OnShellSizeChanged;
             WindowHost.Children.Remove(staleShell);
             _shellLayers.Remove(staleShell);
         }
 
+        replacement.Loaded += OnShellLoaded;
+        replacement.SizeChanged += OnShellSizeChanged;
         int insertionIndex = _trayIcon is null
             ? WindowHost.Children.Count
             : Math.Max(0, WindowHost.Children.Count - 1);
@@ -338,8 +389,82 @@ public sealed partial class MainWindow : Window, IDisposable
         _shellLayers.Add(replacement);
         _shell = replacement;
         SetTitleBar(replacement.TitleBarDragRegion);
+        replacement.ResetCaptionButtonVisualStates();
         _logger.Info($"UI shell created: section={_viewModel.SelectedSection}.");
         return replacement;
+    }
+
+    private void OnShellLoaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MainShell shell)
+        {
+            return;
+        }
+
+        shell.Loaded -= OnShellLoaded;
+        if (!ReferenceEquals(shell, _shell) || shell.XamlRoot is not XamlRoot xamlRoot)
+        {
+            return;
+        }
+
+        if (!ReferenceEquals(_shellXamlRoot, xamlRoot))
+        {
+            if (_shellXamlRoot is not null)
+            {
+                _shellXamlRoot.Changed -= OnShellXamlRootChanged;
+            }
+
+            _shellXamlRoot = xamlRoot;
+            _shellXamlRoot.Changed += OnShellXamlRootChanged;
+        }
+
+        UpdateCaptionButtonInputRegion(shell);
+    }
+
+    private void OnShellSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (sender is MainShell shell && ReferenceEquals(shell, _shell))
+        {
+            UpdateCaptionButtonInputRegion(shell);
+        }
+    }
+
+    private void OnShellXamlRootChanged(XamlRoot sender, XamlRootChangedEventArgs args)
+    {
+        if (ReferenceEquals(sender, _shellXamlRoot) && _shell is not null)
+        {
+            UpdateCaptionButtonInputRegion(_shell);
+        }
+    }
+
+    private void UpdateCaptionButtonInputRegion(MainShell shell)
+    {
+        FrameworkElement region = shell.CaptionButtonInputRegion;
+        XamlRoot? xamlRoot = shell.XamlRoot;
+        if (xamlRoot is null ||
+            region.ActualWidth <= 0 ||
+            region.ActualHeight <= 0 ||
+            xamlRoot.RasterizationScale <= 0)
+        {
+            return;
+        }
+
+        GeneralTransform transform = region.TransformToVisual(WindowHost);
+        Windows.Foundation.Rect bounds = transform.TransformBounds(
+            new Windows.Foundation.Rect(0, 0, region.ActualWidth, region.ActualHeight));
+        double scale = xamlRoot.RasterizationScale;
+        int left = (int)Math.Floor(bounds.X * scale);
+        int top = (int)Math.Floor(bounds.Y * scale);
+        int right = (int)Math.Ceiling((bounds.X + bounds.Width) * scale);
+        int bottom = (int)Math.Ceiling((bounds.Y + bounds.Height) * scale);
+        if (right <= left || bottom <= top)
+        {
+            return;
+        }
+
+        _nonClientPointerSource.SetRegionRects(
+            NonClientRegionKind.Passthrough,
+            [new RectInt32(left, top, right - left, bottom - top)]);
     }
 
     private void CreateTrayIcon()

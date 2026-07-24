@@ -16,6 +16,18 @@ if (-not (Get-Command winapp -ErrorAction SilentlyContinue)) {
     throw "winapp is required. Run /winui-setup, then retry this script."
 }
 
+Add-Type -AssemblyName System.Drawing -ErrorAction Stop
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+
+public static class PredatorLiteUiTestNativeMethods
+{
+    [DllImport("user32.dll")]
+    public static extern uint GetDpiForWindow(IntPtr window);
+}
+"@ -ErrorAction Stop
+
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 $OutputDirectory = [System.IO.Path]::GetFullPath($OutputDirectory)
 $windows = winapp ui list-windows -a $AppPid --json 2>$null | ConvertFrom-Json
@@ -98,6 +110,145 @@ function Save-UiStateScreenshot {
     $navigationFileName = [System.IO.Path]::GetFileNameWithoutExtension($FileName) + "-nav.png"
     winapp ui screenshot $NavigationSelector -w $mainHwnd -o "$OutputDirectory\$navigationFileName" -q
     Assert-WinAppSucceeded "Capturing $navigationFileName"
+}
+
+function Save-HoverScreenshot {
+    param(
+        [string]$FileName,
+        [string]$Selector
+    )
+
+    $capturePath = Join-Path $OutputDirectory $FileName
+    $elementFileName =
+        [System.IO.Path]::GetFileNameWithoutExtension($FileName) + "-element.png"
+    $elementCapturePath = Join-Path $OutputDirectory $elementFileName
+    $captureJob = Start-Job -ScriptBlock {
+        param(
+            [string]$Window,
+            [string]$Path,
+            [string]$ElementSelector,
+            [string]$ElementPath
+        )
+
+        Start-Sleep -Milliseconds 1000
+        winapp ui screenshot -w $Window -o $Path -q
+        if ($LASTEXITCODE -ne 0) {
+            throw "Hover-state screenshot failed with exit code $LASTEXITCODE."
+        }
+
+        winapp ui screenshot $ElementSelector -w $Window -o $ElementPath -q
+        if ($LASTEXITCODE -ne 0) {
+            throw "Hover-state element screenshot failed with exit code $LASTEXITCODE."
+        }
+    } -ArgumentList "$mainHwnd", $capturePath, $Selector, $elementCapturePath
+
+    try {
+        winapp ui hover $Selector -w $mainHwnd --dwell-time 3500 | Out-Null
+        Assert-WinAppSucceeded "Hovering $Selector"
+        $captureJob | Wait-Job | Out-Null
+        if ($captureJob.State -ne "Completed") {
+            throw "Capturing $FileName failed: $($captureJob.ChildJobs[0].JobStateInfo.Reason)"
+        }
+
+        Receive-Job $captureJob -ErrorAction Stop | Out-Null
+    }
+    finally {
+        Remove-Job $captureJob -Force -ErrorAction SilentlyContinue
+    }
+
+    return $elementCapturePath
+}
+
+function Assert-CaptionStateChanged {
+    param(
+        [string]$NormalPath,
+        [string]$PointerOverPath
+    )
+
+    $normal = [System.Drawing.Bitmap]::new($NormalPath)
+    $pointerOver = [System.Drawing.Bitmap]::new($PointerOverPath)
+    try {
+        if ($normal.Width -ne $pointerOver.Width -or
+            $normal.Height -ne $pointerOver.Height) {
+            throw "Caption-state screenshots have different dimensions."
+        }
+
+        $sampleX = [Math]::Max(1, [int][Math]::Floor($normal.Width * 0.2))
+        $sampleY = [Math]::Max(1, [int][Math]::Floor($normal.Height * 0.5))
+        $normalColor = $normal.GetPixel($sampleX, $sampleY)
+        $pointerOverColor = $pointerOver.GetPixel($sampleX, $sampleY)
+        $colorDistance =
+            [Math]::Abs($normalColor.R - $pointerOverColor.R) +
+            [Math]::Abs($normalColor.G - $pointerOverColor.G) +
+            [Math]::Abs($normalColor.B - $pointerOverColor.B)
+        if ($colorDistance -lt 80) {
+            throw "The Close button did not visibly enter its pointer-over state."
+        }
+    }
+    finally {
+        $normal.Dispose()
+        $pointerOver.Dispose()
+    }
+}
+
+Test-Ui "Title bar exposes only minimize and close" {
+    winapp ui wait-for "Shell.TitleBar.Minimize" -w $mainHwnd -t 3000
+    Assert-WinAppSucceeded "Waiting for the title-bar minimize button"
+    winapp ui wait-for "Shell.TitleBar.Close" -w $mainHwnd -t 3000
+    Assert-WinAppSucceeded "Waiting for the title-bar close button"
+    winapp ui wait-for "Shell.TitleBar.Maximize" -w $mainHwnd --gone -t 1000
+    Assert-WinAppSucceeded "Checking that the title-bar maximize button is absent"
+
+    $minimizeBounds = Get-UiBounds "Shell.TitleBar.Minimize"
+    $closeBounds = Get-UiBounds "Shell.TitleBar.Close"
+    $dpi = [PredatorLiteUiTestNativeMethods]::GetDpiForWindow([IntPtr][long]$mainHwnd)
+    if ($dpi -eq 0) {
+        $dpi = 96
+    }
+
+    $dpiScale = $dpi / 96.0
+    $expectedWidth = [Math]::Round(46 * $dpiScale)
+    $expectedHeight = [Math]::Round(40 * $dpiScale)
+    $captionAspectRatio = $minimizeBounds.Width / [double]$minimizeBounds.Height
+    if ([Math]::Abs($minimizeBounds.Width - $expectedWidth) -gt 1 -or
+        [Math]::Abs($minimizeBounds.Height - $expectedHeight) -gt 1 -or
+        $minimizeBounds.Width -ne $closeBounds.Width -or
+        $minimizeBounds.Height -ne $closeBounds.Height -or
+        [Math]::Abs($captionAspectRatio - (46.0 / 40.0)) -gt 0.03 -or
+        $closeBounds.X -ne $minimizeBounds.X + $minimizeBounds.Width) {
+        throw "Caption buttons must be adjacent, equally sized 46x40 DIP controls."
+    }
+
+    $titleBarTree = winapp ui inspect -w $mainHwnd --interactive --json 2>$null |
+        ConvertFrom-Json -ErrorAction Stop
+    Assert-WinAppSucceeded "Inspecting title-bar controls"
+    $visibleSystemMaximize = @($titleBarTree.windows.elements | Where-Object {
+        $_.automationId -eq "Maximize-Restore" -and
+        -not $_.isOffscreen -and
+        $_.width -gt 0 -and
+        $_.height -gt 0
+    })
+    if ($visibleSystemMaximize.Count -gt 0) {
+        throw "The system maximize caption button is still visible."
+    }
+}
+Test-Ui "Title bar normal and close-hover states render" {
+    winapp ui focus "Shell.Nav.Home" -w $mainHwnd
+    Assert-WinAppSucceeded "Focusing the main window"
+    winapp ui hover "Shell.Nav.Home" -w $mainHwnd
+    Assert-WinAppSucceeded "Moving the pointer away from the caption buttons"
+    winapp ui screenshot -w $mainHwnd -o "$OutputDirectory\00-titlebar-normal.png" --focus -q
+    Assert-WinAppSucceeded "Capturing the normal title-bar state"
+    $normalElementPath = Join-Path $OutputDirectory "00-titlebar-close-normal-element.png"
+    winapp ui screenshot "Shell.TitleBar.Close" -w $mainHwnd -o $normalElementPath -q
+    Assert-WinAppSucceeded "Capturing the normal close-button state"
+    $hoverElementPath =
+        Save-HoverScreenshot "00-titlebar-close-hover.png" "Shell.TitleBar.Close"
+    Assert-CaptionStateChanged $normalElementPath $hoverElementPath
+    winapp ui focus "Shell.Nav.Home" -w $mainHwnd
+    Assert-WinAppSucceeded "Refocusing the main window"
+    winapp ui hover "Shell.Nav.Home" -w $mainHwnd
+    Assert-WinAppSucceeded "Clearing the close-button hover state"
 }
 
 Test-Ui "Home dashboard is visible" {

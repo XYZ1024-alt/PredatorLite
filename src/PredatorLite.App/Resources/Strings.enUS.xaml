@@ -198,7 +198,6 @@
     <sys:String x:Key="Confirm.Mux">Switching to “{0}” requires a Windows restart. Continue?</sys:String>
     <sys:String x:Key="Confirm.DisableServices">PredatorLite will request administrator access, disable known conflicting services, and back up their start modes. Continue?</sys:String>
     <sys:String x:Key="Tip.Minimize">Minimize</sys:String>
-    <sys:String x:Key="Tip.Maximize">Maximize or restore</sys:String>
     <sys:String x:Key="Tip.Close">Hide to tray</sys:String>
     <sys:String x:Key="Tip.PickColor">Choose color</sys:String>
     <sys:String x:Key="Tip.Refresh">Refresh service state</sys:String>

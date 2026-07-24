@@ -13,19 +13,22 @@ Run this checklist on Windows 11 24H2 (build 26100+) x64. Hardware-write cases r
 ## Window and navigation
 
 1. Verify the initial window is approximately 600x840 DIPs and opens at the lower-right of the display containing the mouse pointer, with about 12 DIPs between the window and the work-area right/bottom edges.
-2. At 100%, 125%, and 150% display scaling, verify the window stays fully inside `DisplayArea.WorkArea`. Repeat with the taskbar on the bottom and one side, then with the pointer on each display of a mixed-DPI dual-monitor setup.
-3. Verify the window cannot be resized below 560x640 DIPs or above 640x900 DIPs. Resize between those bounds; the bottom navigation must remain fixed while page content scrolls independently.
-4. Confirm the bottom bar exposes five equal-width navigation items: Home, Cooling, Lighting, Monitor, and Settings. Home must not contain a status icon or status message.
-5. Open each secondary page from the bottom bar. The selected state must follow the active page, and `Alt+Left` must return directly to Home.
-6. Verify all pages at 100%, 125%, and 150% display scaling and at the minimum window size. No text, toggle, action button, or setting row may overlap or clip.
-7. Switch Windows between light, dark, and a contrast theme. Desktop Acrylic, glass cards, text, semantic badges, focus indicators, and controls must remain readable. With transparency disabled, the fallback surface must remain opaque and legible.
-8. Switch between Chinese and English. The shell, bottom navigation, tray menu, dialogs, OSD, mode names, and validation messages must update.
-9. Trigger a read-only state, reboot-required state, and a recoverable error where practical. Only one notice may be visible, with priority Error, Reboot required, then Read-only; full error text must wrap instead of being truncated.
-10. Minimize or close the main window. It must hide to the tray rather than terminate.
-11. Resize the window, hide it, move the pointer to another display, then left-click the tray icon or use its Open command. The same window must retain its logical size, move to that display's lower-right, and receive focus.
-12. Start PredatorLite again through `winapp run`. No second main process should remain, and the existing window must move to the pointer display's lower-right and open.
-13. Launch at least ten secondary processes concurrently while the primary is starting and again during the ten-second backend probe. Every secondary must exit, exactly one primary and tray icon must remain, the window must open on the UI thread, and startup mode restoration must run at most once.
-14. Trigger a redirected launch while the primary window is not yet assigned, then during shutdown. The early activation must be delivered after tray creation; the shutdown activation may be ignored without an unhandled exception or recreated window.
+2. Confirm the title bar exposes only the 46x40 DIP Minimize and Close buttons, with no maximize button or empty caption-button slot. With the pointer elsewhere, Close must use its normal transparent state; pointer entry and exit must apply and clear the critical hover state.
+3. At 100%, 125%, and 150% display scaling, verify the window stays fully inside `DisplayArea.WorkArea`. Repeat with the taskbar on the bottom and one side, then with the pointer on each display of a mixed-DPI dual-monitor setup.
+4. Verify the window cannot be resized below 560x640 DIPs or above 640x900 DIPs. Resize between those bounds; the bottom navigation must remain fixed while page content scrolls independently.
+5. Confirm the bottom bar exposes five equal-width navigation items: Home, Cooling, Lighting, Monitor, and Settings. Home must not contain a status icon or status message.
+6. Open each secondary page from the bottom bar. The selected state must follow the active page, and `Alt+Left` must return directly to Home.
+7. Verify all pages at 100%, 125%, and 150% display scaling and at the minimum window size. No text, toggle, action button, or setting row may overlap or clip.
+8. Switch Windows between light, dark, and a contrast theme. Desktop Acrylic, glass cards, text, semantic badges, focus indicators, controls, and both caption buttons must remain readable. With transparency disabled, the fallback surface must remain opaque and legible.
+9. Switch between Chinese and English. The shell, caption-button automation names and tooltips, bottom navigation, tray menu, dialogs, OSD, mode names, and validation messages must update.
+10. Trigger a read-only state, reboot-required state, and a recoverable error where practical. Only one notice may be visible, with priority Error, Reboot required, then Read-only; full error text must wrap instead of being truncated.
+11. Click Minimize, then reopen through the tray, dedicated Predator key, or `Ctrl+Alt+F11`. The window must restore and receive focus without leaving either caption button highlighted.
+12. Click Close and press `Alt+F4` in separate passes. Both close paths must hide the main window to the tray rather than terminate the process; reopening must show the Close button in its normal state while the pointer is elsewhere.
+13. Drag the custom title region, open the system menu with right-click and `Alt+Space`, and double-click the title region. Dragging and the system menu must work, while double-click, `Win+Up`, and caption hover must expose no maximize or Snap Layout action.
+14. Resize the window, hide it, move the pointer to another display, then left-click the tray icon or use its Open command. The same window must retain its logical size, move to that display's lower-right, and receive focus.
+15. Start PredatorLite again through `winapp run`. No second main process should remain, and the existing window must move to the pointer display's lower-right and open with normal caption-button states.
+16. Launch at least ten secondary processes concurrently while the primary is starting and again during the ten-second backend probe. Every secondary must exit, exactly one primary and tray icon must remain, the window must open on the UI thread, and startup mode restoration must run at most once.
+17. Trigger a redirected launch while the primary window is not yet assigned, then during shutdown. The early activation must be delivered after tray creation; the shutdown activation may be ignored without an unhandled exception or recreated window.
 
 ## Page-specific UI
 

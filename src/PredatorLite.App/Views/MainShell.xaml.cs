@@ -14,14 +14,23 @@ public sealed partial class MainShell : UserControl
     private readonly Dictionary<AppSection, Page> _pages = [];
     private readonly UiMotionService _motion;
     private readonly IAppLogger _logger;
+    private readonly Action _minimizeWindow;
+    private readonly Action _hideWindow;
     private AppSection? _currentSection;
     private bool _loaded;
 
-    public MainShell(MainViewModel viewModel, UiMotionService motion, IAppLogger logger)
+    public MainShell(
+        MainViewModel viewModel,
+        UiMotionService motion,
+        IAppLogger logger,
+        Action minimizeWindow,
+        Action hideWindow)
     {
         ViewModel = viewModel;
         _motion = motion;
         _logger = logger;
+        _minimizeWindow = minimizeWindow;
+        _hideWindow = hideWindow;
         try
         {
             InitializeComponent();
@@ -46,7 +55,15 @@ public sealed partial class MainShell : UserControl
 
     public MainViewModel ViewModel { get; }
 
-    public FrameworkElement TitleBarDragRegion => AppTitleBar;
+    public FrameworkElement TitleBarDragRegion => TitleBarDragSurface;
+
+    public FrameworkElement CaptionButtonInputRegion => CaptionButtonRegion;
+
+    public void ResetCaptionButtonVisualStates()
+    {
+        VisualStateManager.GoToState(MinimizeWindowButton, "Normal", useTransitions: false);
+        VisualStateManager.GoToState(CloseWindowButton, "Normal", useTransitions: false);
+    }
 
     public bool TryNavigateBack()
     {
@@ -152,6 +169,12 @@ public sealed partial class MainShell : UserControl
             e.Handled = TryNavigateBack();
         }
     }
+
+    private void MinimizeWindowButton_Click(object sender, RoutedEventArgs e) =>
+        _minimizeWindow();
+
+    private void CloseWindowButton_Click(object sender, RoutedEventArgs e) =>
+        _hideWindow();
 
     private void Navigation_Checked(object sender, RoutedEventArgs e)
     {

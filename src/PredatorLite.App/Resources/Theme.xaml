@@ -11,6 +11,15 @@
             <StaticResource x:Key="AppCardBorderBrush" ResourceKey="CardStrokeColorDefaultBrush" />
             <StaticResource x:Key="AppOverlayBackgroundBrush" ResourceKey="AcrylicInAppFillColorDefaultBrush" />
             <StaticResource x:Key="AppChromeBackgroundBrush" ResourceKey="LayerOnAcrylicFillColorDefaultBrush" />
+            <StaticResource x:Key="AppCaptionButtonForegroundBrush" ResourceKey="TextFillColorPrimaryBrush" />
+            <StaticResource x:Key="AppCaptionButtonPointerOverForegroundBrush" ResourceKey="TextFillColorPrimaryBrush" />
+            <StaticResource x:Key="AppCaptionButtonPressedForegroundBrush" ResourceKey="TextFillColorPrimaryBrush" />
+            <StaticResource x:Key="AppCaptionButtonPointerOverBrush" ResourceKey="SubtleFillColorSecondaryBrush" />
+            <StaticResource x:Key="AppCaptionButtonPressedBrush" ResourceKey="SubtleFillColorTertiaryBrush" />
+            <StaticResource x:Key="AppCaptionCloseButtonPointerOverBrush" ResourceKey="SystemFillColorCriticalBrush" />
+            <StaticResource x:Key="AppCaptionCloseButtonPressedBrush" ResourceKey="SystemFillColorCriticalBrush" />
+            <StaticResource x:Key="AppCaptionCloseButtonPointerOverForegroundBrush" ResourceKey="TextOnAccentFillColorPrimaryBrush" />
+            <StaticResource x:Key="AppCaptionCloseButtonPressedForegroundBrush" ResourceKey="TextOnAccentFillColorSecondaryBrush" />
             <StaticResource x:Key="AppNavigationPointerOverBrush" ResourceKey="SubtleFillColorSecondaryBrush" />
             <StaticResource x:Key="AppNavigationPressedBrush" ResourceKey="SubtleFillColorTertiaryBrush" />
             <StaticResource x:Key="AppNavigationSelectedBrush" ResourceKey="CardBackgroundFillColorDefaultBrush" />
@@ -41,6 +50,15 @@
             <StaticResource x:Key="AppCardBorderBrush" ResourceKey="CardStrokeColorDefaultBrush" />
             <StaticResource x:Key="AppOverlayBackgroundBrush" ResourceKey="AcrylicInAppFillColorDefaultBrush" />
             <StaticResource x:Key="AppChromeBackgroundBrush" ResourceKey="LayerOnAcrylicFillColorDefaultBrush" />
+            <StaticResource x:Key="AppCaptionButtonForegroundBrush" ResourceKey="TextFillColorPrimaryBrush" />
+            <StaticResource x:Key="AppCaptionButtonPointerOverForegroundBrush" ResourceKey="TextFillColorPrimaryBrush" />
+            <StaticResource x:Key="AppCaptionButtonPressedForegroundBrush" ResourceKey="TextFillColorPrimaryBrush" />
+            <StaticResource x:Key="AppCaptionButtonPointerOverBrush" ResourceKey="SubtleFillColorSecondaryBrush" />
+            <StaticResource x:Key="AppCaptionButtonPressedBrush" ResourceKey="SubtleFillColorTertiaryBrush" />
+            <StaticResource x:Key="AppCaptionCloseButtonPointerOverBrush" ResourceKey="SystemFillColorCriticalBrush" />
+            <StaticResource x:Key="AppCaptionCloseButtonPressedBrush" ResourceKey="SystemFillColorCriticalBrush" />
+            <StaticResource x:Key="AppCaptionCloseButtonPointerOverForegroundBrush" ResourceKey="TextOnAccentFillColorPrimaryBrush" />
+            <StaticResource x:Key="AppCaptionCloseButtonPressedForegroundBrush" ResourceKey="TextOnAccentFillColorSecondaryBrush" />
             <StaticResource x:Key="AppNavigationPointerOverBrush" ResourceKey="SubtleFillColorSecondaryBrush" />
             <StaticResource x:Key="AppNavigationPressedBrush" ResourceKey="SubtleFillColorTertiaryBrush" />
             <StaticResource x:Key="AppNavigationSelectedBrush" ResourceKey="CardBackgroundFillColorDefaultBrush" />
@@ -71,6 +89,15 @@
             <StaticResource x:Key="AppCardBorderBrush" ResourceKey="SystemColorButtonTextColorBrush" />
             <StaticResource x:Key="AppOverlayBackgroundBrush" ResourceKey="SystemColorWindowColorBrush" />
             <StaticResource x:Key="AppChromeBackgroundBrush" ResourceKey="SystemColorWindowColorBrush" />
+            <StaticResource x:Key="AppCaptionButtonForegroundBrush" ResourceKey="SystemColorWindowTextColorBrush" />
+            <StaticResource x:Key="AppCaptionButtonPointerOverForegroundBrush" ResourceKey="SystemColorHighlightTextColorBrush" />
+            <StaticResource x:Key="AppCaptionButtonPressedForegroundBrush" ResourceKey="SystemColorHighlightTextColorBrush" />
+            <StaticResource x:Key="AppCaptionButtonPointerOverBrush" ResourceKey="SystemColorHighlightColorBrush" />
+            <StaticResource x:Key="AppCaptionButtonPressedBrush" ResourceKey="SystemColorHighlightColorBrush" />
+            <StaticResource x:Key="AppCaptionCloseButtonPointerOverBrush" ResourceKey="SystemColorHighlightColorBrush" />
+            <StaticResource x:Key="AppCaptionCloseButtonPressedBrush" ResourceKey="SystemColorHighlightColorBrush" />
+            <StaticResource x:Key="AppCaptionCloseButtonPointerOverForegroundBrush" ResourceKey="SystemColorHighlightTextColorBrush" />
+            <StaticResource x:Key="AppCaptionCloseButtonPressedForegroundBrush" ResourceKey="SystemColorHighlightTextColorBrush" />
             <StaticResource x:Key="AppNavigationPointerOverBrush" ResourceKey="SystemColorHighlightColorBrush" />
             <StaticResource x:Key="AppNavigationPressedBrush" ResourceKey="SystemColorHighlightColorBrush" />
             <StaticResource x:Key="AppNavigationSelectedBrush" ResourceKey="SystemColorHighlightColorBrush" />
@@ -105,6 +132,113 @@
     <converters:ShellNoticeSeverityConverter x:Key="ShellNoticeSeverityConverter" />
 
     <CornerRadius x:Key="AppCardCornerRadius">8</CornerRadius>
+
+    <ControlTemplate x:Key="TitleBarCaptionButtonTemplate" TargetType="Button">
+        <Border
+            x:Name="LayoutRoot"
+            Padding="{TemplateBinding Padding}"
+            Background="{TemplateBinding Background}"
+            BorderBrush="{TemplateBinding BorderBrush}"
+            BorderThickness="{TemplateBinding BorderThickness}"
+            CornerRadius="{TemplateBinding CornerRadius}">
+            <VisualStateManager.VisualStateGroups>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal" />
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Target="LayoutRoot.Background" Value="{ThemeResource AppCaptionButtonPointerOverBrush}" />
+                            <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource AppCaptionButtonPointerOverForegroundBrush}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Pressed">
+                        <VisualState.Setters>
+                            <Setter Target="LayoutRoot.Background" Value="{ThemeResource AppCaptionButtonPressedBrush}" />
+                            <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource AppCaptionButtonPressedForegroundBrush}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+            <ContentPresenter
+                x:Name="ContentPresenter"
+                HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                Content="{TemplateBinding Content}"
+                ContentTemplate="{TemplateBinding ContentTemplate}"
+                Foreground="{TemplateBinding Foreground}" />
+        </Border>
+    </ControlTemplate>
+
+    <ControlTemplate x:Key="TitleBarCloseCaptionButtonTemplate" TargetType="Button">
+        <Border
+            x:Name="LayoutRoot"
+            Padding="{TemplateBinding Padding}"
+            Background="{TemplateBinding Background}"
+            BorderBrush="{TemplateBinding BorderBrush}"
+            BorderThickness="{TemplateBinding BorderThickness}"
+            CornerRadius="{TemplateBinding CornerRadius}">
+            <VisualStateManager.VisualStateGroups>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal" />
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Target="LayoutRoot.Background" Value="{ThemeResource AppCaptionCloseButtonPointerOverBrush}" />
+                            <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource AppCaptionCloseButtonPointerOverForegroundBrush}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Pressed">
+                        <VisualState.Setters>
+                            <Setter Target="LayoutRoot.Background" Value="{ThemeResource AppCaptionCloseButtonPressedBrush}" />
+                            <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource AppCaptionCloseButtonPressedForegroundBrush}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+            <ContentPresenter
+                x:Name="ContentPresenter"
+                HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                Content="{TemplateBinding Content}"
+                ContentTemplate="{TemplateBinding ContentTemplate}"
+                Foreground="{TemplateBinding Foreground}" />
+        </Border>
+    </ControlTemplate>
+
+    <Style
+        x:Key="TitleBarCaptionButtonStyle"
+        BasedOn="{StaticResource DefaultButtonStyle}"
+        TargetType="Button">
+        <Setter Property="Width" Value="46" />
+        <Setter Property="Height" Value="40" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="HorizontalAlignment" Value="Right" />
+        <Setter Property="VerticalAlignment" Value="Top" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{ThemeResource AppCaptionButtonForegroundBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="UseSystemFocusVisuals" Value="False" />
+        <Setter Property="AllowFocusOnInteraction" Value="False" />
+        <Setter Property="Template" Value="{StaticResource TitleBarCaptionButtonTemplate}" />
+    </Style>
+
+    <Style
+        x:Key="TitleBarCloseCaptionButtonStyle"
+        BasedOn="{StaticResource TitleBarCaptionButtonStyle}"
+        TargetType="Button">
+        <Setter Property="Template" Value="{StaticResource TitleBarCloseCaptionButtonTemplate}" />
+    </Style>
 
     <Style
         x:Key="CompactTitleTextStyle"
