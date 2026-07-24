@@ -38,6 +38,11 @@ if ($LASTEXITCODE -ne 0) {
 Get-ChildItem -LiteralPath $destination -Recurse -Filter "*.pdb" -File |
     Remove-Item -Force
 
+$debugIdentityLayout = Join-Path $destination "AppX"
+if (Test-Path -LiteralPath $debugIdentityLayout) {
+    Remove-Item -LiteralPath $debugIdentityLayout -Recurse -Force
+}
+
 $licenseSource = Join-Path $repositoryRoot "licenses"
 $licenseFiles = @(
     Get-ChildItem -LiteralPath $licenseSource -File |

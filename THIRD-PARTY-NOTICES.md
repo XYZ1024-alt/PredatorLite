@@ -32,6 +32,12 @@ PredatorLite is licensed under the MIT License. Its build and published output a
 | .NET Windows support libraries | 10.0.10 | MIT and bundled third-party notices | https://github.com/dotnet/runtime |
 | Microsoft Windows SDK .NET runtime projections | 10.0.26100.57 | Microsoft Windows SDK License Terms | https://www.nuget.org/packages/Microsoft.Windows.SDK.NET.Ref/10.0.26100.57 |
 
+## Installer packaging dependency
+
+| Component | Version | License | Source |
+| --- | ---: | --- | --- |
+| Inno Setup | 6.x | Inno Setup License | https://jrsoftware.org/isinfo.php |
+
 The MPL-covered libraries are consumed unmodified from NuGet. Their corresponding source versions are available at the links above and through the repository metadata embedded in each NuGet package.
 
 Full license material shipped with release bundles:
@@ -39,6 +45,7 @@ Full license material shipped with release bundles:
 - `LICENSE` - PredatorLite MIT License
 - `licenses/MPL-2.0.txt` - Mozilla Public License 2.0
 - `licenses/HidSharp.txt` - HidSharp notice and Apache License 2.0
+- `licenses/Inno-Setup.txt` - Inno Setup copyright and redistribution terms
 - `licenses/Microsoft-Windows-App-SDK.txt` - shared Microsoft Windows App SDK, AI, and WinUI terms
 - `licenses/Microsoft-Windows-App-SDK-NOTICE.txt` - Windows App SDK and WinUI third-party notices
 - `licenses/Microsoft-Windows-App-SDK-ML.txt` - Windows App SDK ML terms

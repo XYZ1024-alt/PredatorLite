@@ -70,6 +70,15 @@ Run this checklist on Windows 11 x64. Hardware-write cases require an Acer Preda
 5. Test the charge limit, refresh rate, overdrive, and lighting controls, then verify their reported state.
 6. Test Hybrid and Discrete GPU routing only when a reboot is acceptable. Cancel must preserve the previous selection; confirm must show the reboot-required banner.
 
+## Installer
+
+1. Build the unsigned installer with `build\build-installer.ps1 -SkipSigning` and verify it is written under `artifacts\installer\unsigned` with `-unsigned` in its filename. Confirm no unsigned artifact is written under `publish`; never publish the local test directory.
+2. Build the production installer with a trusted Authenticode certificate. Use SignTool to verify the setup executable and every PredatorLite-owned EXE/DLL; after installation, also verify the generated uninstaller. All signatures must use SHA-256 and carry an RFC 3161 timestamp.
+3. From a clean ordinary-user profile with the documented runtimes installed, install without elevation. Verify the default location is `%LocalAppData%\Programs\PredatorLite`, the Start menu entry works, and the optional desktop shortcut follows the selected task.
+4. Launch the installed app and exercise read-only navigation, tray, OSD, dedicated key, and diagnostics. The main app and installer must not request elevation; only an explicit conflict-management action may launch the elevated helper.
+5. Install a newer build with the same Inno Setup `AppId`. Verify it upgrades in place without duplicating the installed-app entry or deleting user settings. If that release removes or renames a payload file, add an exact `[InstallDelete]` entry and verify the obsolete file is removed during this upgrade test.
+6. Enable Start with Windows and confirm the `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\PredatorLite` value exists. Exit PredatorLite from the tray, uninstall it, and verify that value, the install directory, shortcuts, and uninstall registration are removed without requiring a restart. User settings and logs should remain available unless a future UI offers an explicit data-removal choice.
+
 ## Exit and logs
 
 1. Exit from the tray menu. The main process, OSD, FanGuard when not needed, and tray icon must all disappear.

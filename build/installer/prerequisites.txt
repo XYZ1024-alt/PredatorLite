@@ -1,0 +1,17 @@
+PredatorLite is a framework-dependent Windows 11 x64 application.
+
+Before launching PredatorLite, install:
+
+- Microsoft .NET 10 Runtime for Windows x64
+- Microsoft Windows App Runtime 1.8 for Windows x64
+
+The installer deploys PredatorLite for the current user. The main application runs without administrator privileges. Windows requests elevation only when you explicitly ask PredatorLite to manage a conflicting service.
+
+PredatorLite 是面向 Windows 11 x64 的框架依赖应用。
+
+启动前请安装：
+
+- Microsoft .NET 10 Runtime for Windows x64
+- Microsoft Windows App Runtime 1.8 for Windows x64
+
+安装程序仅为当前用户部署 PredatorLite。主程序始终以普通用户权限运行；只有当你明确要求管理冲突服务时，Windows 才会请求管理员授权。
