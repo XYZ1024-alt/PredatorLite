@@ -24,7 +24,8 @@ $rootCertificateSubject = "CN=PredatorLite Installer Test Root $testId"
 $leafCertificateSubject = "CN=PredatorLite Installer Test Leaf $testId"
 $rootKeyName = "PredatorLite-Installer-Test-Root-$testId"
 $leafKeyName = "PredatorLite-Installer-Test-Leaf-$testId"
-$cngProvider = [System.Security.Cryptography.CngProvider]::MicrosoftSoftwareKeyStorageProvider
+$cspProviderName = "Microsoft Enhanced RSA and AES Cryptographic Provider"
+$cspProviderType = 24
 
 function Invoke-NativeCommand {
     param([Parameter(Mandatory)][string]$FilePath, [Parameter(Mandatory)][string[]]$Arguments)
@@ -73,15 +74,71 @@ function Resolve-SignTool {
     throw "Windows SDK SignTool was not found."
 }
 
-function New-TestRsaKey {
+function New-TestRsaProviderParameters {
+    param(
+        [Parameter(Mandatory)][string]$Name,
+        [switch]$UseExistingKey)
+
+    $parameters = [System.Security.Cryptography.CspParameters]::new(
+        $cspProviderType, $cspProviderName, $Name)
+    $parameters.KeyNumber = [int][System.Security.Cryptography.KeyNumber]::Signature
+    $parameters.Flags = [System.Security.Cryptography.CspProviderFlags]::NoPrompt
+    if ($UseExistingKey) {
+        $parameters.Flags = $parameters.Flags -bor [System.Security.Cryptography.CspProviderFlags]::UseExistingKey
+    }
+    return $parameters
+}
+
+function New-TestRsaProvider {
     param([Parameter(Mandatory)][string]$Name)
-    $parameters = [System.Security.Cryptography.CngKeyCreationParameters]::new()
-    $parameters.Provider = $cngProvider
-    $parameters.KeyUsage = [System.Security.Cryptography.CngKeyUsages]::Signing
-    $parameters.Parameters.Add([System.Security.Cryptography.CngProperty]::new(
-        "Length", [BitConverter]::GetBytes(2048), [System.Security.Cryptography.CngPropertyOptions]::None))
-    return [System.Security.Cryptography.CngKey]::Create(
-        [System.Security.Cryptography.CngAlgorithm]::Rsa, $Name, $parameters)
+
+    $parameters = New-TestRsaProviderParameters -Name $Name
+    $rsa = [System.Security.Cryptography.RSACryptoServiceProvider]::new(2048, $parameters)
+    $rsa.PersistKeyInCsp = $true
+    return $rsa
+}
+
+function Remove-TestRsaKey {
+    param([Parameter(Mandatory)][string]$Name)
+
+    try {
+        $parameters = New-TestRsaProviderParameters -Name $Name -UseExistingKey
+        $rsa = [System.Security.Cryptography.RSACryptoServiceProvider]::new($parameters)
+    }
+    catch [System.Security.Cryptography.CryptographicException] {
+        if ($_.Exception.HResult -eq -2146893802) {
+            return
+        }
+        throw
+    }
+    try {
+        $rsa.PersistKeyInCsp = $false
+    }
+    finally {
+        $rsa.Dispose()
+    }
+}
+
+function Test-TestRsaKeyExists {
+    param([Parameter(Mandatory)][string]$Name)
+
+    $rsa = $null
+    try {
+        $parameters = New-TestRsaProviderParameters -Name $Name -UseExistingKey
+        $rsa = [System.Security.Cryptography.RSACryptoServiceProvider]::new($parameters)
+        return $true
+    }
+    catch [System.Security.Cryptography.CryptographicException] {
+        if ($_.Exception.HResult -eq -2146893802) {
+            return $false
+        }
+        throw
+    }
+    finally {
+        if ($null -ne $rsa) {
+            $rsa.Dispose()
+        }
+    }
 }
 
 function Add-CertificateToStore {
@@ -206,8 +263,6 @@ $unsignedSetupPath = Join-Path $unsignedOutputDirectory "PredatorLite-Setup-$ver
 Write-Host "Resolving Windows SDK SignTool..."
 $signTool = Resolve-SignTool
 Write-Host "Using SignTool: $signTool"
-$rootKey = $null
-$leafKey = $null
 $rootRsa = $null
 $leafRsa = $null
 $rootCertificate = $null
@@ -221,10 +276,10 @@ $cleanupFailures = [System.Collections.Generic.List[string]]::new()
 
 try {
     Write-Host "Creating temporary installer-signing test certificates..."
-    $rootKey = New-TestRsaKey -Name $rootKeyName
-    $leafKey = New-TestRsaKey -Name $leafKeyName
-    $rootRsa = [System.Security.Cryptography.RSACng]::new($rootKey)
-    $leafRsa = [System.Security.Cryptography.RSACng]::new($leafKey)
+    $rootRsa = New-TestRsaProvider -Name $rootKeyName
+    Write-Host "Created temporary root CSP key."
+    $leafRsa = New-TestRsaProvider -Name $leafKeyName
+    Write-Host "Created temporary leaf CSP key."
 
     $rootRequest = [System.Security.Cryptography.X509Certificates.CertificateRequest]::new(
         $rootCertificateSubject, $rootRsa, [System.Security.Cryptography.HashAlgorithmName]::SHA256,
@@ -449,10 +504,9 @@ finally {
         try { $disposable.Dispose() }
         catch { $cleanupFailures.Add("Cryptographic object cleanup failed: $($_.Exception.Message)") }
     }
-    foreach ($key in @($leafKey, $rootKey)) {
-        if ($null -eq $key) { continue }
-        try { $key.Delete(); $key.Dispose() }
-        catch { $cleanupFailures.Add("CNG key cleanup failed: $($_.Exception.Message)") }
+    foreach ($keyName in @($leafKeyName, $rootKeyName)) {
+        try { Remove-TestRsaKey -Name $keyName }
+        catch { $cleanupFailures.Add("CSP key cleanup failed for '$keyName': $($_.Exception.Message)") }
     }
 }
 
@@ -463,8 +517,7 @@ if ($null -ne $leafThumbprint -and (Test-CertificateInStore -StoreName "My" -Thu
     $cleanupFailures.Add("The test leaf certificate remains in CurrentUser\My.")
 }
 foreach ($keyName in @($rootKeyName, $leafKeyName)) {
-    if ([System.Security.Cryptography.CngKey]::Exists(
-        $keyName, $cngProvider, [System.Security.Cryptography.CngKeyOpenOptions]::UserKey)) {
+    if (Test-TestRsaKeyExists -Name $keyName) {
         $cleanupFailures.Add("The persisted test key remains in the user key store: $keyName")
     }
 }
