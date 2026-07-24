@@ -113,9 +113,11 @@ function Test-WindowsPublicAuthRoot {
         [System.Security.Cryptography.X509Certificates.StoreLocation]::LocalMachine)
     try {
         $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
-        return [bool]($store.Certificates |
-            Where-Object { $_.Thumbprint -eq $Thumbprint } |
-            Select-Object -First 1)
+        $matches = $store.Certificates.Find(
+            [System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint,
+            $Thumbprint,
+            $false)
+        return $matches.Count -gt 0
     }
     finally {
         $store.Close()
@@ -138,9 +140,11 @@ function Get-CodeSigningCertificate {
 
     try {
         $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
-        $certificate = $store.Certificates |
-            Where-Object { $_.Thumbprint -eq $normalizedThumbprint } |
-            Select-Object -First 1
+        $matches = $store.Certificates.Find(
+            [System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint,
+            $normalizedThumbprint,
+            $false)
+        $certificate = if ($matches.Count -gt 0) { $matches[0] } else { $null }
 
         if (-not $certificate) {
             throw "Certificate $normalizedThumbprint was not found in $StoreLocation\My."
@@ -179,6 +183,7 @@ function Get-CodeSigningCertificate {
 
         $chain = [System.Security.Cryptography.X509Certificates.X509Chain]::new()
         $chain.ChainPolicy.RevocationMode = [System.Security.Cryptography.X509Certificates.X509RevocationMode]::NoCheck
+        $chain.ChainPolicy.UrlRetrievalTimeout = [TimeSpan]::FromSeconds(5)
         $rootThumbprint = $null
         try {
             if (-not $chain.Build($certificate)) {

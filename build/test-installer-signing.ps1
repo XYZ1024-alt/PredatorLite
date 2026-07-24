@@ -329,6 +329,7 @@ try {
     Add-CertificateToStore -StoreName "My" -Certificate $leafCertificate
     Write-Host "Stored temporary leaf certificate in CurrentUser\My."
 
+    Write-Host "Checking missing-certificate production rejection..."
     Assert-ExpectedFailure `
         -Action { & $buildScript -CertificateThumbprint "0000000000000000000000000000000000000000" -TimestampUrl $TimestampUrl } `
         -MessagePattern "*was not found in CurrentUser\My*" -Description "Missing-certificate production signing"
@@ -336,6 +337,7 @@ try {
         throw "Missing-certificate rejection modified production output."
     }
 
+    Write-Host "Checking signed Debug production rejection..."
     Assert-ExpectedFailure `
         -Action { & $buildScript -Configuration Debug -CertificateThumbprint $leafThumbprint -TimestampUrl $TimestampUrl } `
         -MessagePattern "*Signed installers must use the Release configuration*" -Description "Signed Debug production build"
@@ -343,6 +345,7 @@ try {
         throw "Signed Debug rejection modified production output."
     }
 
+    Write-Host "Checking untrusted-certificate production rejection..."
     Assert-ExpectedFailure `
         -Action { & $buildScript -CertificateThumbprint $leafThumbprint -TimestampUrl $TimestampUrl } `
         -MessagePattern "*is not trusted on this build machine*" -Description "Untrusted certificate production signing"
@@ -351,6 +354,7 @@ try {
     }
 
     Add-CertificateToStore -StoreName "Root" -Certificate $rootPublicCertificate
+    Write-Host "Checking private-root production rejection..."
     Assert-ExpectedFailure `
         -Action { & $buildScript -CertificateThumbprint $leafThumbprint -TimestampUrl $TimestampUrl } `
         -MessagePattern "*does not chain to a Windows public AuthRoot certificate*" -Description "Private-root production signing"
@@ -358,6 +362,7 @@ try {
         throw "Private-root rejection modified production output."
     }
 
+    Write-Host "Production certificate rejection gates passed."
     $sentinelContents = "PredatorLite unsigned isolation $testId"
     New-Item -ItemType Directory -Path $releaseOutputDirectory -Force | Out-Null
     [System.IO.File]::WriteAllText($releaseSentinelPath, $sentinelContents, [System.Text.Encoding]::ASCII)
