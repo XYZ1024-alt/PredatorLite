@@ -2,6 +2,7 @@
     x:Class="PredatorLite.App.Views.HomePage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:viewModels="using:PredatorLite.App.ViewModels"
     Background="Transparent">
     <ScrollViewer
         AutomationProperties.AutomationId="Home.Scroll"
@@ -296,11 +297,16 @@
                         </StackPanel>
                         <ComboBox
                             AutomationProperties.AutomationId="Home.Lighting.Effect"
-                            DisplayMemberPath="Name"
                             HorizontalAlignment="Stretch"
                             IsEnabled="{x:Bind ViewModel.LightingAvailable, Mode=OneWay}"
                             ItemsSource="{x:Bind ViewModel.LightingEffects, Mode=OneWay}"
-                            SelectedItem="{x:Bind ViewModel.SelectedLightingEffectOption, Mode=TwoWay}" />
+                            SelectedItem="{x:Bind ViewModel.SelectedLightingEffectOption, Mode=TwoWay}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="viewModels:SelectionOptionBase">
+                                    <TextBlock Text="{x:Bind Name}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
                         <Grid ColumnSpacing="8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />

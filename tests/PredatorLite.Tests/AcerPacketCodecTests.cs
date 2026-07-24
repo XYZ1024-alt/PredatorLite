@@ -32,6 +32,16 @@ public sealed class AcerPacketCodecTests
     }
 
     [Fact]
+    public void PlainPacketPreservesNonAsciiUtf8()
+    {
+        const string json = "{\"label\":\"性能\"}";
+
+        byte[] packet = AcerPacketCodec.Encode(20, json);
+
+        Assert.Equal(json, AcerPacketCodec.Decode(packet));
+    }
+
+    [Fact]
     public void DecodeAcceptsPayloadWithoutAcerHeader()
     {
         byte[] payload = Encoding.UTF8.GetBytes("{\"result\":0}\0\0");

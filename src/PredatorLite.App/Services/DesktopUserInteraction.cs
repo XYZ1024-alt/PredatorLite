@@ -17,7 +17,7 @@ public enum ConfirmationKind
     Destructive
 }
 
-public interface IUserInteraction
+public interface IUserInteraction : IDisposable
 {
     Task<bool> ConfirmAsync(
         string message,
@@ -47,7 +47,7 @@ public sealed class DesktopUserInteraction(
         XamlRoot? root = xamlRootProvider();
         if (root is null)
         {
-            logger.Error("A confirmation dialog was requested before the window was ready.");
+            logger.LogError("A confirmation dialog was requested before the window was ready.");
             return false;
         }
 
@@ -84,7 +84,7 @@ public sealed class DesktopUserInteraction(
         IntPtr handle = windowHandleProvider();
         if (handle == IntPtr.Zero)
         {
-            logger.Error("The diagnostics picker was requested before the window was ready.");
+            logger.LogError("The diagnostics picker was requested before the window was ready.");
             return null;
         }
 
@@ -103,7 +103,7 @@ public sealed class DesktopUserInteraction(
         XamlRoot? root = xamlRootProvider();
         if (root is null)
         {
-            logger.Error("The color picker was requested before the window was ready.");
+            logger.LogError("The color picker was requested before the window was ready.");
             return null;
         }
 
@@ -159,6 +159,8 @@ public sealed class DesktopUserInteraction(
             UseShellExecute = true
         });
     }
+
+    public void Dispose() => _dialogGate.Dispose();
 
     private static Color ParseColor(string value)
     {

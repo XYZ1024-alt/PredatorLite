@@ -12,7 +12,7 @@ public sealed class JsonSettingsStoreTests
         string path = Path.Combine(directory, "settings.json");
         try
         {
-            JsonSettingsStore store = new(path);
+            using JsonSettingsStore store = new(path);
             AppSettings expected = new()
             {
                 Language = "en-US",
@@ -49,7 +49,7 @@ public sealed class JsonSettingsStoreTests
         string path = Path.Combine(directory, "settings.json");
         try
         {
-            JsonSettingsStore store = new(path);
+            using JsonSettingsStore store = new(path);
             await store.SaveAsync(new AppSettings { LastAcMode = mode });
 
             string json = await File.ReadAllTextAsync(path);
@@ -72,7 +72,7 @@ public sealed class JsonSettingsStoreTests
         string path = Path.Combine(directory, "settings.json");
         try
         {
-            JsonSettingsStore store = new(path);
+            using JsonSettingsStore store = new(path);
             await store.SaveAsync(new AppSettings { Language = "zh-CN" });
             await store.SaveAsync(new AppSettings { Language = "en-US" });
 
@@ -93,7 +93,7 @@ public sealed class JsonSettingsStoreTests
         try
         {
             await File.WriteAllTextAsync(path, "{not-json");
-            JsonSettingsStore store = new(path);
+            using JsonSettingsStore store = new(path);
 
             AppSettings settings = await store.LoadAsync();
 
@@ -115,7 +115,7 @@ public sealed class JsonSettingsStoreTests
         try
         {
             await File.WriteAllTextAsync(path, "{\"SchemaVersion\":999,\"Language\":\"en-US\"}");
-            JsonSettingsStore store = new(path);
+            using JsonSettingsStore store = new(path);
 
             AppSettings settings = await store.LoadAsync();
 

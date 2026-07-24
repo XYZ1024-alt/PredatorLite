@@ -1,6 +1,6 @@
 using System.Globalization;
-using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media;
 using PredatorLite.App.ViewModels;
@@ -8,7 +8,7 @@ using Windows.UI;
 
 namespace PredatorLite.App.Converters;
 
-public sealed class EnumEqualsConverter : IValueConverter
+public sealed partial class EnumEqualsConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, string language) =>
         value is not null && parameter is not null &&
@@ -18,7 +18,7 @@ public sealed class EnumEqualsConverter : IValueConverter
         DependencyProperty.UnsetValue;
 }
 
-public sealed class HexColorToBrushConverter : IValueConverter
+public sealed partial class HexColorToBrushConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, string language)
     {
@@ -41,14 +41,14 @@ public sealed class HexColorToBrushConverter : IValueConverter
         DependencyProperty.UnsetValue;
 }
 
-public sealed class InverseBooleanConverter : IValueConverter
+public sealed partial class InverseBooleanConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, string language) => value is not true;
 
     public object ConvertBack(object? value, Type targetType, object? parameter, string language) => value is not true;
 }
 
-public sealed class BooleanToVisibilityConverter : IValueConverter
+public sealed partial class BooleanToVisibilityConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, string language) =>
         value is true ? Visibility.Visible : Visibility.Collapsed;
@@ -57,7 +57,7 @@ public sealed class BooleanToVisibilityConverter : IValueConverter
         value is Visibility.Visible;
 }
 
-public sealed class InverseBooleanToVisibilityConverter : IValueConverter
+public sealed partial class InverseBooleanToVisibilityConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, string language) =>
         value is true ? Visibility.Collapsed : Visibility.Visible;
@@ -66,7 +66,7 @@ public sealed class InverseBooleanToVisibilityConverter : IValueConverter
         value is Visibility.Collapsed;
 }
 
-public sealed class ShellNoticeSeverityConverter : IValueConverter
+public sealed partial class ShellNoticeSeverityConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, string language) =>
         value switch

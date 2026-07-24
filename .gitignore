@@ -3,6 +3,7 @@
 **/obj/
 /publish/
 /artifacts/
+/BenchmarkDotNet.Artifacts/
 /AppPackages/
 /BundleArtifacts/
 /.vs/

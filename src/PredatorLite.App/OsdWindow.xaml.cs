@@ -10,7 +10,7 @@ using Windows.Graphics;
 
 namespace PredatorLite.App;
 
-public sealed partial class OsdWindow : Window
+public sealed partial class OsdWindow : Window, IDisposable
 {
     private const int WidthInDips = 356;
     private const int HeightInDips = 122;
@@ -73,6 +73,12 @@ public sealed partial class OsdWindow : Window
         Close();
     }
 
+    public void Dispose()
+    {
+        CloseOverlay();
+        GC.SuppressFinalize(this);
+    }
+
     public void RebuildContent()
     {
         if (!_closed)
@@ -83,6 +89,7 @@ public sealed partial class OsdWindow : Window
 
     private void OnClosed(object sender, WindowEventArgs args)
     {
+        _closed = true;
         _content.Dispose();
         Closed -= OnClosed;
     }

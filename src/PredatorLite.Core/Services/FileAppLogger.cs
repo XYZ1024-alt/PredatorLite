@@ -1,53 +1,144 @@
+using System.Threading.Channels;
 using PredatorLite.Core.Abstractions;
 
 namespace PredatorLite.Core.Services;
 
 public sealed class FileAppLogger : IAppLogger
 {
-    private readonly object _sync = new();
+    private readonly Channel<LogEntry> _entries = Channel.CreateUnbounded<LogEntry>(
+        new UnboundedChannelOptions
+        {
+            SingleReader = true,
+            SingleWriter = false
+        });
+    private readonly Task _writerTask;
     private readonly string _userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-    private bool _disposed;
+    private int _disposed;
 
     public FileAppLogger(string? directory = null)
     {
         string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         LogDirectory = directory ?? Path.Combine(appData, "PredatorLite", "Logs");
-        Directory.CreateDirectory(LogDirectory);
-        DeleteExpiredLogs();
+        _writerTask = Task.Run(ProcessEntriesAsync);
     }
 
     public string LogDirectory { get; }
 
-    public void Info(string message) => Write("INFO", message, null);
+    public void Info(string message) => Enqueue("INFO", message, null);
 
-    public void Error(string message, Exception? exception = null) => Write("ERROR", message, exception);
+    public void LogError(string message, Exception? exception = null) =>
+        Enqueue("ERROR", message, exception);
 
     public void Dispose()
     {
-        _disposed = true;
-    }
-
-    private void Write(string level, string message, Exception? exception)
-    {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
         {
             return;
         }
 
-        string sanitized = Sanitize(exception is null ? message : $"{message}: {exception.Message}");
-        string line = $"{DateTimeOffset.Now:O} [{level}] {sanitized}{Environment.NewLine}";
-        string path = Path.Combine(LogDirectory, $"PredatorLite-{DateTime.UtcNow:yyyyMMdd}.log");
-
+        _entries.Writer.TryComplete();
         try
         {
-            lock (_sync)
+            _writerTask.GetAwaiter().GetResult();
+        }
+        catch
+        {
+        }
+
+        GC.SuppressFinalize(this);
+    }
+
+    private void Enqueue(string level, string message, Exception? exception)
+    {
+        if (Volatile.Read(ref _disposed) != 0)
+        {
+            return;
+        }
+
+        _entries.Writer.TryWrite(new LogEntry(DateTimeOffset.Now, level, message, exception));
+    }
+
+    private async Task ProcessEntriesAsync()
+    {
+        StreamWriter? writer = null;
+        DateOnly writerDate = default;
+        try
+        {
+            Directory.CreateDirectory(LogDirectory);
+            DeleteExpiredLogs();
+            await foreach (LogEntry entry in _entries.Reader.ReadAllAsync().ConfigureAwait(false))
             {
-                File.AppendAllText(path, line);
+                try
+                {
+                    DateOnly entryDate = DateOnly.FromDateTime(entry.Timestamp.UtcDateTime);
+                    if (writer is null || entryDate != writerDate)
+                    {
+                        if (writer is not null)
+                        {
+                            await writer.DisposeAsync().ConfigureAwait(false);
+                        }
+
+                        writer = CreateWriter(entryDate);
+                        writerDate = entryDate;
+                    }
+
+                    await writer.WriteLineAsync(Format(entry)).ConfigureAwait(false);
+                    while (_entries.Reader.TryRead(out LogEntry queued))
+                    {
+                        DateOnly queuedDate = DateOnly.FromDateTime(queued.Timestamp.UtcDateTime);
+                        if (queuedDate != writerDate)
+                        {
+                            await writer.DisposeAsync().ConfigureAwait(false);
+                            writer = CreateWriter(queuedDate);
+                            writerDate = queuedDate;
+                        }
+
+                        await writer.WriteLineAsync(Format(queued)).ConfigureAwait(false);
+                    }
+
+                    await writer.FlushAsync().ConfigureAwait(false);
+                }
+                catch
+                {
+                    if (writer is not null)
+                    {
+                        await writer.DisposeAsync().ConfigureAwait(false);
+                        writer = null;
+                    }
+                }
             }
         }
         catch
         {
         }
+        finally
+        {
+            if (writer is not null)
+            {
+                await writer.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+    }
+
+    private StreamWriter CreateWriter(DateOnly date)
+    {
+        string path = Path.Combine(LogDirectory, $"PredatorLite-{date:yyyyMMdd}.log");
+        FileStream stream = new(
+            path,
+            FileMode.Append,
+            FileAccess.Write,
+            FileShare.ReadWrite,
+            bufferSize: 4096,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
+        return new StreamWriter(stream);
+    }
+
+    private string Format(LogEntry entry)
+    {
+        string message = entry.Exception is null
+            ? entry.Message
+            : $"{entry.Message}: {entry.Exception}";
+        return $"{entry.Timestamp:O} [{entry.Level}] {Sanitize(message)}";
     }
 
     private string Sanitize(string value) =>
@@ -72,4 +163,10 @@ public sealed class FileAppLogger : IAppLogger
         {
         }
     }
+
+    private readonly record struct LogEntry(
+        DateTimeOffset Timestamp,
+        string Level,
+        string Message,
+        Exception? Exception);
 }

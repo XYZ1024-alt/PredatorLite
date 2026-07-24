@@ -191,7 +191,7 @@ public sealed class UiMotionService : IDisposable
             return;
         }
 
-        FrameworkElement? pressable = FindPressable(e.OriginalSource as DependencyObject, root);
+        ButtonBase? pressable = FindPressable(e.OriginalSource as DependencyObject, root);
         if (pressable is null)
         {
             return;
@@ -301,7 +301,7 @@ public sealed class UiMotionService : IDisposable
         _trackedElements.Add(new WeakReference<UIElement>(element));
     }
 
-    private static FrameworkElement? FindPressable(DependencyObject? source, FrameworkElement root)
+    private static ButtonBase? FindPressable(DependencyObject? source, FrameworkElement root)
     {
         DependencyObject? current = source;
         while (current is not null)
@@ -322,7 +322,7 @@ public sealed class UiMotionService : IDisposable
         return null;
     }
 
-    private static Task AwaitBatchAsync(CompositionScopedBatch batch)
+    private static Task<bool> AwaitBatchAsync(CompositionScopedBatch batch)
     {
         TaskCompletionSource<bool> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
         TypedEventHandler<object, CompositionBatchCompletedEventArgs>? handler = null;

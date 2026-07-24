@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/PredatorLite.Benchmarks/PredatorLite.Benchmarks.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/PredatorLite.App/PredatorLite.App.csproj" />
     <Project Path="src/PredatorLite.Core/PredatorLite.Core.csproj" />

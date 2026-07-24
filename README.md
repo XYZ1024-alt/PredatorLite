@@ -7,7 +7,7 @@ PredatorLite 是面向 Acer Predator PHN16-71 的轻量控制工具，用普通�
 
 - Acer Predator PHN16-71
 - BIOS V1.20
-- Windows 11 x64
+- Windows 11 24H2（build 26100+）x64
 
 其他机型或 BIOS 版本仍可查看诊断信息，但所有硬件写入都会被禁用。
 
@@ -55,12 +55,14 @@ PredatorLite 复用 Acer 官方驱动和服务提供的接口，不附带或替�
 
 ## 构建
 
-需要 Windows 11 x64 和 .NET SDK 10.0.302 或兼容的 10.0.x SDK。界面使用 WinUI 3，项目固定使用 Microsoft Windows App SDK 1.8.260710003 稳定版：
+需要 Windows 11 24H2（build 26100+）x64 和 `global.json` 固定的 .NET SDK 10.0.302。所有 Windows 项目统一面向 `net10.0-windows10.0.26100.0`，界面使用稳定版 Microsoft Windows App SDK 2.3.1：
 
 ```powershell
 dotnet restore PredatorLite.slnx
 dotnet build PredatorLite.slnx -c Release --no-restore
 dotnet test PredatorLite.slnx -c Release --no-build
+$env:Configuration = "Release"
+dotnet format PredatorLite.slnx --verify-no-changes --no-restore
 ```
 
 从源码启动本地界面：
@@ -69,7 +71,7 @@ dotnet test PredatorLite.slnx -c Release --no-build
 dotnet run --project src\PredatorLite.App\PredatorLite.App.csproj
 ```
 
-框架依赖发布：
+框架依赖 ReadyToRun 发布：
 
 ```powershell
 .\build\publish.ps1
@@ -78,9 +80,9 @@ dotnet run --project src\PredatorLite.App\PredatorLite.App.csproj
 输出位于 `publish\win-x64`，其中包含主程序、FanGuard 和管理员辅助程序。这是免安装、框架依赖的 x64 目录发布，不使用 MSIX。目标机器需要同时安装：
 
 - .NET 10 Runtime x64
-- Windows App Runtime 1.8 x64
+- Windows App Runtime 2.3 x64
 
-发布目录必须整体保留，不能只复制 `PredatorLite.exe`。在完整目录中启动 `PredatorLite.exe`；运行 `build\publish.ps1` 后脚本会检查三个 EXE、运行时配置、WinUI PRI/XBF、Bootstrap DLL 和图标资源是否齐全。该目录版默认没有 Authenticode 签名，不属于下述签名安装器流水线。`main` 推送和手动运行 `build` 工作流会把该目录保存 14 天，artifact 名称包含 `UNSIGNED-TEST-ONLY`；PR 只验证构建，不上传可下载产物。
+发布目录必须整体保留，不能只复制 `PredatorLite.exe`。发布脚本分别发布主程序、FanGuard 和 ElevatedHelper，再合并各自拥有的文件；默认启用经过测量验证的 framework-dependent ReadyToRun，并检查五个第一方程序集的 Managed Native Header。使用 `.\build\publish.ps1 -ReadyToRun:$false` 可生成 IL 对照布局。脚本还会检查三个 EXE、运行时配置、WinUI PRI/XBF、Bootstrap DLL、许可证和图标资源是否齐全。性能基准、启动回归门槛与 Native AOT 阻断项见[性能与部署证据](docs/performance.md)。该目录版默认没有 Authenticode 签名；`main` 推送和手动 `build` 工作流会把它作为带 `UNSIGNED-TEST-ONLY` 标识的 14 天测试 artifact，PR 不上传可下载产物。
 
 Inno Setup 本地安装测试包：
 
@@ -110,6 +112,7 @@ src/PredatorLite.Platform.Windows AcerService、WMI 与 Windows 只读监控
 src/PredatorLite.FanGuard         风扇故障恢复看门狗
 src/PredatorLite.ElevatedHelper   固定白名单的服务管理辅助程序
 tests/PredatorLite.Tests          协议、曲线、设置与能力边界测试
+benchmarks/PredatorLite.Benchmarks 包编解码、曲线与遥测微基准
 ```
 
 ## 来源边界

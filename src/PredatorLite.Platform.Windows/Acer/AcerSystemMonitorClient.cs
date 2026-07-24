@@ -63,7 +63,7 @@ internal sealed class AcerSystemMonitorClient : IAsyncDisposable
                 _retryAfter = DateTimeOffset.UtcNow.Add(FailureBackoff);
                 if (!_failureLogged)
                 {
-                    _logger.Error("Acer system monitor telemetry is unavailable; retrying in 10 seconds", exception);
+                    _logger.LogError("Acer system monitor telemetry is unavailable; retrying in 10 seconds", exception);
                     _failureLogged = true;
                 }
 
@@ -134,7 +134,9 @@ internal sealed class AcerSystemMonitorClient : IAsyncDisposable
 
     private async Task<AcerMonitorTelemetry> SendCoreAsync(CancellationToken cancellationToken)
     {
-        string json = JsonSerializer.Serialize(new { Function = AcerProtocol.GetMonitorData });
+        string json = JsonSerializer.Serialize(
+            new AcerMonitorRequest(AcerProtocol.GetMonitorData),
+            AcerJsonContext.Default.AcerMonitorRequest);
         byte[] packet = AcerPacketCodec.Encode(AcerProtocol.MonitorPacket, json, _aesKey);
 
         using TcpClient client = new();

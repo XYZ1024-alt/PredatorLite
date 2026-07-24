@@ -27,6 +27,21 @@ public sealed class FanCurveEngineTests
     }
 
     [Fact]
+    public void UnorderedCurveIsSortedBeforeEvaluation()
+    {
+        List<FanCurvePoint> points =
+        [
+            new(95, 100),
+            new(20, 20),
+            new(60, 60)
+        ];
+
+        int speed = FanCurveEngine.Evaluate(points, 40, 20);
+
+        Assert.Equal(40, speed);
+    }
+
+    [Fact]
     public void MissingSafetyEndpointIsRejected()
     {
         FanCurve curve = FanCurve.CreateDefault();

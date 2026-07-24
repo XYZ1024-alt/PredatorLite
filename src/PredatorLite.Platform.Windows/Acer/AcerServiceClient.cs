@@ -85,7 +85,7 @@ public sealed class AcerServiceClient : IAsyncDisposable
                 catch (Exception exception) when (exception is IOException or SocketException or JsonException or CryptographicException)
                 {
                     lastError = exception;
-                    _logger.Error($"AcerService {function} attempt {attempt + 1} failed", exception);
+                    _logger.LogError($"AcerService {function} attempt {attempt + 1} failed", exception);
                     if (attempt == 0)
                     {
                         await Task.Delay(100, cancellationToken).ConfigureAwait(false);

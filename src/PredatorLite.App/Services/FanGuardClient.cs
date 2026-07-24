@@ -38,7 +38,7 @@ public sealed class FanGuardClient : IAsyncDisposable
             string? executable = CompanionExecutableLocator.Find("PredatorLite.FanGuard.exe");
             if (executable is null)
             {
-                _logger.Error("FanGuard executable was not found.");
+                _logger.LogError("FanGuard executable was not found.");
                 return false;
             }
 
@@ -80,7 +80,7 @@ public sealed class FanGuardClient : IAsyncDisposable
         }
         catch (Exception exception)
         {
-            _logger.Error("FanGuard could not start", exception);
+            _logger.LogError("FanGuard could not start", exception);
             await StopCoreAsync(sendStop: false).ConfigureAwait(false);
             return false;
         }
@@ -125,7 +125,7 @@ public sealed class FanGuardClient : IAsyncDisposable
         }
         catch (Exception exception)
         {
-            _logger.Error("FanGuard heartbeat failed", exception);
+            _logger.LogError("FanGuard heartbeat failed", exception);
         }
     }
 

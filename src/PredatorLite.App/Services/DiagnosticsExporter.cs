@@ -1,20 +1,14 @@
 using System.IO;
 using System.IO.Compression;
 using System.Text.Json;
-using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using PredatorLite.Core.Models;
 
 namespace PredatorLite.App.Services;
 
-public sealed class DiagnosticsExporter
+public static class DiagnosticsExporter
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        WriteIndented = true,
-        Converters = { new JsonStringEnumConverter() }
-    };
-
-    public async Task ExportAsync(
+    public static async Task ExportAsync(
         string destinationPath,
         DeviceCapabilities capabilities,
         HardwareSnapshot snapshot,
@@ -40,13 +34,11 @@ public sealed class DiagnosticsExporter
         await WriteJsonAsync(
             archive,
             "application.json",
-            new
-            {
-                Version = typeof(DiagnosticsExporter).Assembly.GetName().Version?.ToString(),
-                Runtime = Environment.Version.ToString(),
-                Architecture = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString(),
-                ExportedUtc = DateTimeOffset.UtcNow
-            },
+            new ApplicationDiagnostics(
+                typeof(DiagnosticsExporter).Assembly.GetName().Version?.ToString(),
+                Environment.Version.ToString(),
+                System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString(),
+                DateTimeOffset.UtcNow),
             cancellationToken).ConfigureAwait(false);
 
         if (!Directory.Exists(logDirectory))
@@ -74,6 +66,12 @@ public sealed class DiagnosticsExporter
     {
         ZipArchiveEntry entry = archive.CreateEntry(name, CompressionLevel.Optimal);
         await using Stream stream = entry.Open();
-        await JsonSerializer.SerializeAsync(stream, value, JsonOptions, cancellationToken).ConfigureAwait(false);
+        JsonTypeInfo<T>? typeInfo = DiagnosticsJsonContext.Default.GetTypeInfo(typeof(T)) as JsonTypeInfo<T>;
+        if (typeInfo is null)
+        {
+            throw new InvalidOperationException($"Missing JSON metadata for {typeof(T)}.");
+        }
+
+        await JsonSerializer.SerializeAsync(stream, value, typeInfo, cancellationToken).ConfigureAwait(false);
     }
 }

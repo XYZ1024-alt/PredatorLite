@@ -16,7 +16,6 @@ public sealed class PredatorPlatform : IPredatorPlatform
     private readonly AcerServiceClient _service;
     private readonly AcerSystemMonitorClient _systemMonitor;
     private readonly AcerWmiClient _wmi;
-    private readonly DisplayController _display = new();
     private readonly IAppLogger _logger;
     private readonly SemaphoreSlim _operationGate = new(1, 1);
     private readonly SemaphoreSlim _probeGate = new(1, 1);
@@ -128,7 +127,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
             Task<AcerMonitorTelemetry?> systemMonitorTask = _systemMonitor.ReadAsync(cancellationToken);
             Task<(bool Available, bool? Enabled)> batteryTask = ProbeBatteryAsync(cancellationToken);
             Task<IReadOnlyList<int>> refreshRatesTask = Task.Run(
-                _display.GetSupportedRefreshRates,
+                DisplayController.GetSupportedRefreshRates,
                 cancellationToken);
             Task<ServiceProbeResult> serviceTask = ProbeServiceCapabilitiesAsync(
                 startup.Capabilities.AcerServiceAvailable,
@@ -234,7 +233,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
         {
             BatteryPercent = batteryPercent,
             IsOnAcPower = onAc,
-            DisplayRefreshRate = _display.GetCurrentRefreshRate(),
+            DisplayRefreshRate = DisplayController.GetCurrentRefreshRate(),
             OperatingMode = _operatingMode,
             GpuMuxMode = _gpuMuxMode,
             FanMode = _fanMode
@@ -367,7 +366,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
         }
         catch (Exception exception)
         {
-            _logger.Error($"Operating mode {mode} failed", exception);
+            _logger.LogError($"Operating mode {mode} failed", exception);
             return ApplyResult.Failure(exception.Message);
         }
         finally
@@ -429,7 +428,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
         }
         catch (Exception exception)
         {
-            _logger.Error($"Fan mode {mode} failed", exception);
+            _logger.LogError($"Fan mode {mode} failed", exception);
             return ApplyResult.Failure(exception.Message);
         }
         finally
@@ -481,7 +480,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
         }
         catch (Exception exception)
         {
-            _logger.Error($"GPU MUX mode {mode} failed", exception);
+            _logger.LogError($"GPU MUX mode {mode} failed", exception);
             return ApplyResult.Failure(exception.Message);
         }
         finally
@@ -550,7 +549,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
         }
         catch (Exception exception)
         {
-            _logger.Error("Lighting update failed", exception);
+            _logger.LogError("Lighting update failed", exception);
             return ApplyResult.Failure(exception.Message);
         }
     }
@@ -618,7 +617,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
         }
         catch (Exception exception)
         {
-            _logger.Error($"Device setting {setting} failed", exception);
+            _logger.LogError($"Device setting {setting} failed", exception);
             return ApplyResult.Failure(exception.Message);
         }
     }
@@ -634,9 +633,9 @@ public sealed class PredatorPlatform : IPredatorPlatform
             return blocked;
         }
 
-        bool changed = await Task.Run(() => _display.SetRefreshRate(refreshRate), cancellationToken)
+        bool changed = await Task.Run(() => DisplayController.SetRefreshRate(refreshRate), cancellationToken)
             .ConfigureAwait(false);
-        if (!changed || _display.GetCurrentRefreshRate() != refreshRate)
+        if (!changed || DisplayController.GetCurrentRefreshRate() != refreshRate)
         {
             return ApplyResult.Failure($"Refresh rate {refreshRate} Hz could not be applied.");
         }
@@ -724,7 +723,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
     private async Task<(bool Available, bool? Enabled)> ProbeBatteryAsync(
         CancellationToken cancellationToken)
     {
-        bool available = await _wmi.IsBatteryInterfaceAvailableAsync(cancellationToken)
+        bool available = await AcerWmiClient.IsBatteryInterfaceAvailableAsync(cancellationToken)
             .ConfigureAwait(false);
         bool? enabled = available
             ? await _wmi.ReadChargeLimitAsync(cancellationToken).ConfigureAwait(false)
@@ -811,7 +810,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
         };
     }
 
-    private static HardwareWriteBlockReason GetWriteBlockReason(
+    internal static HardwareWriteBlockReason GetWriteBlockReason(
         DeviceIdentity identity,
         bool serviceAvailable,
         bool wmiAvailable)
@@ -888,7 +887,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
         }
         catch (Exception exception)
         {
-            _logger.Error("AcerService state refresh failed", exception);
+            _logger.LogError("AcerService state refresh failed", exception);
         }
     }
 
@@ -973,7 +972,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
         }
         catch (Exception exception)
         {
-            _logger.Error($"AcerService capability query {function} failed", exception);
+            _logger.LogError($"AcerService capability query {function} failed", exception);
             return null;
         }
     }
@@ -1028,13 +1027,13 @@ public sealed class PredatorPlatform : IPredatorPlatform
             bool automatic = mode == FanMode.Auto;
             parameters["custom_fan_data"] = new JsonArray
             {
-                new JsonObject
+                (JsonNode)new JsonObject
                 {
                     ["fan_custom_auto"] = automatic ? 1 : 0,
                     ["fan_custom_speed"] = cpu,
                     ["fan_name"] = "CPU"
                 },
-                new JsonObject
+                (JsonNode)new JsonObject
                 {
                     ["fan_custom_auto"] = automatic ? 1 : 0,
                     ["fan_custom_speed"] = gpu,

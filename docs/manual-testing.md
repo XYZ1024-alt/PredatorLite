@@ -1,10 +1,10 @@
 # PredatorLite Manual Test Checklist
 
-Run this checklist on Windows 11 x64. Hardware-write cases require an Acer Predator PHN16-71 with BIOS V1.20; on every other model or BIOS, verify that controls remain read-only instead.
+Run this checklist on Windows 11 24H2 (build 26100+) x64. Hardware-write cases require an Acer Predator PHN16-71 with BIOS V1.20; on every other model or BIOS, verify that controls remain read-only instead.
 
 ## Preparation
 
-1. Install .NET 10 Runtime x64 and Windows App Runtime 1.8 x64. Run `/winui-setup` if `winapp` is not available.
+1. Install .NET 10 Runtime x64 and Windows App Runtime 2.3 x64. Run `/winui-setup` if `winapp` is not available.
 2. Keep `AcerServiceSvc`, `AcerLightingService`, `ASMSvc`, and `AcerApplicationBaseDriver_Device` installed and running.
 3. Close every existing PredatorLite instance, including older WPF builds, before launching the WinUI build.
 4. Build and launch the app as an ordinary user with `dotnet run --project src\PredatorLite.App\PredatorLite.App.csproj`. For a validated published directory, launch `PredatorLite.exe` from that complete directory. Do not elevate the main app.
@@ -24,6 +24,8 @@ Run this checklist on Windows 11 x64. Hardware-write cases require an Acer Preda
 10. Minimize or close the main window. It must hide to the tray rather than terminate.
 11. Resize the window, hide it, move the pointer to another display, then left-click the tray icon or use its Open command. The same window must retain its logical size, move to that display's lower-right, and receive focus.
 12. Start PredatorLite again through `winapp run`. No second main process should remain, and the existing window must move to the pointer display's lower-right and open.
+13. Launch at least ten secondary processes concurrently while the primary is starting and again during the ten-second backend probe. Every secondary must exit, exactly one primary and tray icon must remain, the window must open on the UI thread, and startup mode restoration must run at most once.
+14. Trigger a redirected launch while the primary window is not yet assigned, then during shutdown. The early activation must be delivered after tray creation; the shutdown activation may be ignored without an unhandled exception or recreated window.
 
 ## Page-specific UI
 
@@ -70,7 +72,8 @@ Run this checklist on Windows 11 x64. Hardware-write cases require an Acer Preda
 5. Delay or stop AcerService on the validated machine. Verify read-only startup probes stop at the ten-second deadline, never bypass the whitelist, and do not loop hardware writes. If the deferred probe first discovers the backend, it may perform only one pending restore.
 6. On an unsupported model or unvalidated BIOS, verify startup remains read-only and sends no hardware setter. A denied Acer WMI mode read must not make `CanWriteHardware` true when AcerService is unavailable.
 7. During hidden startup, verify no `MainShell` or page is created until the tray, dedicated key, or existing-instance activation shows the window. Navigate through every page after opening and confirm each page initializes once and remains functional.
-8. Review the startup timing lines from at least five healthy cold launches. The critical-path mode result must precede the full capability, first-snapshot, integration, and service-inventory completion; APGe, ETW, service inventory, and non-current page construction must remain outside the critical path.
+8. Review EventSource provider `PredatorLite-Startup` and the startup timing lines from at least five healthy cold launches. `critical-ready` must precede `deferred-ready`; APGe, ETW, service inventory, and non-current page construction must remain outside the critical path.
+9. Run the tray-only IL/R2R comparison in [`performance.md`](performance.md). Confirm `--startup-tray-only` emits `tray-ready` and exits by harness termination without `critical-ready`, a hardware setter, or a FanGuard launch.
 
 ## Hardware controls
 
@@ -83,7 +86,7 @@ Run this checklist on Windows 11 x64. Hardware-write cases require an Acer Preda
 
 ## Installer
 
-1. Build with `build\build-installer.ps1 -SkipSigning` and verify the installer is written under `artifacts\installer\unsigned` with `-unsigned` in its filename. Confirm the command neither creates nor modifies `publish\installer`; never attach this local test output to a GitHub Release.
+1. Build with `build\build-installer.ps1 -SkipSigning` and verify the installer is written under `artifacts\installer\unsigned` with `-unsigned` in its filename. Confirm the command neither creates nor modifies `publish\installer`; never attach this local test output to a GitHub Release. Inspect the staged first-party DLLs and confirm the publish script accepted their ReadyToRun managed native headers.
 2. On a `main` push or manual `build` workflow run, verify the workflow uploads `PredatorLite-win-x64-portable-UNSIGNED-TEST-ONLY` and `PredatorLite-installer-UNSIGNED-TEST-ONLY` Actions artifacts with 14-day retention. Both must contain `UNSIGNED-TEST-ONLY.txt`; the installer artifact must contain only that notice, the `-unsigned.exe`, and its `.sha256`. Pull requests must not upload either artifact, and the workflow must not create or modify a GitHub Release.
 3. Run `build\test-installer-signing.ps1` locally before a release. To inspect GitHub-hosted behavior, manually dispatch the separate `installer signing gates` workflow; it must upload no artifact and must not create or modify a GitHub Release. The test must reject Debug signing and a locally trusted private CA, exercise signed-build failure cleanup, sign all eight PredatorLite-owned EXE/DLL files plus Setup and the generated uninstaller with SHA-256 and RFC 3161 timestamps, install and uninstall successfully, remove its exact temporary certificates, and leave no `-test-signed` artifact or registry state. Existing `publish` content must remain unchanged.
 4. Build the production installer with a trusted Authenticode certificate whose chain terminates in `LocalMachine\AuthRoot`. Verify `publish\win-x64` remains unchanged and only the final Setup and `.sha256` are promoted to `publish\installer`. A failure before promotion must preserve the previous installer; a failure after promotion starts must leave no candidate or incomplete target. Verify Setup and every PredatorLite-owned EXE/DLL with SignTool, then install in a disposable profile and verify the generated uninstaller.

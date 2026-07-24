@@ -16,7 +16,7 @@ using Windows.Graphics;
 
 namespace PredatorLite.App;
 
-public sealed partial class MainWindow : Window
+public sealed partial class MainWindow : Window, IDisposable
 {
     private const int InitialWidthInDips = 600;
     private const int InitialHeightInDips = 840;
@@ -39,6 +39,7 @@ public sealed partial class MainWindow : Window
     private GlobalShortcutManager? _shortcuts;
     private OsdWindow? _osdWindow;
     private bool _allowClose;
+    private bool _disposed;
     private readonly bool _startHidden;
     private int _shellRebuildGeneration;
 
@@ -87,7 +88,7 @@ public sealed partial class MainWindow : Window
         EnsureShell();
         PositionAtBottomRight(useInitialSize: false);
         this.Show();
-        _trayIcon?.SetWindowVisible(true);
+        TrayIconView.SetWindowVisible(true);
         Activate();
         if (!NativeMethods.SetForegroundWindow(WindowHandle))
         {
@@ -98,25 +99,52 @@ public sealed partial class MainWindow : Window
     public void HideToTray()
     {
         this.Hide(enableEfficiencyMode: true);
-        _trayIcon?.SetWindowVisible(false);
+        TrayIconView.SetWindowVisible(false);
     }
 
-    public void PrepareForExit()
+    public void PrepareForExit() => Dispose();
+
+    public void Dispose()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
         _allowClose = true;
-        Activated -= OnActivated;
-        _viewModel.PropertyChanged -= ViewModelOnPropertyChanged;
-        _localization.LanguageChanged -= OnLanguageChanged;
-        _predatorKeySource.ActivationRequested -= OnPredatorKeyActivationRequested;
-        _predatorKeySource.Dispose();
-        _shortcuts?.Dispose();
+        TryCleanup(() => Activated -= OnActivated, "window activation handler");
+        TryCleanup(
+            () => _viewModel.PropertyChanged -= ViewModelOnPropertyChanged,
+            "view-model handler");
+        TryCleanup(
+            () => _localization.LanguageChanged -= OnLanguageChanged,
+            "localization handler");
+        TryCleanup(
+            () => _predatorKeySource.ActivationRequested -= OnPredatorKeyActivationRequested,
+            "Predator key handler");
+        TryCleanup(_predatorKeySource.Dispose, "Predator key source");
+        TryCleanup(() => _shortcuts?.Dispose(), "global shortcuts");
         _shortcuts = null;
-        _windowSubclass.Dispose();
-        _osdWindow?.CloseOverlay();
+        TryCleanup(_windowSubclass.Dispose, "window subclass");
+        TryCleanup(() => _osdWindow?.Dispose(), "OSD window");
         _osdWindow = null;
-        _trayIcon?.Dispose();
+        TryCleanup(() => _trayIcon?.Dispose(), "tray icon");
         _trayIcon = null;
-        _motion.Dispose();
+        TryCleanup(_motion.Dispose, "motion service");
+        GC.SuppressFinalize(this);
+    }
+
+    private void TryCleanup(Action cleanup, string component)
+    {
+        try
+        {
+            cleanup();
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError($"Failed to release {component}", exception);
+        }
     }
 
     private void OnActivated(object sender, WindowActivatedEventArgs args) =>
@@ -263,7 +291,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception exception)
         {
-            _logger.Error("UI shell creation failed", exception);
+            _logger.LogError("UI shell creation failed", exception);
         }
     }
 
@@ -284,7 +312,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception exception)
         {
-            _logger.Error("UI shell rebuild failed", exception);
+            _logger.LogError("UI shell rebuild failed", exception);
         }
     }
 

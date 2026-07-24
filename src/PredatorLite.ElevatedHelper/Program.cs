@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.ServiceProcess;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Win32;
 
 namespace PredatorLite.ElevatedHelper;
@@ -22,8 +23,6 @@ internal static class Program
         "PredatorService"
     ];
 
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
-
     private static int Main(string[] args)
     {
         if (!IsAdministrator() || args.Length != 2)
@@ -32,6 +31,11 @@ internal static class Program
         }
 
         string command = args[0].ToLowerInvariant();
+        if (!IsSupportedCommand(command))
+        {
+            return 4;
+        }
+
         string backupPath;
         try
         {
@@ -57,6 +61,12 @@ internal static class Program
             return 1;
         }
     }
+
+    internal static bool IsSupportedCommand(string command) =>
+        command is "disable" or "restore";
+
+    internal static bool IsManagedService(string serviceName) =>
+        ManagedServices.Contains(serviceName, StringComparer.OrdinalIgnoreCase);
 
     private static int DisableConflicts(string backupPath)
     {
@@ -95,7 +105,7 @@ internal static class Program
             return 6;
         }
 
-        foreach (ServiceBackupItem service in backup.Services.Where(item => ManagedServices.Contains(item.Name, StringComparer.OrdinalIgnoreCase)))
+        foreach (ServiceBackupItem service in backup.Services.Where(item => IsManagedService(item.Name)))
         {
             SetStartMode(service.Name, checked((uint)service.StartValue));
             if (service.WasRunning)
@@ -120,7 +130,9 @@ internal static class Program
         try
         {
             return File.Exists(backupPath)
-                ? JsonSerializer.Deserialize<ServiceBackup>(File.ReadAllText(backupPath))
+                ? JsonSerializer.Deserialize(
+                    File.ReadAllText(backupPath),
+                    ElevatedHelperJsonContext.Default.ServiceBackup)
                 : null;
         }
         catch
@@ -133,7 +145,9 @@ internal static class Program
     {
         Directory.CreateDirectory(Path.GetDirectoryName(backupPath)!);
         string temporary = backupPath + ".tmp";
-        File.WriteAllText(temporary, JsonSerializer.Serialize(backup, JsonOptions));
+        File.WriteAllText(
+            temporary,
+            JsonSerializer.Serialize(backup, ElevatedHelperJsonContext.Default.ServiceBackup));
         File.Move(temporary, backupPath, true);
     }
 
@@ -307,21 +321,27 @@ internal static class Program
 
     [DllImport("advapi32.dll", SetLastError = true)]
     private static extern bool CloseServiceHandle(IntPtr handle);
+}
 
-    private sealed class ServiceBackup
-    {
-        public DateTimeOffset CreatedUtc { get; set; }
-        public List<ServiceBackupItem> Services { get; set; } = [];
-        public bool PredatorTaskWasEnabled { get; set; }
-        public bool IsApplied { get; set; }
-    }
+internal sealed class ServiceBackup
+{
+    public DateTimeOffset CreatedUtc { get; set; }
+    public List<ServiceBackupItem> Services { get; set; } = [];
+    public bool PredatorTaskWasEnabled { get; set; }
+    public bool IsApplied { get; set; }
+}
 
-    private sealed class ServiceBackupItem
-    {
-        public string Name { get; set; } = string.Empty;
-        public int StartValue { get; set; }
-        public bool WasRunning { get; set; }
-    }
+internal sealed class ServiceBackupItem
+{
+    public string Name { get; set; } = string.Empty;
+    public int StartValue { get; set; }
+    public bool WasRunning { get; set; }
+}
 
-    private sealed record ProcessResult(int ExitCode, string Output);
+internal sealed record ProcessResult(int ExitCode, string Output);
+
+[JsonSourceGenerationOptions(WriteIndented = true)]
+[JsonSerializable(typeof(ServiceBackup))]
+internal sealed partial class ElevatedHelperJsonContext : JsonSerializerContext
+{
 }

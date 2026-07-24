@@ -39,12 +39,12 @@ public sealed partial class GlobalShortcutManager : IDisposable
         _windowSubclass.MessageReceived += OnWindowMessage;
         if (!RegisterHotKey(_window, ShowWindowId, ModControl | ModAlt, 0x7A))
         {
-            _logger.Error("The window shortcut could not be registered.");
+            _logger.LogError("The window shortcut could not be registered.");
         }
 
         if (!RegisterHotKey(_window, CycleModeId, ModControl | ModAlt, 0x7B))
         {
-            _logger.Error("The mode shortcut could not be registered.");
+            _logger.LogError("The mode shortcut could not be registered.");
         }
 
         _registered = true;

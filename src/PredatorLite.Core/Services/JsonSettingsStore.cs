@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using PredatorLite.Core.Abstractions;
 using PredatorLite.Core.Models;
 
@@ -7,13 +6,6 @@ namespace PredatorLite.Core.Services;
 
 public sealed class JsonSettingsStore : ISettingsStore
 {
-    private static readonly JsonSerializerOptions SerializerOptions = new()
-    {
-        WriteIndented = true,
-        PropertyNameCaseInsensitive = true,
-        Converters = { new JsonStringEnumConverter() }
-    };
-
     private readonly SemaphoreSlim _gate = new(1, 1);
 
     public JsonSettingsStore(string? settingsPath = null)
@@ -35,9 +27,9 @@ public sealed class JsonSettingsStore : ISettingsStore
             }
 
             await using FileStream stream = File.OpenRead(SettingsPath);
-            AppSettings? settings = await JsonSerializer.DeserializeAsync<AppSettings>(
+            AppSettings? settings = await JsonSerializer.DeserializeAsync(
                 stream,
-                SerializerOptions,
+                PredatorLiteJsonContext.Default.AppSettings,
                 cancellationToken).ConfigureAwait(false);
 
             return settings is { SchemaVersion: AppSettings.CurrentSchemaVersion }
@@ -73,8 +65,11 @@ public sealed class JsonSettingsStore : ISettingsStore
                 4096,
                 FileOptions.WriteThrough))
             {
-                await JsonSerializer.SerializeAsync(stream, settings, SerializerOptions, cancellationToken)
-                    .ConfigureAwait(false);
+                await JsonSerializer.SerializeAsync(
+                    stream,
+                    settings,
+                    PredatorLiteJsonContext.Default.AppSettings,
+                    cancellationToken).ConfigureAwait(false);
                 await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
             }
 
@@ -90,6 +85,8 @@ public sealed class JsonSettingsStore : ISettingsStore
             _gate.Release();
         }
     }
+
+    public void Dispose() => _gate.Dispose();
 
     private void TryBackUpInvalidSettings()
     {

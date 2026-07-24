@@ -18,6 +18,7 @@ public sealed partial class CoolingPage : Page
 
     public MainViewModel ViewModel { get; }
 
+#pragma warning disable CA1822 // WinUI x:Bind emits instance access for these one-time values.
     public FanMode AutoFanMode => FanMode.Auto;
 
     public FanMode MaxFanMode => FanMode.Max;
@@ -25,6 +26,7 @@ public sealed partial class CoolingPage : Page
     public FanCurveChannel CpuFanCurveChannel => FanCurveChannel.Cpu;
 
     public FanCurveChannel GpuFanCurveChannel => FanCurveChannel.Gpu;
+#pragma warning restore CA1822
 
     public static Visibility ChannelVisibility(
         FanCurveChannel selectedChannel,

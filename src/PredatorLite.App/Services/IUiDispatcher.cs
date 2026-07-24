@@ -20,11 +20,11 @@ public sealed class WinUiDispatcher(DispatcherQueue dispatcher, IAppLogger logge
             }
             catch (Exception exception)
             {
-                logger.Error("Dispatched UI action failed", exception);
+                logger.LogError("Dispatched UI action failed", exception);
             }
         }))
         {
-            logger.Error("The UI dispatcher rejected an action.");
+            logger.LogError("The UI dispatcher rejected an action.");
         }
     }
 }

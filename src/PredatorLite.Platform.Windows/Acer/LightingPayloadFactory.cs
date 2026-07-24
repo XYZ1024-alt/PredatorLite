@@ -11,10 +11,10 @@ internal static class LightingPayloadFactory
         if (profile.Effect == LightingEffect.Static)
         {
             JsonArray leds = [];
-            IReadOnlyList<string> colors = NormalizeZoneColors(profile.ZoneColors, profile.PrimaryColor);
+            string[] colors = NormalizeZoneColors(profile.ZoneColors, profile.PrimaryColor);
             for (int index = 0; index < 4; index++)
             {
-                leds.Add(new JsonObject
+                leds.Add((JsonNode)new JsonObject
                 {
                     ["LED_id"] = index,
                     ["color"] = colors[index],
@@ -98,7 +98,7 @@ internal static class LightingPayloadFactory
             : "#00a8e8";
     }
 
-    private static IReadOnlyList<string> NormalizeZoneColors(IReadOnlyList<string> colors, string fallback)
+    private static string[] NormalizeZoneColors(List<string> colors, string fallback)
     {
         string defaultColor = NormalizeColor(fallback);
         return Enumerable.Range(0, 4)

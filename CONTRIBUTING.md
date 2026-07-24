@@ -11,16 +11,18 @@ PredatorLite controls real laptop hardware. Correctness, recovery behavior, and 
 
 ## Build and test
 
-Use Windows 11 x64 and the .NET 10 SDK pinned by `global.json`.
+Use Windows 11 24H2 (build 26100+) x64 and the .NET 10 SDK pinned by `global.json`.
 
 ```powershell
 dotnet restore PredatorLite.slnx
 dotnet build PredatorLite.slnx -c Release --no-restore
 dotnet test PredatorLite.slnx -c Release --no-build
+$env:Configuration = "Release"
 dotnet format PredatorLite.slnx --verify-no-changes --no-restore
+dotnet run --project benchmarks\PredatorLite.Benchmarks\PredatorLite.Benchmarks.csproj -c Release --no-build -- --job Dry --filter "*"
 ```
 
-For UI changes, run the applicable checks in [`docs/manual-testing.md`](docs/manual-testing.md) and include screenshots. Do not run hardware-write tests on an unvalidated model or BIOS.
+For UI changes, run the applicable checks in [`docs/manual-testing.md`](docs/manual-testing.md) and include screenshots. Do not run hardware-write tests on an unvalidated model or BIOS. Startup, ReadyToRun, and Native AOT evidence must follow [`docs/performance.md`](docs/performance.md); do not suppress trim/AOT diagnostics or promote Native AOT without the complete regression matrix.
 
 ## Hardware changes
 

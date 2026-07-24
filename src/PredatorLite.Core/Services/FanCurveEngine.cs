@@ -25,13 +25,24 @@ public static class FanCurveEngine
             return SafetySpeedPercent;
         }
 
-        FanCurvePoint[] ordered = points.OrderBy(point => point.TemperatureC).ToArray();
+        IReadOnlyList<FanCurvePoint> ordered = points;
+        for (int index = 1; index < points.Count; index++)
+        {
+            if (points[index - 1].TemperatureC <= points[index].TemperatureC)
+            {
+                continue;
+            }
+
+            ordered = points.OrderBy(point => point.TemperatureC).ToArray();
+            break;
+        }
+
         if (temperatureC <= ordered[0].TemperatureC)
         {
             return ClampSpeed(ordered[0].SpeedPercent, minimumSpeedPercent);
         }
 
-        for (int index = 0; index < ordered.Length - 1; index++)
+        for (int index = 0; index < ordered.Count - 1; index++)
         {
             FanCurvePoint lower = ordered[index];
             FanCurvePoint upper = ordered[index + 1];
@@ -60,10 +71,10 @@ public static class FanCurveEngine
     }
 
     private static void ValidateChannel(
-        IReadOnlyList<FanCurvePoint> points,
+        List<FanCurvePoint> points,
         int minimumSpeedPercent,
         FanCurveChannel channel,
-        ICollection<FanCurveValidationIssue> issues)
+        List<FanCurveValidationIssue> issues)
     {
         if (points.Count < 2)
         {

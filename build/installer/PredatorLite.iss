@@ -32,7 +32,7 @@ UninstallDisplayIcon={app}\{#AppExe}
 
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-MinVersion=10.0.22000
+MinVersion=10.0.26100
 PrivilegesRequired=lowest
 
 OutputDir=..\..\artifacts\installer\unsigned

@@ -66,7 +66,7 @@ internal sealed class HardwareMonitorReader : IDisposable
             {
                 if (!_failureLogged)
                 {
-                    _logger.Error("LibreHardwareMonitor GPU or memory enumeration failed", exception);
+                    _logger.LogError("LibreHardwareMonitor GPU or memory enumeration failed", exception);
                     _failureLogged = true;
                 }
 

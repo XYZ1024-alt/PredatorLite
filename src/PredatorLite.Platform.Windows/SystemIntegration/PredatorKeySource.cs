@@ -40,7 +40,7 @@ public sealed class PredatorKeySource : IDisposable
         }
 
         int error = Marshal.GetLastWin32Error();
-        _logger.Error(
+        _logger.LogError(
             "The Predator key hook could not be installed.",
             new Win32Exception(error));
         return false;
@@ -62,7 +62,7 @@ public sealed class PredatorKeySource : IDisposable
         if (!UnhookWindowsHookEx(_hook))
         {
             int error = Marshal.GetLastWin32Error();
-            _logger.Error(
+            _logger.LogError(
                 "The Predator key hook could not be removed cleanly.",
                 new Win32Exception(error));
             return;
@@ -98,7 +98,7 @@ public sealed class PredatorKeySource : IDisposable
             }
             catch (Exception exception)
             {
-                _logger.Error("The Predator key activation callback failed.", exception);
+                _logger.LogError("The Predator key activation callback failed.", exception);
             }
         }
 

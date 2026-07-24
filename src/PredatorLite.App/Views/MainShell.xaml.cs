@@ -10,7 +10,7 @@ namespace PredatorLite.App.Views;
 
 public sealed partial class MainShell : UserControl
 {
-    private readonly IReadOnlyDictionary<AppSection, Func<Page>> _pageFactories;
+    private readonly Dictionary<AppSection, Func<Page>> _pageFactories;
     private readonly Dictionary<AppSection, Page> _pages = [];
     private readonly UiMotionService _motion;
     private readonly IAppLogger _logger;
@@ -102,7 +102,7 @@ public sealed partial class MainShell : UserControl
         }
         catch (Exception exception)
         {
-            _logger.Error($"Navigation to {section} failed", exception);
+            _logger.LogError($"Navigation to {section} failed", exception);
         }
     }
 

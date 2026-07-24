@@ -72,12 +72,21 @@ jobs:
         run: dotnet build PredatorLite.slnx -c Release --no-restore --nologo
 
       - name: Format
+        env:
+          Configuration: Release
         run: dotnet format PredatorLite.slnx --verify-no-changes --no-restore --verbosity minimal
 
       - name: Test
         run: dotnet test PredatorLite.slnx -c Release --no-build --nologo
 
-      - name: Publish portable test layout
+      - name: Benchmark smoke
+        run: dotnet run --project benchmarks/PredatorLite.Benchmarks/PredatorLite.Benchmarks.csproj -c Release --no-build -- --job Dry --filter "*"
+
+      - name: Publish framework-dependent IL validation layout
+        shell: pwsh
+        run: .\build\publish.ps1 -Configuration Release -OutputPath publish\win-x64-il -ReadyToRun:$false
+
+      - name: Publish framework-dependent ReadyToRun test layout
         shell: pwsh
         run: .\build\publish.ps1 -Configuration Release -OutputPath publish\win-x64
 

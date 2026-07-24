@@ -30,7 +30,7 @@ public sealed partial class TrayIconView : UserControl, IDisposable
 
     public void ForceCreate() => TrayIcon.ForceCreate(enablesEfficiencyMode: false);
 
-    public void SetWindowVisible(bool visible)
+    public static void SetWindowVisible(bool visible)
     {
         if (!visible)
         {

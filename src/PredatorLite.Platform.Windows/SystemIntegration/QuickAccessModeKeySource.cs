@@ -1,7 +1,11 @@
+using System.Net.Security;
 using System.Net.WebSockets;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using PredatorLite.Core.Abstractions;
 
 namespace PredatorLite.Platform.Windows.SystemIntegration;
@@ -55,7 +59,7 @@ public sealed class QuickAccessModeKeySource : IModeKeySource
             try
             {
                 using ClientWebSocket socket = new();
-                socket.Options.RemoteCertificateValidationCallback = (_, _, _, _) => true;
+                socket.Options.RemoteCertificateValidationCallback = ValidateLocalCertificate;
                 await socket.ConnectAsync(Endpoint, cancellationToken).ConfigureAwait(false);
                 await AuthenticateAsync(socket, cancellationToken).ConfigureAwait(false);
                 string handshake = await ReceiveAsync(socket, cancellationToken).ConfigureAwait(false);
@@ -64,13 +68,15 @@ public sealed class QuickAccessModeKeySource : IModeKeySource
                     throw new InvalidDataException("Quick Access rejected the local handshake.");
                 }
 
-                await SendAsync(socket, new
-                {
-                    PacketType = 2,
-                    Version = 1,
-                    Session = Guid.NewGuid().ToString(),
-                    Command = "FunctionQuery"
-                }, cancellationToken).ConfigureAwait(false);
+                await SendAsync(
+                    socket,
+                    new QuickAccessFunctionQueryPacket(
+                        PacketType: 2,
+                        Version: 1,
+                        Session: Guid.NewGuid().ToString(),
+                        Command: "FunctionQuery"),
+                    QuickAccessJsonContext.Default.QuickAccessFunctionQueryPacket,
+                    cancellationToken).ConfigureAwait(false);
 
                 while (socket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
                 {
@@ -84,25 +90,50 @@ public sealed class QuickAccessModeKeySource : IModeKeySource
             }
             catch (Exception exception)
             {
-                _logger.Error("Quick Access mode-key connection failed", exception);
+                _logger.LogError("Quick Access mode-key connection failed", exception);
             }
 
             await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
         }
     }
 
+    private static bool ValidateLocalCertificate(
+        object sender,
+        X509Certificate? certificate,
+        X509Chain? chain,
+        SslPolicyErrors sslPolicyErrors)
+    {
+        if (certificate is null ||
+            (sslPolicyErrors & (SslPolicyErrors.RemoteCertificateNameMismatch |
+                SslPolicyErrors.RemoteCertificateNotAvailable)) != 0)
+        {
+            return false;
+        }
+
+        using X509Certificate2 certificate2 =
+            X509CertificateLoader.LoadCertificate(certificate.GetRawCertData());
+        DateTime now = DateTime.Now;
+        return now >= certificate2.NotBefore &&
+            now <= certificate2.NotAfter &&
+            sslPolicyErrors is SslPolicyErrors.None or SslPolicyErrors.RemoteCertificateChainErrors;
+    }
+
     private static async Task AuthenticateAsync(ClientWebSocket socket, CancellationToken cancellationToken)
     {
         string data = EncryptToBase64(
-            JsonSerializer.Serialize(new { Question = HandshakeQuestion, Key = ServerKey }),
+            JsonSerializer.Serialize(
+                new QuickAccessHandshakePayload(HandshakeQuestion, ServerKey),
+                QuickAccessJsonContext.Default.QuickAccessHandshakePayload),
             ClientKey);
-        await SendAsync(socket, new
-        {
-            PacketType = 1,
-            Version = 1,
-            Session = Guid.NewGuid().ToString(),
-            Data = data
-        }, cancellationToken).ConfigureAwait(false);
+        await SendAsync(
+            socket,
+            new QuickAccessAuthenticationPacket(
+                PacketType: 1,
+                Version: 1,
+                Session: Guid.NewGuid().ToString(),
+                Data: data),
+            QuickAccessJsonContext.Default.QuickAccessAuthenticationPacket,
+            cancellationToken).ConfigureAwait(false);
     }
 
     private static bool ValidateHandshake(string message)
@@ -149,16 +180,17 @@ public sealed class QuickAccessModeKeySource : IModeKeySource
         }
         catch (JsonException exception)
         {
-            _logger.Error("Quick Access returned invalid JSON", exception);
+            _logger.LogError("Quick Access returned invalid JSON", exception);
         }
     }
 
-    private static async Task SendAsync(
+    private static async Task SendAsync<T>(
         ClientWebSocket socket,
-        object payload,
+        T payload,
+        JsonTypeInfo<T> typeInfo,
         CancellationToken cancellationToken)
     {
-        byte[] bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload));
+        byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(payload, typeInfo);
         await socket.SendAsync(bytes, WebSocketMessageType.Text, true, cancellationToken).ConfigureAwait(false);
     }
 
@@ -194,4 +226,26 @@ public sealed class QuickAccessModeKeySource : IModeKeySource
         byte[] plain = Encoding.UTF8.GetBytes(value);
         return Convert.ToBase64String(transform.TransformFinalBlock(plain, 0, plain.Length));
     }
+}
+
+internal sealed record QuickAccessHandshakePayload(string Question, string Key);
+
+internal sealed record QuickAccessAuthenticationPacket(
+    int PacketType,
+    int Version,
+    string Session,
+    string Data);
+
+internal sealed record QuickAccessFunctionQueryPacket(
+    int PacketType,
+    int Version,
+    string Session,
+    string Command);
+
+[JsonSourceGenerationOptions]
+[JsonSerializable(typeof(QuickAccessHandshakePayload))]
+[JsonSerializable(typeof(QuickAccessAuthenticationPacket))]
+[JsonSerializable(typeof(QuickAccessFunctionQueryPacket))]
+internal sealed partial class QuickAccessJsonContext : JsonSerializerContext
+{
 }

@@ -1,12 +1,11 @@
 using System.Globalization;
-using System.Xml.Linq;
 using Microsoft.UI.Xaml;
 
 namespace PredatorLite.App.Services;
 
 public sealed class LocalizationService
 {
-    private IReadOnlyDictionary<string, string> _strings = new Dictionary<string, string>();
+    private ResourceDictionary _strings = new();
     private int _resourcePosition = -1;
 
     public event EventHandler? LanguageChanged;
@@ -24,12 +23,10 @@ public sealed class LocalizationService
         }
 
         string resourceName = normalized == "en-US" ? "enUS" : "zhCN";
-        IReadOnlyDictionary<string, string> strings = LoadStrings(resourceName);
-        ResourceDictionary dictionary = new();
-        foreach ((string key, string value) in strings)
+        ResourceDictionary strings = new()
         {
-            dictionary.Add(key, value);
-        }
+            Source = new Uri($"ms-appx:///Resources/Strings.{resourceName}.xaml")
+        };
 
         IList<ResourceDictionary> dictionaries = Application.Current.Resources.MergedDictionaries;
         if (_resourcePosition >= 0 && _resourcePosition < dictionaries.Count)
@@ -38,7 +35,7 @@ public sealed class LocalizationService
         }
 
         _resourcePosition = Math.Min(1, dictionaries.Count);
-        dictionaries.Insert(_resourcePosition, dictionary);
+        dictionaries.Insert(_resourcePosition, strings);
         _strings = strings;
         CurrentLanguage = normalized;
         CultureInfo culture = CultureInfo.GetCultureInfo(normalized);
@@ -49,29 +46,14 @@ public sealed class LocalizationService
 
     public string Get(string key)
     {
-        return _strings.TryGetValue(key, out string? value) ? value : key;
-    }
-
-    private static IReadOnlyDictionary<string, string> LoadStrings(string resourceName)
-    {
-        string path = Path.Combine(
-            AppContext.BaseDirectory,
-            "Localization",
-            $"Strings.{resourceName}.xaml");
-        XDocument document = XDocument.Load(path, LoadOptions.None);
-        XNamespace xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
-        return document
-            .Descendants()
-            .Where(element => element.Name.LocalName == "String")
-            .Select(element => new
-            {
-                Key = element.Attribute(xaml + "Key")?.Value,
-                Value = element.Value
-            })
-            .Where(item => !string.IsNullOrWhiteSpace(item.Key))
-            .ToDictionary(
-                item => item.Key!,
-                item => item.Value,
-                StringComparer.Ordinal);
+        try
+        {
+            return _strings[key] is string text ? text : key;
+        }
+        catch (Exception exception) when (
+            exception is KeyNotFoundException or System.Runtime.InteropServices.ExternalException)
+        {
+            return key;
+        }
     }
 }

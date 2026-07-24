@@ -58,15 +58,45 @@ internal static class TelemetryMerger
             ? (int)Math.Round(value.Value)
             : null;
 
-    private static int? FirstInteger(int minimum, int maximum, params int?[] values) =>
-        values.FirstOrDefault(value => value is not null && value >= minimum && value <= maximum);
+    private static int? FirstInteger(
+        int minimum,
+        int maximum,
+        int? first,
+        int? second = null,
+        int? third = null)
+    {
+        if (IsValid(first, minimum, maximum))
+        {
+            return first;
+        }
 
-    private static double? FirstDouble(double minimum, double maximum, params double?[] values) =>
-        values.FirstOrDefault(value =>
-            value is not null &&
-            double.IsFinite(value.Value) &&
-            value.Value >= minimum &&
-            value.Value <= maximum);
+        return IsValid(second, minimum, maximum)
+            ? second
+            : IsValid(third, minimum, maximum) ? third : null;
+    }
+
+    private static double? FirstDouble(
+        double minimum,
+        double maximum,
+        double? first,
+        double? second = null)
+    {
+        if (IsValid(first, minimum, maximum))
+        {
+            return first;
+        }
+
+        return IsValid(second, minimum, maximum) ? second : null;
+    }
+
+    private static bool IsValid(int? value, int minimum, int maximum) =>
+        value is not null && value >= minimum && value <= maximum;
+
+    private static bool IsValid(double? value, double minimum, double maximum) =>
+        value is not null &&
+        double.IsFinite(value.Value) &&
+        value.Value >= minimum &&
+        value.Value <= maximum;
 
     private static (double? Used, double? Total) ValidatePair(double? used, double? total)
     {

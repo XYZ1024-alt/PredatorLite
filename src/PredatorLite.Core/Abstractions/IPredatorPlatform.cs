@@ -73,7 +73,7 @@ public interface IFpsSource : IAsyncDisposable
     Task StopAsync();
 }
 
-public interface ISettingsStore
+public interface ISettingsStore : IDisposable
 {
     string SettingsPath { get; }
 
@@ -88,5 +88,5 @@ public interface IAppLogger : IDisposable
 
     void Info(string message);
 
-    void Error(string message, Exception? exception = null);
+    void LogError(string message, Exception? exception = null);
 }

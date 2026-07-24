@@ -48,7 +48,7 @@ internal sealed class WindowsCpuTelemetryReader
             {
                 if (!_failureLogged)
                 {
-                    _logger.Error("Windows CPU performance-counter telemetry failed", exception);
+                    _logger.LogError("Windows CPU performance-counter telemetry failed", exception);
                     _failureLogged = true;
                 }
 

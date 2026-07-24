@@ -60,7 +60,7 @@ public sealed class EtwFpsSource : IFpsSource
         }
         catch (Exception exception)
         {
-            _logger.Error("FPS ETW session could not start", exception);
+            _logger.LogError("FPS ETW session could not start", exception);
             _session?.Dispose();
             _session = null;
             return Task.FromResult(false);

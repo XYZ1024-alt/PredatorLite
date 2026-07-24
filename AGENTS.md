@@ -6,17 +6,18 @@
 
 ## Build, Test, and Development Commands
 
-Use Windows 11 x64 and the .NET 10 SDK pinned by `global.json`.
+Use Windows 11 24H2 (build 26100+) x64 and the .NET 10 SDK pinned by `global.json`.
 
 ```powershell
 dotnet restore PredatorLite.slnx
 dotnet build PredatorLite.slnx -c Release --no-restore
 dotnet test PredatorLite.slnx -c Release --no-build
+$env:Configuration = "Release"
 dotnet format PredatorLite.slnx --verify-no-changes --no-restore
 .\build\publish.ps1
 ```
 
-These commands restore packages, compile the full solution, run xUnit tests, enforce formatting, and create a validated framework-dependent bundle in `publish\win-x64`. For local UI work, run `dotnet run --project src\PredatorLite.App\PredatorLite.App.csproj`.
+These commands restore packages, compile the full solution, run xUnit tests, enforce formatting, and create a validated framework-dependent ReadyToRun bundle in `publish\win-x64`. Performance guidance and benchmark commands are in `docs\performance.md`. For local UI work, run `dotnet run --project src\PredatorLite.App\PredatorLite.App.csproj`.
 
 ## Coding Style & Naming Conventions
 

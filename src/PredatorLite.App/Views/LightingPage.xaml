@@ -75,10 +75,15 @@
                     <ComboBox
                         Width="168"
                         AutomationProperties.AutomationId="Lighting.Effect"
-                        DisplayMemberPath="Name"
                         IsEnabled="{x:Bind ViewModel.LightingAvailable, Mode=OneWay}"
                         ItemsSource="{x:Bind ViewModel.LightingEffects, Mode=OneWay}"
-                        SelectedItem="{x:Bind ViewModel.SelectedLightingEffectOption, Mode=TwoWay}" />
+                        SelectedItem="{x:Bind ViewModel.SelectedLightingEffectOption, Mode=TwoWay}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="viewModels:SelectionOptionBase">
+                                <TextBlock Text="{x:Bind Name}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
                 </controls:SettingsCard>
             </StackPanel>
 

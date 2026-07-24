@@ -2,19 +2,19 @@ using Microsoft.Win32;
 
 namespace PredatorLite.App.Services;
 
-public sealed class StartupManager
+public static class StartupManager
 {
     private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string ValueName = "PredatorLite";
 
-    public bool IsEnabled()
+    public static bool IsEnabled()
     {
         using RegistryKey? key = Registry.CurrentUser.OpenSubKey(RunKeyPath);
         return key?.GetValue(ValueName) is string value &&
             value.Contains("PredatorLite", StringComparison.OrdinalIgnoreCase);
     }
 
-    public bool SetEnabled(bool enabled)
+    public static bool SetEnabled(bool enabled)
     {
         try
         {

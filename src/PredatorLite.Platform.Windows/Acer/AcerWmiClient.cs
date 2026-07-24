@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Globalization;
 using System.Management;
 using System.Runtime.InteropServices;
 using PredatorLite.Core.Abstractions;
@@ -15,10 +17,10 @@ public sealed class AcerWmiClient
         _logger = logger;
     }
 
-    public Task<bool> IsGamingInterfaceAvailableAsync(CancellationToken cancellationToken = default) =>
+    public static Task<bool> IsGamingInterfaceAvailableAsync(CancellationToken cancellationToken = default) =>
         Task.Run(() => HasInstance(AcerProtocol.GamingClass), cancellationToken);
 
-    public Task<bool> IsBatteryInterfaceAvailableAsync(CancellationToken cancellationToken = default) =>
+    public static Task<bool> IsBatteryInterfaceAvailableAsync(CancellationToken cancellationToken = default) =>
         Task.Run(() => HasInstance(AcerProtocol.BatteryClass), cancellationToken);
 
     public Task<int?> ReadSensorAsync(ulong sensorId, CancellationToken cancellationToken = default) =>
@@ -101,7 +103,7 @@ public sealed class AcerWmiClient
                 }
                 catch (Exception exception)
                 {
-                    _logger.Error("Battery charge limit WMI request failed", exception);
+                    _logger.LogError("Battery charge limit WMI request failed", exception);
                     return false;
                 }
             }
@@ -131,11 +133,13 @@ public sealed class AcerWmiClient
                     }
 
                     object? status = output?["uFunctionStatus"];
-                    return status is null ? null : Convert.ToInt32(status) == 1;
+                    return status is null
+                        ? null
+                        : Convert.ToInt32(status, CultureInfo.InvariantCulture) == 1;
                 }
                 catch (Exception exception)
                 {
-                    _logger.Error("Battery charge limit query failed", exception);
+                    _logger.LogError("Battery charge limit query failed", exception);
                     return null;
                 }
             }
@@ -170,15 +174,21 @@ public sealed class AcerWmiClient
 
         try
         {
-            PowerSetActiveOverlayScheme(scheme);
+            uint result = PowerSetActiveOverlayScheme(scheme);
+            if (result != 0)
+            {
+                _logger.LogError(
+                    "Windows power overlay update failed",
+                    new Win32Exception(unchecked((int)result)));
+            }
         }
         catch (Exception exception)
         {
-            _logger.Error("Windows power overlay update failed", exception);
+            _logger.LogError("Windows power overlay update failed", exception);
         }
     }
 
-    private bool HasInstance(string className)
+    private static bool HasInstance(string className)
     {
         try
         {
@@ -191,7 +201,7 @@ public sealed class AcerWmiClient
         }
     }
 
-    private ManagementObject? FindFirst(string className)
+    private static ManagementObject? FindFirst(string className)
     {
         using ManagementObjectSearcher searcher = new(
             AcerProtocol.WmiNamespace,
@@ -231,12 +241,12 @@ public sealed class AcerWmiClient
                     return (false, 0);
                 }
 
-                ulong result = Convert.ToUInt64(outputProperty.Value);
+                ulong result = Convert.ToUInt64(outputProperty.Value, CultureInfo.InvariantCulture);
                 return ((result & 0xFF) == 0, result);
             }
             catch (Exception exception)
             {
-                _logger.Error($"Acer WMI method {method} failed", exception);
+                _logger.LogError($"Acer WMI method {method} failed", exception);
                 return (false, 0);
             }
         }
@@ -265,11 +275,13 @@ public sealed class AcerWmiClient
                 using ManagementBaseObject? output = apge.InvokeMethod(method, input, null);
                 PropertyData? outputProperty = output?.Properties.Cast<PropertyData>()
                     .FirstOrDefault(property => property.Name != "ReturnValue");
-                return outputProperty?.Value is null ? 0 : Convert.ToUInt64(outputProperty.Value);
+                return outputProperty?.Value is null
+                    ? 0
+                    : Convert.ToUInt64(outputProperty.Value, CultureInfo.InvariantCulture);
             }
             catch (Exception exception)
             {
-                _logger.Error($"APGe WMI method {method} failed", exception);
+                _logger.LogError($"APGe WMI method {method} failed", exception);
                 return 0;
             }
         }

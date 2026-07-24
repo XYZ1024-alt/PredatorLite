@@ -5,9 +5,9 @@ using PredatorLite.Core.Models;
 
 namespace PredatorLite.App.Services;
 
-public sealed class ElevatedHelperLauncher
+public static class ElevatedHelperLauncher
 {
-    public async Task<ApplyResult> SetConflictingServicesDisabledAsync(bool disabled)
+    public static async Task<ApplyResult> SetConflictingServicesDisabledAsync(bool disabled)
     {
         string? executable = CompanionExecutableLocator.Find("PredatorLite.ElevatedHelper.exe");
         if (executable is null)

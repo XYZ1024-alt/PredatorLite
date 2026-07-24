@@ -6,14 +6,14 @@ PredatorLite is licensed under the MIT License. Its build and published output a
 
 | Component | Version | License | Source |
 | --- | ---: | --- | --- |
-| Microsoft Windows App SDK | 1.8.260710003 | Microsoft Software License Terms | https://github.com/microsoft/WindowsAppSDK |
-| Microsoft Windows App SDK AI | 1.8.79 | Microsoft Software License Terms | https://github.com/microsoft/WindowsAppSDK |
-| Microsoft Windows App SDK WinUI | 1.8.260709004 | Microsoft Software License Terms and bundled third-party notices | https://github.com/microsoft/WindowsAppSDK |
-| Microsoft Windows App SDK ML | 1.8.2197 | Microsoft Software License Terms and bundled third-party notices | https://github.com/microsoft/WindowsAppSDK |
+| Microsoft Windows App SDK | 2.3.1 | Microsoft Software License Terms | https://github.com/microsoft/WindowsAppSDK |
+| Microsoft Windows App SDK AI | 2.3.4 | Microsoft Software License Terms | https://github.com/microsoft/WindowsAppSDK |
+| Microsoft Windows App SDK WinUI | 2.3.0 | Microsoft Software License Terms and bundled third-party notices | https://github.com/microsoft/WindowsAppSDK |
+| Microsoft Windows App SDK ML | 2.1.74 | Microsoft Software License Terms and bundled third-party notices | https://github.com/microsoft/WindowsAppSDK |
 | CommunityToolkit.Mvvm | 8.4.2 | MIT | https://github.com/CommunityToolkit/dotnet |
 | CommunityToolkit.WinUI Controls | 8.2.251219 | MIT | https://github.com/CommunityToolkit/Windows |
 | H.NotifyIcon.WinUI | 2.4.1 | MIT | https://github.com/HavenDV/H.NotifyIcon |
-| Microsoft WebView2 | 1.0.3179.45 | BSD-3-Clause-style redistribution terms and notice | https://developer.microsoft.com/microsoft-edge/webview2 |
+| Microsoft WebView2 | 1.0.3719.77 | BSD-3-Clause-style redistribution terms and notice | https://developer.microsoft.com/microsoft-edge/webview2 |
 | LibreHardwareMonitorLib | 0.9.6 | MPL-2.0 | https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/tree/3d331e3370efb858411f19511373eff65a218701 |
 | Microsoft.Diagnostics.Tracing.TraceEvent | 3.2.5 | MIT | https://github.com/microsoft/perfview |
 | System.Management | 10.0.10 | MIT | https://github.com/dotnet/dotnet |

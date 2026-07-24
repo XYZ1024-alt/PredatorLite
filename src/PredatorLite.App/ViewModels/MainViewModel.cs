@@ -27,9 +27,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     private readonly IModeKeySource _modeKeySource;
     private readonly IFpsSource _fpsSource;
     private readonly FanGuardClient _fanGuard;
-    private readonly StartupManager _startupManager;
-    private readonly ElevatedHelperLauncher _elevatedHelper;
-    private readonly DiagnosticsExporter _diagnosticsExporter;
     private readonly LocalizationService _localization;
     private readonly IUserInteraction _interaction;
     private readonly IUiDispatcher _uiDispatcher;
@@ -64,9 +61,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         IModeKeySource modeKeySource,
         IFpsSource fpsSource,
         FanGuardClient fanGuard,
-        StartupManager startupManager,
-        ElevatedHelperLauncher elevatedHelper,
-        DiagnosticsExporter diagnosticsExporter,
         LocalizationService localization,
         IUserInteraction interaction,
         IUiDispatcher uiDispatcher)
@@ -77,9 +71,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         _modeKeySource = modeKeySource;
         _fpsSource = fpsSource;
         _fanGuard = fanGuard;
-        _startupManager = startupManager;
-        _elevatedHelper = elevatedHelper;
-        _diagnosticsExporter = diagnosticsExporter;
         _localization = localization;
         _interaction = interaction;
         _uiDispatcher = uiDispatcher;
@@ -389,20 +380,40 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         IsBusy = true;
         InitializationFailed = false;
         StatusIsError = false;
+        using CancellationTokenSource startupLifetime =
+            CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         try
         {
-            _settings = await _settingsStore.LoadAsync(_lifetime.Token);
-            _settingsLoaded = true;
-            _settings.LastAcMode = StartupOperatingModePolicy.NormalizeSavedMode(_settings.LastAcMode);
-            _localization.SetLanguage(_settings.Language);
-            CurrentLanguage = _localization.CurrentLanguage;
-            ApplySettingsToView();
-            StatusMessage = _localization.Get("Status.Probing");
-            long settingsMilliseconds = stopwatch.ElapsedMilliseconds;
+            Task<TimedResult<AppSettings>> settingsTask = MeasureAsync(
+                _settingsStore.LoadAsync(startupLifetime.Token));
+            Task<TimedResult<PlatformStartupState>> startupTask = MeasureAsync(
+                _platform.ProbeStartupAsync(startupLifetime.Token));
 
-            long probeStarted = stopwatch.ElapsedMilliseconds;
-            PlatformStartupState startup = await _platform.ProbeStartupAsync(_lifetime.Token);
-            long probeMilliseconds = stopwatch.ElapsedMilliseconds - probeStarted;
+            TimedResult<AppSettings> settingsResult;
+            TimedResult<PlatformStartupState> startupResult;
+            try
+            {
+                settingsResult = await settingsTask;
+                _settings = settingsResult.Value;
+                _settingsLoaded = true;
+                _settings.LastAcMode = StartupOperatingModePolicy.NormalizeSavedMode(_settings.LastAcMode);
+                _localization.SetLanguage(_settings.Language);
+                CurrentLanguage = _localization.CurrentLanguage;
+                ApplySettingsToView();
+                StatusMessage = _localization.Get("Status.Probing");
+
+                startupResult = await startupTask;
+            }
+            catch
+            {
+                startupLifetime.Cancel();
+                await ObserveCompletionAsync(startupTask);
+                throw;
+            }
+
+            long settingsMilliseconds = settingsResult.ElapsedMilliseconds;
+            PlatformStartupState startup = startupResult.Value;
+            long probeMilliseconds = startupResult.ElapsedMilliseconds;
             _capabilities = startup.Capabilities;
             ApplyCapabilities(_capabilities);
             _snapshot = _snapshot with
@@ -464,6 +475,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
                     : CompatibilityMessage;
             }
 
+            StartupTelemetry.Mark("critical-ready");
             _deferredInitializationTask ??= CompleteDeferredInitializationAsync();
             _logger.Info(
                 $"Startup critical path completed in {stopwatch.ElapsedMilliseconds} ms: " +
@@ -475,7 +487,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
         catch (Exception exception)
         {
-            _logger.Error("Application initialization failed", exception);
+            StartupTelemetry.Mark("critical-failed");
+            _logger.LogError("Application initialization failed", exception);
             InitializationFailed = true;
             PublishError(_localization.Get("Status.InitializationFailed"));
         }
@@ -547,7 +560,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             }
             catch (Exception exception)
             {
-                _logger.Error("Deferred capability probe failed", exception);
+                _logger.LogError("Deferred capability probe failed", exception);
             }
 
             UpdateExtendedTelemetryState();
@@ -566,7 +579,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             }
             catch (Exception exception)
             {
-                _logger.Error("Deferred initial telemetry read failed", exception);
+                _logger.LogError("Deferred initial telemetry read failed", exception);
                 MarkTelemetryFailure();
             }
 
@@ -595,7 +608,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             }
             catch (Exception exception)
             {
-                _logger.Error("Deferred mode-key initialization failed", exception);
+                _logger.LogError("Deferred mode-key initialization failed", exception);
             }
 
             try
@@ -603,7 +616,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
                 if (ShowFps && !await _fpsSource.StartAsync(_lifetime.Token))
                 {
                     ShowFps = false;
-                    _logger.Error("Deferred FPS initialization failed");
+                    _logger.LogError("Deferred FPS initialization failed");
                 }
             }
             catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
@@ -613,7 +626,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             catch (Exception exception)
             {
                 ShowFps = false;
-                _logger.Error("Deferred FPS initialization failed", exception);
+                _logger.LogError("Deferred FPS initialization failed", exception);
             }
 
             IntegrationsReady = true;
@@ -628,9 +641,10 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             }
             catch (Exception exception)
             {
-                _logger.Error("Deferred service inventory failed", exception);
+                _logger.LogError("Deferred service inventory failed", exception);
             }
 
+            StartupTelemetry.Mark("deferred-ready");
             _logger.Info(
                 $"Startup deferred initialization completed in {stopwatch.ElapsedMilliseconds} ms.");
         }
@@ -639,7 +653,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
         catch (Exception exception)
         {
-            _logger.Error("Deferred initialization failed", exception);
+            StartupTelemetry.Mark("deferred-failed");
+            _logger.LogError("Deferred initialization failed", exception);
         }
     }
 
@@ -1053,7 +1068,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     private async Task SetRunAtStartupAsync(bool enabled)
     {
         RunAtStartup = enabled;
-        if (!_startupManager.SetEnabled(enabled))
+        if (!StartupManager.SetEnabled(enabled))
         {
             RunAtStartup = !enabled;
             PublishError(_localization.Get("Status.StartupFailed"));
@@ -1095,7 +1110,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
         catch (Exception exception)
         {
-            _logger.Error("Service refresh failed", exception);
+            _logger.LogError("Service refresh failed", exception);
             PublishError(_localization.Get("Status.ServicesFailed"));
         }
         finally
@@ -1118,13 +1133,13 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         IsBusy = true;
         try
         {
-            ApplyResult result = await _elevatedHelper.SetConflictingServicesDisabledAsync(true);
+            ApplyResult result = await ElevatedHelperLauncher.SetConflictingServicesDisabledAsync(true);
             PublishResult(result);
             await RefreshServicesCoreAsync(_lifetime.Token);
         }
         catch (Exception exception)
         {
-            _logger.Error("Conflicting service update failed", exception);
+            _logger.LogError("Conflicting service update failed", exception);
             PublishError(_localization.Get("Status.ServicesFailed"));
         }
         finally
@@ -1139,13 +1154,13 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         IsBusy = true;
         try
         {
-            ApplyResult result = await _elevatedHelper.SetConflictingServicesDisabledAsync(false);
+            ApplyResult result = await ElevatedHelperLauncher.SetConflictingServicesDisabledAsync(false);
             PublishResult(result);
             await RefreshServicesCoreAsync(_lifetime.Token);
         }
         catch (Exception exception)
         {
-            _logger.Error("Service restore failed", exception);
+            _logger.LogError("Service restore failed", exception);
             PublishError(_localization.Get("Status.ServicesFailed"));
         }
         finally
@@ -1176,7 +1191,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         IsBusy = true;
         try
         {
-            await _diagnosticsExporter.ExportAsync(
+            await DiagnosticsExporter.ExportAsync(
                 path,
                 _capabilities,
                 _snapshot,
@@ -1190,7 +1205,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
         catch (Exception exception)
         {
-            _logger.Error("Diagnostics export failed", exception);
+            _logger.LogError("Diagnostics export failed", exception);
             PublishError(_localization.Get("Status.DiagnosticsFailed"));
         }
         finally
@@ -1260,13 +1275,37 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         await _modeKeySource.DisposeAsync().ConfigureAwait(false);
         await _fanGuard.DisposeAsync().ConfigureAwait(false);
         await _platform.DisposeAsync().ConfigureAwait(false);
+        _settingsStore.Dispose();
+        _interaction.Dispose();
         _hardwareGate.Dispose();
         _lifetime.Dispose();
+        GC.SuppressFinalize(this);
     }
+
+    private static async Task ObserveCompletionAsync(Task task)
+    {
+        try
+        {
+            await task.ConfigureAwait(false);
+        }
+        catch
+        {
+        }
+    }
+
+    private static async Task<TimedResult<T>> MeasureAsync<T>(Task<T> operation)
+    {
+        long started = Stopwatch.GetTimestamp();
+        T value = await operation.ConfigureAwait(false);
+        long elapsedMilliseconds = (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+        return new TimedResult<T>(value, elapsedMilliseconds);
+    }
+
+    private readonly record struct TimedResult<T>(T Value, long ElapsedMilliseconds);
 
     private void ApplySettingsToView()
     {
-        RunAtStartup = _startupManager.IsEnabled();
+        RunAtStartup = StartupManager.IsEnabled();
         StartMinimized = _settings.StartMinimized;
         AutoEcoOnBattery = _settings.AutoEcoOnBattery;
         AutoRefreshRate = _settings.AutoRefreshRate;
@@ -1281,7 +1320,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         LogoLightingEnabled = _settings.Lighting.LogoEnabled;
         SelectedLightingEffect = _settings.Lighting.Effect;
 
-        IReadOnlyList<FanCurvePoint> cpuPoints = NormalizeFanCurvePoints(_settings.FanCurve.Cpu);
+        List<FanCurvePoint> cpuPoints = NormalizeFanCurvePoints(_settings.FanCurve.Cpu);
         CpuFanPoints.Clear();
         for (int index = 0; index < cpuPoints.Count; index++)
         {
@@ -1293,7 +1332,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
                 index == cpuPoints.Count - 1);
         }
 
-        IReadOnlyList<FanCurvePoint> gpuPoints = NormalizeFanCurvePoints(_settings.FanCurve.Gpu);
+        List<FanCurvePoint> gpuPoints = NormalizeFanCurvePoints(_settings.FanCurve.Gpu);
         GpuFanPoints.Clear();
         for (int index = 0; index < gpuPoints.Count; index++)
         {
@@ -1415,7 +1454,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             }
             catch (Exception exception)
             {
-                _logger.Error("Telemetry refresh failed", exception);
+                _logger.LogError("Telemetry refresh failed", exception);
                 MarkTelemetryFailure();
             }
         }
@@ -1679,8 +1718,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         target.Add(item);
     }
 
-    private static IReadOnlyList<FanCurvePoint> NormalizeFanCurvePoints(
-        IReadOnlyList<FanCurvePoint> points)
+    private static List<FanCurvePoint> NormalizeFanCurvePoints(List<FanCurvePoint> points)
     {
         FanCurve fallback = FanCurve.CreateDefault();
         return points.Count == fallback.Cpu.Count
@@ -1841,7 +1879,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
         else
         {
-            _logger.Error($"Operation failed with {result.Status}: {result.Message}");
+            _logger.LogError($"Operation failed with {result.Status}: {result.Message}");
             StatusMessage = result.Status switch
             {
                 ApplyStatus.NotSupported when !HardwareWritesEnabled => CompatibilityMessage,

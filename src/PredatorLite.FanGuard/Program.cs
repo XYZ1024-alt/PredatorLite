@@ -48,7 +48,7 @@ internal static class Program
                 }
                 catch (OperationCanceledException)
                 {
-                    logger.Error("FanGuard heartbeat timed out; restoring automatic fan control.");
+                    logger.LogError("FanGuard heartbeat timed out; restoring automatic fan control.");
                     await RestoreAutomaticFanAsync(service, wmi).ConfigureAwait(false);
                     return 3;
                 }
@@ -67,7 +67,7 @@ internal static class Program
 
                 if (!string.Equals(message, "PING", StringComparison.Ordinal))
                 {
-                    logger.Error("FanGuard rejected an unknown pipe message.");
+                    logger.LogError("FanGuard rejected an unknown pipe message.");
                 }
             }
 
@@ -76,7 +76,7 @@ internal static class Program
         }
         catch (Exception exception)
         {
-            logger.Error("FanGuard failed", exception);
+            logger.LogError("FanGuard failed", exception);
             await RestoreAutomaticFanAsync(service, wmi).ConfigureAwait(false);
             return 1;
         }
@@ -84,25 +84,7 @@ internal static class Program
 
     private static async Task RestoreAutomaticFanAsync(AcerServiceClient service, AcerWmiClient wmi)
     {
-        JsonObject parameters = new()
-        {
-            ["mode"] = (int)FanMode.Auto,
-            ["custom_fan_data"] = new JsonArray
-            {
-                new JsonObject
-                {
-                    ["fan_custom_auto"] = 1,
-                    ["fan_custom_speed"] = 50,
-                    ["fan_name"] = "CPU"
-                },
-                new JsonObject
-                {
-                    ["fan_custom_auto"] = 1,
-                    ["fan_custom_speed"] = 50,
-                    ["fan_name"] = "GPU"
-                }
-            }
-        };
+        JsonObject parameters = CreateAutomaticFanParameters();
 
         for (int attempt = 0; attempt < 3; attempt++)
         {
@@ -129,6 +111,26 @@ internal static class Program
             }
         }
     }
+
+    internal static JsonObject CreateAutomaticFanParameters() => new()
+    {
+        ["mode"] = (int)FanMode.Auto,
+        ["custom_fan_data"] = new JsonArray
+        {
+            (JsonNode)new JsonObject
+            {
+                ["fan_custom_auto"] = 1,
+                ["fan_custom_speed"] = 50,
+                ["fan_name"] = "CPU"
+            },
+            (JsonNode)new JsonObject
+            {
+                ["fan_custom_auto"] = 1,
+                ["fan_custom_speed"] = 50,
+                ["fan_name"] = "GPU"
+            }
+        }
+    };
 
     private static string? ReadArgument(string[] args, string name)
     {

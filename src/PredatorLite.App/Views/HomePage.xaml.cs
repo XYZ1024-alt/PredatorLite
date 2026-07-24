@@ -19,6 +19,7 @@ public sealed partial class HomePage : Page
 
     public MainViewModel ViewModel { get; }
 
+#pragma warning disable CA1822 // WinUI x:Bind emits instance access for these one-time values.
     public OperatingMode SilentMode => OperatingMode.Silent;
     public OperatingMode BalancedMode => OperatingMode.Balanced;
     public OperatingMode PerformanceMode => OperatingMode.Performance;
@@ -27,6 +28,7 @@ public sealed partial class HomePage : Page
     public FanMode MaxFanMode => FanMode.Max;
     public GpuMuxMode HybridMuxMode => GpuMuxMode.Hybrid;
     public GpuMuxMode DiscreteMuxMode => GpuMuxMode.Discrete;
+#pragma warning restore CA1822
 
     private async void ChargeLimitToggle_Toggled(object sender, RoutedEventArgs e)
     {

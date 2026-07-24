@@ -2,14 +2,14 @@ using System.Runtime.InteropServices;
 
 namespace PredatorLite.Platform.Windows.SystemIntegration;
 
-internal sealed class DisplayController
+internal static class DisplayController
 {
     private const int EnumCurrentSettings = -1;
     private const int DmDisplayFrequency = 0x00400000;
     private const int CdsUpdateRegistry = 0x00000001;
     private const int DispChangeSuccessful = 0;
 
-    public IReadOnlyList<int> GetSupportedRefreshRates()
+    public static IReadOnlyList<int> GetSupportedRefreshRates()
     {
         DevMode current = CreateDevMode();
         if (!EnumDisplaySettings(null, EnumCurrentSettings, ref current))
@@ -37,7 +37,7 @@ internal sealed class DisplayController
         return rates.OrderBy(rate => rate).ToArray();
     }
 
-    public int? GetCurrentRefreshRate()
+    public static int? GetCurrentRefreshRate()
     {
         DevMode current = CreateDevMode();
         return EnumDisplaySettings(null, EnumCurrentSettings, ref current)
@@ -45,7 +45,7 @@ internal sealed class DisplayController
             : null;
     }
 
-    public bool SetRefreshRate(int refreshRate)
+    public static bool SetRefreshRate(int refreshRate)
     {
         if (!GetSupportedRefreshRates().Contains(refreshRate))
         {
