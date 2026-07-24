@@ -293,6 +293,7 @@ try {
     $rootRequest.CertificateExtensions.Add(
         [System.Security.Cryptography.X509Certificates.X509SubjectKeyIdentifierExtension]::new($rootRequest.PublicKey, $false))
     $rootCertificate = $rootRequest.CreateSelfSigned((Get-Date).AddMinutes(-5), (Get-Date).AddDays(1))
+    Write-Host "Created temporary root certificate."
     $rootPublicCertificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new(
         $rootCertificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
     $rootThumbprint = $rootPublicCertificate.Thumbprint
@@ -324,7 +325,9 @@ try {
     }
     finally { $leafPublicCertificate.Dispose() }
     $leafThumbprint = $leafCertificate.Thumbprint
+    Write-Host "Created temporary leaf code-signing certificate."
     Add-CertificateToStore -StoreName "My" -Certificate $leafCertificate
+    Write-Host "Stored temporary leaf certificate in CurrentUser\My."
 
     Assert-ExpectedFailure `
         -Action { & $buildScript -CertificateThumbprint "0000000000000000000000000000000000000000" -TimestampUrl $TimestampUrl } `

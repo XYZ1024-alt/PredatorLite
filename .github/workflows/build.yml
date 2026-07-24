@@ -78,7 +78,7 @@ jobs:
 
       - name: Test installer signing gates
         timeout-minutes: 25
-        shell: pwsh
+        shell: powershell
         run: .\build\test-installer-signing.ps1
 
       - name: Publish portable test layout
