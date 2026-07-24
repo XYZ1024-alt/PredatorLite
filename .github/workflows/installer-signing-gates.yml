@@ -1,0 +1,67 @@
+name: installer signing gates
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: installer-signing-gates-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          global-json-file: global.json
+
+      - name: Install pinned Inno Setup
+        shell: pwsh
+        run: |
+          $uri = "https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe"
+          $expectedHash = "9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732"
+          $installer = Join-Path $env:RUNNER_TEMP "innosetup-6.7.3.exe"
+          $installDirectory = Join-Path $env:RUNNER_TEMP "Inno Setup 6"
+          Invoke-WebRequest -Uri $uri -OutFile $installer
+          $stream = [System.IO.File]::OpenRead($installer)
+          $sha256 = [System.Security.Cryptography.SHA256]::Create()
+          try {
+            $actualHash = ($sha256.ComputeHash($stream) | ForEach-Object { $_.ToString("x2") }) -join ""
+          } finally {
+            $sha256.Dispose()
+            $stream.Dispose()
+          }
+          if ($actualHash -ne $expectedHash) {
+            throw "Inno Setup installer hash mismatch: $actualHash"
+          }
+          $process = Start-Process -FilePath $installer -ArgumentList @(
+            "/VERYSILENT",
+            "/SUPPRESSMSGBOXES",
+            "/NORESTART",
+            "/CURRENTUSER",
+            "/DIR=`"$installDirectory`""
+          ) -PassThru -Wait
+          if ($process.ExitCode -ne 0) {
+            throw "Inno Setup installation failed with exit code $($process.ExitCode)"
+          }
+          $compiler = Join-Path $installDirectory "ISCC.exe"
+          if (-not (Test-Path -LiteralPath $compiler -PathType Leaf)) {
+            throw "ISCC.exe was not installed to $installDirectory"
+          }
+          "INNO_SETUP_COMPILER=$compiler" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Restore dependencies
+        run: dotnet restore PredatorLite.slnx
+
+      - name: Test installer signing gates
+        timeout-minutes: 25
+        shell: powershell
+        run: .\build\test-installer-signing.ps1

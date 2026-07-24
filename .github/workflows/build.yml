@@ -16,7 +16,7 @@ concurrency:
 jobs:
   windows:
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -27,6 +27,7 @@ jobs:
           global-json-file: global.json
 
       - name: Install pinned Inno Setup
+        if: github.event_name != 'pull_request'
         shell: pwsh
         run: |
           $uri = "https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe"
@@ -76,11 +77,6 @@ jobs:
       - name: Test
         run: dotnet test PredatorLite.slnx -c Release --no-build --nologo
 
-      - name: Test installer signing gates
-        timeout-minutes: 25
-        shell: powershell
-        run: .\build\test-installer-signing.ps1
-
       - name: Publish portable test layout
         shell: pwsh
         run: .\build\publish.ps1 -Configuration Release -OutputPath publish\win-x64
@@ -89,6 +85,55 @@ jobs:
         if: github.event_name != 'pull_request'
         shell: pwsh
         run: .\build\build-installer.ps1 -SkipSigning
+
+      - name: Validate unsigned installer test artifact
+        if: github.event_name != 'pull_request'
+        shell: pwsh
+        run: |
+          $outputDirectory = "artifacts\installer\unsigned"
+          $entries = @(Get-ChildItem -LiteralPath $outputDirectory -Force)
+          $setups = @($entries | Where-Object { -not $_.PSIsContainer -and $_.Name -like "*-unsigned.exe" })
+          if ($setups.Count -ne 1) {
+            throw "Expected exactly one unsigned Setup executable."
+          }
+          $setup = $setups[0]
+          $checksumPath = "$($setup.FullName).sha256"
+          $expectedNames = @($setup.Name, "$($setup.Name).sha256")
+          $unexpectedEntries = @($entries | Where-Object { $_.PSIsContainer -or $_.Name -notin $expectedNames })
+          if ($entries.Count -ne 2 -or $unexpectedEntries.Count -ne 0) {
+            throw "Unsigned installer output must contain only Setup and its checksum."
+          }
+
+          $checksumLine = [System.IO.File]::ReadAllText(
+            $checksumPath,
+            [System.Text.Encoding]::ASCII).Trim()
+          if ($checksumLine -notmatch '^(?<Hash>[0-9a-f]{64})  (?<Name>[^\\/:*?"<>|]+)$' -or
+              $Matches.Name -ne $setup.Name) {
+            throw "Unsigned installer checksum file has an invalid format."
+          }
+          $stream = [System.IO.File]::OpenRead($setup.FullName)
+          $sha256 = [System.Security.Cryptography.SHA256]::Create()
+          try {
+            $actualHash = ($sha256.ComputeHash($stream) | ForEach-Object { $_.ToString("x2") }) -join ""
+          } finally {
+            $sha256.Dispose()
+            $stream.Dispose()
+          }
+          if ($actualHash -ne $Matches.Hash) {
+            throw "Unsigned installer checksum mismatch: $actualHash"
+          }
+
+          $stream = [System.IO.File]::OpenRead($setup.FullName)
+          $peReader = [System.Reflection.PortableExecutable.PEReader]::new($stream)
+          try {
+            if ($peReader.PEHeaders.PEHeader.CertificateTableDirectory.Size -ne 0) {
+              throw "Unsigned installer unexpectedly contains an Authenticode certificate table."
+            }
+          } finally {
+            $peReader.Dispose()
+            $stream.Dispose()
+          }
+          Write-Host "Validated unsigned installer: $($setup.Name)"
 
       - name: Add unsigned artifact notices
         if: github.event_name != 'pull_request'
