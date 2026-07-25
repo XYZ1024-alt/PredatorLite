@@ -58,6 +58,7 @@ jobs:
           }
           "should_publish=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           Write-Host "Release $tag does not exist and will be created after validation."
+          exit 0
 
       - name: Install pinned Inno Setup
         if: steps.release_state.outputs.should_publish == 'true'
