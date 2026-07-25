@@ -71,6 +71,12 @@ internal static class Program
     private static int DisableConflicts(string backupPath)
     {
         ServiceBackup? existing = ReadBackup(backupPath);
+        if (File.Exists(backupPath) &&
+            (existing is null || !IsValidBackup(existing)))
+        {
+            return 6;
+        }
+
         ServiceBackup backup = existing is { IsApplied: true }
             ? existing
             : new ServiceBackup
@@ -100,7 +106,7 @@ internal static class Program
         }
 
         ServiceBackup? backup = ReadBackup(backupPath);
-        if (backup is null)
+        if (backup is null || !IsValidRestoreBackup(backup))
         {
             return 6;
         }
@@ -141,10 +147,35 @@ internal static class Program
         }
     }
 
+    internal static bool IsValidBackup(ServiceBackup? backup)
+    {
+        if (backup?.Services is null)
+        {
+            return false;
+        }
+
+        HashSet<string> names = new(StringComparer.OrdinalIgnoreCase);
+        return backup.Services.All(item =>
+            item is not null &&
+            !string.IsNullOrWhiteSpace(item.Name) &&
+            IsManagedService(item.Name) &&
+            names.Add(item.Name) &&
+            item.StartValue is >= 0 and <= 4);
+    }
+
+    internal static bool IsValidRestoreBackup(ServiceBackup? backup) =>
+        backup?.IsApplied == true && IsValidBackup(backup);
+
     private static void WriteBackup(string backupPath, ServiceBackup backup)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(backupPath)!);
         string temporary = backupPath + ".tmp";
+        FileInfo temporaryFile = new(temporary);
+        if (temporaryFile.Exists && temporaryFile.Attributes.HasFlag(FileAttributes.ReparsePoint))
+        {
+            throw new UnauthorizedAccessException();
+        }
+
         File.WriteAllText(
             temporary,
             JsonSerializer.Serialize(backup, ElevatedHelperJsonContext.Default.ServiceBackup));
@@ -286,6 +317,18 @@ internal static class Program
         string fullPath = Path.GetFullPath(suppliedPath);
         if (!fullPath.StartsWith(allowedDirectory, StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(Path.GetFileName(fullPath), "service-backup.json", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new UnauthorizedAccessException();
+        }
+
+        DirectoryInfo directory = new(Path.GetDirectoryName(fullPath)!);
+        if (directory.Exists && directory.Attributes.HasFlag(FileAttributes.ReparsePoint))
+        {
+            throw new UnauthorizedAccessException();
+        }
+
+        FileInfo file = new(fullPath);
+        if (file.Exists && file.Attributes.HasFlag(FileAttributes.ReparsePoint))
         {
             throw new UnauthorizedAccessException();
         }

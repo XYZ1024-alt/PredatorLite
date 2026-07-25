@@ -6,7 +6,7 @@ PredatorLite uses Acer components already installed on the target machine. It do
 
 | Component | Role in PredatorLite | Requirement |
 | --- | --- | --- |
-| `AcerServiceSvc` | AcerService command endpoint for operating modes, fan control, GPU routing, lighting, and supported device settings | Required for the full control surface |
+| `AcerServiceSvc` | AcerService command endpoint for profile-authorized operating modes, fan control, GPU routing, lighting and supported device settings | Required for the corresponding profile controls |
 | `AcerLightingService` | Routes keyboard/logo lighting and related AcerService commands | Required for lighting controls |
 | `ASMSvc` | Ordinary-user CPU/GPU temperature, frequency, load, memory, and fan telemetry on localhost TCP 46753 | Recommended for complete primary telemetry; limited fallbacks remain available |
 | `AcerQAAgentSvis` | Local Quick Access WebSocket notifications for the physical performance Mode key | Optional; not needed for UI controls, standard shortcuts, or the PredatorSense launch key |
@@ -16,7 +16,7 @@ Missing components are treated as capability failures. PredatorLite keeps the af
 
 ## Explicit conflict management
 
-The Settings page can explicitly disable and later restore this fixed conflict list:
+The Settings page can explicitly disable and later restore this fixed conflict list. It does not grant hardware-write authorization; hardware writes still require a matching target profile.
 
 - `AcerCCAgentSvis`
 - `AcerDIAgentSvis`

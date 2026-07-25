@@ -7,6 +7,7 @@ PredatorLite controls real laptop hardware. Correctness, recovery behavior, and 
 - Search existing issues and keep each pull request focused.
 - Do not submit Acer binaries, drivers, firmware, ROMs, decompiled source, vendor artwork, serial numbers, or unredacted diagnostics.
 - Read [`docs/hardware-safety.md`](docs/hardware-safety.md) and [`docs/protocol-provenance.md`](docs/protocol-provenance.md) before changing a hardware-facing path.
+- Use [`docs/hardware-profile-template.md`](docs/hardware-profile-template.md) when proposing a new target profile; incomplete evidence permits diagnostics only, not writes.
 - Report security vulnerabilities through the private process in [`SECURITY.md`](SECURITY.md), not a public issue.
 
 ## Build and test
@@ -22,7 +23,7 @@ dotnet format PredatorLite.slnx --verify-no-changes --no-restore
 dotnet run --project benchmarks\PredatorLite.Benchmarks\PredatorLite.Benchmarks.csproj -c Release --no-build -- --job Dry --filter "*"
 ```
 
-For UI changes, run the applicable checks in [`docs/manual-testing.md`](docs/manual-testing.md) and include screenshots. Do not run hardware-write tests on an unvalidated model or BIOS. Startup, ReadyToRun, and Native AOT evidence must follow [`docs/performance.md`](docs/performance.md); do not suppress trim/AOT diagnostics or promote Native AOT without the complete regression matrix.
+For UI changes, run the applicable checks in [`docs/manual-testing.md`](docs/manual-testing.md) and include screenshots. Do not run hardware-write tests on a device without a matching writable profile. Unknown models and BIOS versions must be tested only for read-only behavior. Startup, ReadyToRun and Native AOT evidence must follow [`docs/performance.md`](docs/performance.md); do not suppress trim/AOT diagnostics or promote Native AOT without the complete regression matrix.
 
 ## Hardware changes
 
@@ -35,7 +36,7 @@ A new write target requires all of the following:
 5. Failure-path tests and fan recovery coverage where applicable.
 6. Documentation of the hardware and BIOS used for manual validation.
 
-Never broaden the current PHN16-71 / BIOS V1.20 whitelist based only on a marketing-family match.
+Never broaden the profile catalog based only on a marketing-family match. A target without complete protocol evidence and manual validation may be registered for diagnostics, but not for hardware writes.
 
 ## Pull requests
 

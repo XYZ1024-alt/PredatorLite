@@ -3,16 +3,18 @@
 [![build](https://github.com/XYZ1024-alt/PredatorLite/actions/workflows/build.yml/badge.svg)](https://github.com/XYZ1024-alt/PredatorLite/actions/workflows/build.yml)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-PredatorLite 是面向 Acer Predator PHN16-71 的轻量控制工具，用普通用户权限提供 PredatorSense 中与日常使用相关的功能。当前硬件写入白名单仅验证到：
+PredatorLite 是面向 Acer Predator 设备的独立、非官方 PredatorSense 替代方案。它使用普通用户权限提供性能、散热、灯光、显卡路由、电池与遥测控制，并通过显式硬件 profile 管理写入能力。
+
+当前硬件写入 profile 仅验证到：
 
 - Acer Predator PHN16-71
 - BIOS V1.20
 - Windows 11 24H2（build 26100+）x64
 
-其他机型或 BIOS 版本仍可查看诊断信息，但所有硬件写入都会被禁用。
+其他机型或 BIOS 版本仍可查看诊断信息和只读遥测，但没有已验证 profile 时所有硬件写入都会被禁用。新增写入支持必须逐机型、逐 BIOS 提供独立协议证据和人工验证。
 
 > [!WARNING]
-> PredatorLite 仍处于预发布阶段。硬件控制存在固有风险；请先确认型号和 BIOS 完全匹配，并阅读[硬件安全边界](docs/hardware-safety.md)。
+> PredatorLite 仍处于预发布阶段，是独立、非官方的 PredatorSense 替代方案，不代表 Acer 官方产品或授权。硬件控制存在固有风险；请确认当前设备存在匹配的已验证 profile，并阅读[硬件安全边界](docs/hardware-safety.md)。
 
 ## 功能
 
@@ -33,7 +35,8 @@ PredatorLite 不提供用户超频、电压调节、功耗墙修改、MSR/NVAPI 
 
 - 每次主实例启动只自动恢复最后保存的运行模式；风扇、灯光、显卡路由及其他硬件设置不会重放。
 - 每次写入都来自明确的用户操作、用户主动启用的供电状态自动化，或上述运行模式启动恢复。
-- 写入仅在 PHN16-71 / V1.20 白名单匹配后开放；端点支持查询时执行结果回读，其余操作要求明确的传输成功响应。
+- 写入仅在匹配显式硬件 profile、对应控制项已授权且后端能力探测成功后开放；未知机型或 BIOS 保持只读。
+- 端点支持查询时执行结果回读；多步操作失败时不会把部分成功伪报为完整成功。
 - GPU 路由只有 `Hybrid = 2` 和 `Discrete = 1`，没有 iGPU-only 或禁用 Windows 显卡设备的路径。
 - 全速或自定义风扇启用前必须启动独立 FanGuard。主程序失联 5 秒或异常退出时，FanGuard 会恢复 EC 自动风扇。
 - 主程序以普通用户权限运行。只有停用或恢复冲突服务时启动固定命令白名单的管理员辅助程序。

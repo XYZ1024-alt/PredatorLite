@@ -1,13 +1,13 @@
 # PredatorLite Manual Test Checklist
 
-Run this checklist on Windows 11 24H2 (build 26100+) x64. Hardware-write cases require an Acer Predator PHN16-71 with BIOS V1.20; on every other model or BIOS, verify that controls remain read-only instead.
+Run this checklist on Windows 11 24H2 (build 26100+) x64. Hardware-write cases require a matching writable profile; the current writable profile is Acer Predator PHN16-71 with BIOS V1.20. On every other model or BIOS, verify that controls remain read-only instead.
 
 ## Preparation
 
 1. Install .NET 10 Runtime x64 and Windows App Runtime 2.3 x64. Run `/winui-setup` if `winapp` is not available.
 2. Keep `AcerServiceSvc`, `AcerLightingService`, `ASMSvc`, and `AcerApplicationBaseDriver_Device` installed and running.
 3. Close every existing PredatorLite instance, including older WPF builds, before launching the WinUI build.
-4. Build and launch the app as an ordinary user with `dotnet run --project src\PredatorLite.App\PredatorLite.App.csproj`. For a validated published directory, launch `PredatorLite.exe` from that complete directory. Do not elevate the main app.
+4. Build and launch the app as an ordinary user with `dotnet run --project src\PredatorLite.App\PredatorLite.App.csproj`. For a published directory, launch `PredatorLite.exe` from that complete directory. Do not elevate the main app.
 5. For the repeatable, non-writing navigation and accessibility pass, run `build\ui-tests.ps1 -AppPid <PID>`.
 
 ## Window and navigation
@@ -68,12 +68,12 @@ Run this checklist on Windows 11 24H2 (build 26100+) x64. Hardware-write cases r
 
 ## Startup mode restoration
 
-1. On a validated PHN16-71 / BIOS V1.20, select Silent, Balanced, Performance, and Turbo in turn. After each selection, exit PredatorLite, change the hardware mode, and launch PredatorLite manually; the saved mode must be restored and verified.
+1. On the current writable PHN16-71 / BIOS V1.20 profile, select Silent, Balanced, Performance and Turbo in turn. After each selection, exit PredatorLite, change the hardware mode and launch PredatorLite manually; the saved mode must be restored and verified.
 2. Repeat with Start with Windows enabled and `StartMinimized` on. The tray must appear before full telemetry and the saved mode must be restored without opening the shell.
 3. Launch while the hardware already uses the saved mode. The startup log must report `already-active`; no Acer operating-mode set packet may be sent, while the matching Windows power overlay is still selected.
 4. With battery Eco automation enabled, launch on battery and verify Eco, then reconnect AC and verify the saved non-Eco mode returns once. With automation disabled, a battery launch must restore the saved non-Eco mode.
-5. Delay or stop AcerService on the validated machine. Verify read-only startup probes stop at the ten-second deadline, never bypass the whitelist, and do not loop hardware writes. If the deferred probe first discovers the backend, it may perform only one pending restore.
-6. On an unsupported model or unvalidated BIOS, verify startup remains read-only and sends no hardware setter. A denied Acer WMI mode read must not make `CanWriteHardware` true when AcerService is unavailable.
+5. Delay or stop AcerService on the current profile machine. Verify read-only startup probes stop at the ten-second deadline, never bypass the profile catalog, and do not loop hardware writes. If the deferred probe first discovers the backend, it may perform only one pending restore.
+6. On an unknown model or BIOS, verify startup remains read-only and sends no hardware setter. A denied Acer WMI mode read must not make `CanWriteHardware` true when AcerService is unavailable. Confirm diagnostics record no writable target profile.
 7. During hidden startup, verify no `MainShell` or page is created until the tray, dedicated key, or existing-instance activation shows the window. Navigate through every page after opening and confirm each page initializes once and remains functional.
 8. Review EventSource provider `PredatorLite-Startup` and the startup timing lines from at least five healthy cold launches. `critical-ready` must precede `deferred-ready`; APGe, service inventory, and non-current page construction must remain outside the critical path.
 9. Run both safe non-writing startup comparisons in [`performance.md`](performance.md). Confirm `Tray` emits `tray-ready`, `Shell` emits `shell-ready`, and both `--startup-tray-only` paths stop without `critical-ready`, a hardware setter, or a FanGuard launch.

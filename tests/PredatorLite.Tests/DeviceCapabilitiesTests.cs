@@ -5,11 +5,11 @@ namespace PredatorLite.Tests;
 public sealed class DeviceCapabilitiesTests
 {
     [Theory]
-    [InlineData(false, HardwareWriteBlockReason.UnsupportedModel, true, true, false)]
+    [InlineData(false, HardwareWriteBlockReason.UnsupportedTargetProfile, true, true, false)]
     [InlineData(true, HardwareWriteBlockReason.ControlBackendUnavailable, false, false, false)]
     [InlineData(true, HardwareWriteBlockReason.None, true, false, true)]
     [InlineData(true, HardwareWriteBlockReason.None, false, true, true)]
-    [InlineData(true, HardwareWriteBlockReason.UnvalidatedBios, true, true, false)]
+    [InlineData(true, HardwareWriteBlockReason.UnsupportedTargetProfile, true, true, false)]
     public void CanWriteHardwareRequiresValidationNoBlockReasonAndAPlatformTransport(
         bool validated,
         HardwareWriteBlockReason blockReason,
@@ -20,13 +20,28 @@ public sealed class DeviceCapabilitiesTests
         DeviceCapabilities capabilities = new()
         {
             Device = new DeviceIdentity("Acer", "Predator PHN16-71", "V1.20", "Windows 11"),
-            IsValidatedModel = validated,
+            TargetProfileId = validated ? "test-profile" : null,
+            IsValidatedTarget = validated,
             WriteBlockReason = blockReason,
             AcerServiceAvailable = service,
             AcerWmiAvailable = wmi
         };
 
         Assert.Equal(expected, capabilities.CanWriteHardware);
+    }
+
+    [Fact]
+    public void MissingTargetProfileIdCannotAuthorizeWrites()
+    {
+        DeviceCapabilities capabilities = new()
+        {
+            Device = new DeviceIdentity("Acer", "Predator PHN16-71", "V1.20", "Windows 11"),
+            IsValidatedTarget = true,
+            WriteBlockReason = HardwareWriteBlockReason.None,
+            AcerServiceAvailable = true
+        };
+
+        Assert.False(capabilities.CanWriteHardware);
     }
 
     [Fact]
@@ -41,7 +56,8 @@ public sealed class DeviceCapabilitiesTests
         DeviceCapabilities capabilities = new()
         {
             Device = new DeviceIdentity("Acer", "Predator PHN16-71", "V1.20", "Windows 11"),
-            IsValidatedModel = true,
+            TargetProfileId = "test-profile",
+            IsValidatedTarget = true,
             WriteBlockReason = HardwareWriteBlockReason.ControlBackendUnavailable,
             AcerSystemMonitorAvailable = true
         };

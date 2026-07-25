@@ -45,19 +45,32 @@ public sealed class AcerWmiClient
             return Enum.IsDefined(mode) ? mode : null;
         }, cancellationToken);
 
-    public Task<bool> SetOperatingModeAsync(OperatingMode mode, CancellationToken cancellationToken = default) =>
-        Task.Run(() =>
+    public Task<bool> SetOperatingModeAsync(OperatingMode mode, CancellationToken cancellationToken = default)
+    {
+        if (!Enum.IsDefined(mode))
+        {
+            return Task.FromResult(false);
+        }
+
+        return Task.Run(() =>
         {
             ulong input = 0x0Bul | ((ulong)(byte)mode << 8);
             return InvokeGaming(AcerProtocol.SetMiscSetting, input).success;
         }, cancellationToken);
+    }
 
     public Task<bool> SetFanModeAsync(
         FanMode mode,
         int cpuSpeedPercent,
         int gpuSpeedPercent,
-        CancellationToken cancellationToken = default) =>
-        Task.Run(() =>
+        CancellationToken cancellationToken = default)
+    {
+        if (!Enum.IsDefined(mode))
+        {
+            return Task.FromResult(false);
+        }
+
+        return Task.Run(() =>
         {
             ulong behavior = mode switch
             {
@@ -79,6 +92,7 @@ public sealed class AcerWmiClient
 
             return SetFanSpeed(channel: 1, cpuSpeedPercent) && SetFanSpeed(channel: 4, gpuSpeedPercent);
         }, cancellationToken);
+    }
 
     public Task<bool> SetChargeLimitAsync(bool limitTo80Percent, CancellationToken cancellationToken = default) =>
         Task.Run(() =>

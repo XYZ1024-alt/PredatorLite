@@ -2,9 +2,9 @@
 
 ## Policy
 
-Performance gates run on one fixed Acer Predator PHN16-71 machine. Hosted CI restores, builds, tests, publishes, and executes only the BenchmarkDotNet `Dry` smoke job; hosted timing is not a release gate.
+Performance gates run on one fixed Acer Predator PHN16-71 / BIOS V1.20 profile machine. Hosted CI restores, builds, tests, publishes and executes only the BenchmarkDotNet `Dry` smoke job; hosted timing is not a release gate.
 
-Do not change hardware-write ordering, FanGuard coverage, process priority, GC mode, or undocumented JIT settings to improve a benchmark. The ordinary startup path must still complete identity, BIOS, power, backend, capability, and read-back checks before its one allowed operating-mode restore.
+Do not change hardware-write ordering, FanGuard coverage, process priority, GC mode, or undocumented JIT settings to improve a benchmark. The ordinary startup path must still complete identity, exact profile, BIOS, power, backend, capability and read-back checks before its one allowed operating-mode restore.
 
 ## Microbenchmarks
 
@@ -45,7 +45,7 @@ The app emits EventSource provider `PredatorLite-Startup`, event ID 1, for these
 
 `build/measure-startup.ps1` also supplies a private named pipe and uses the same QPC timestamps. Its `Tray` scope passes `--startup-tray-only`: the hidden window and tray are created, then startup stops before settings-driven hardware initialization. Its `Shell` scope uses the same non-writing switch but shows the Home shell and measures through entry into its first rendering tick. Both safe scopes may run beside a developer instance using an isolated measurement instance key.
 
-`Critical` and `Deferred` scopes execute normal initialization and can restore the validated operating mode. They require both `-AllowHardwareInitialization` and a closed existing instance, and may be run only on the fixed PHN16-71 / BIOS V1.20 machine.
+`Critical` and `Deferred` scopes execute normal initialization and can restore the profile-authorized operating mode. They require both `-AllowHardwareInitialization` and a closed existing instance, and may be run only on the fixed PHN16-71 / BIOS V1.20 profile machine.
 
 Example:
 

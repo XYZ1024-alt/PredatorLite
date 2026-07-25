@@ -6,7 +6,7 @@
 
 Project: **PredatorLite**
 
-PredatorLite is a pre-release, ordinary-user Windows control utility for the Acer Predator PHN16-71. Hardware writes are validated only for model `Predator PHN16-71`, BIOS `V1.20`, on Windows 11 24H2 (build 26100+) x64. Other models and BIOS versions may expose diagnostics and read-only telemetry, but must remain unable to write hardware state.
+PredatorLite is a pre-release, ordinary-user Windows control utility and independent, unofficial alternative to PredatorSense for Acer Predator devices. Hardware writes are authorized only by explicit model/BIOS profiles. The current writable profile is `Predator PHN16-71`, BIOS `V1.20`, on Windows 11 24H2 (build 26100+) x64. Other models and BIOS versions may expose diagnostics and read-only telemetry, but must remain unable to write hardware state.
 
 Stack: C# on .NET 10 SDK `10.0.302`; WinUI 3 with Microsoft Windows App SDK `2.3.1`; CommunityToolkit.Mvvm; xUnit; BenchmarkDotNet; PowerShell release tooling; Inno Setup 6.
 
@@ -76,10 +76,10 @@ CI runs restore, dependency audit, Release build, format verification, tests, Be
 
 Read `docs/hardware-safety.md` and `docs/protocol-provenance.md` before changing any hardware-facing path.
 
-- Never broaden write support beyond exact Acer `Predator PHN16-71` / BIOS `V1.20` without independent protocol evidence, explicit mapping/capability gates, read-back where supported, failure tests, recovery coverage, and hardware/BIOS manual validation.
+- Never authorize a new profile based only on a matching marketing name. Each model/BIOS profile needs independent protocol evidence, explicit mapping/capability gates, read-back where supported, failure tests, recovery coverage, and hardware/BIOS manual validation.
 - Every hardware action must pass the identity/backend capability gate, remain serialized, issue only bounded commands, verify resulting state when possible, and preserve the previous visible/persisted state on failure.
 - Startup may restore only the saved operating mode, or Eco through the explicit battery automation. It must never replay fan, lighting, GPU routing, charge-limit, or device settings. A freshly observed matching mode must not send an Acer write.
-- Max and Custom fan modes require a successful current-user FanGuard pipe handshake before the write. Preserve the five-second recovery timeout and Platform's ownership rule: shutdown restores Auto only when this process successfully established Max/Custom.
+- Max and Custom fan modes require a successful current-user FanGuard pipe handshake and an active platform lease before the write. Preserve the five-second recovery timeout and Platform's ownership rule: shutdown restores Auto only when this process successfully established Max/Custom.
 - Fan curves must have increasing temperatures, non-decreasing speeds, bounded speed, and a final `95 C / 100%` point for both channels. Missing temperatures in Custom mode are treated as `95 C` and force 100%.
 - The main app must remain ordinary-user. ElevatedHelper accepts only `disable|restore`; the fixed services `AcerCCAgentSvis`, `AcerDIAgentSvis`, `AcerDeviceEnablingServiceV2`, and `PredatorService`; and the fixed `\PredatorSenseLauncher` task. The App launcher passes `%ProgramData%\PredatorLite\service-backup.json`; helper validation permits only a file named `service-backup.json` beneath `%ProgramData%\PredatorLite`. Never broaden this path or turn the helper into a general privileged broker.
 - GPU routing remains AcerService-only and reboot-confirmed. Do not add iGPU-only, adapter disabling, overclocking, voltage/power-limit, arbitrary EC/MSR/NVAPI, BIOS, vBIOS, firmware, or ROM write paths.
@@ -90,9 +90,9 @@ Read `docs/hardware-safety.md` and `docs/protocol-provenance.md` before changing
 - Tests use xUnit. Test files follow `<Subject>Tests.cs`; method names describe behavior, such as `MissingSafetyEndpointIsRejected`.
 - Add focused tests for every changed safety invariant, protocol encoding/parser path, capability gate, persistence rule, startup policy, and companion allowlist/recovery behavior.
 - There is no numeric coverage threshold, but CI must pass. The test project does not cover App/ViewModel/XAML behavior directly, so UI changes also need successful XAML compilation, `build\ui-tests.ps1`, applicable manual checks, and screenshots.
-- Run the app and UI checks as an ordinary user. Hardware-write tests are permitted only on the validated model/BIOS; other systems must be tested for read-only behavior.
+- Run the app and UI checks as an ordinary user. Hardware-write tests are permitted only on a matching writable profile; other systems must be tested for read-only behavior.
 - Follow `docs/manual-testing.md` for visible WinUI, tray/OSD, accessibility, localization, single-instance, installer, and hardware checks.
-- Follow `docs/performance.md` for benchmark/startup evidence. Tray startup measurement is non-writing; `Critical` and `Deferred` require `-AllowHardwareInitialization`, a closed app, and the validated machine.
+- Follow `docs/performance.md` for benchmark/startup evidence. Tray startup measurement is non-writing; `Critical` and `Deferred` require `-AllowHardwareInitialization`, a closed app, and the current writable profile machine.
 
 ## RELEASE NOTES
 
@@ -106,7 +106,7 @@ Read `docs/hardware-safety.md` and `docs/protocol-provenance.md` before changing
 - Runtime composition/lifetime: `src/PredatorLite.App/Program.cs`, `src/PredatorLite.App/App.xaml.cs`
 - User workflows/startup/automation: `src/PredatorLite.App/ViewModels/MainViewModel.cs`
 - Platform contract: `src/PredatorLite.Core/Abstractions/IPredatorPlatform.cs`
-- Hardware gates and transport selection: `src/PredatorLite.Platform.Windows/PredatorPlatform.cs`
+- Hardware profile and safety boundaries: `src/PredatorLite.Platform.Windows/HardwareTargetProfileCatalog.cs`, `src/PredatorLite.Core/Models/HardwareTargetProfile.cs`, `src/PredatorLite.Platform.Windows/PredatorPlatform.cs`
 - Acer protocol code: `src/PredatorLite.Platform.Windows/Acer/`, `docs/protocol-provenance.md`
 - Fan safety: `src/PredatorLite.Core/Services/FanCurveEngine.cs`, `src/PredatorLite.FanGuard/Program.cs`, `docs/hardware-safety.md`
 - Privilege boundary: `src/PredatorLite.ElevatedHelper/Program.cs`, `tests/PredatorLite.Tests/CompanionSafetyBoundaryTests.cs`

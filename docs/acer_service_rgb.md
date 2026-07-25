@@ -1,6 +1,6 @@
 # AcerService RGB
 
-PredatorLite controls the validated PHN16-71 keyboard and logo lighting through the AcerService endpoint on `127.0.0.1:46933`.
+PredatorLite controls the profile-authorized keyboard and logo lighting through the AcerService endpoint on `127.0.0.1:46933`. The current writable lighting profile is `acer-predator-phn16-71-v1.20`.
 
 Broader platform behavior and provenance are documented in [`acer_wmi_documentation.md`](acer_wmi_documentation.md) and [`protocol-provenance.md`](protocol-provenance.md).
 
@@ -56,4 +56,4 @@ Do not add arbitrary fields or effect identifiers without a captured request/res
 
 ## Persistence and query behavior
 
-Packet `20` with `{"Function":"LIGHTING"}` is used only to probe/query the service state. PredatorLite preferences are stored in `%LocalAppData%\PredatorLite\settings.json`. Lighting preferences are not replayed as hardware writes during startup; the only automatically restored hardware selection is the separately validated operating mode.
+Packet `20` with `{"Function":"LIGHTING"}` is used only to probe/query the service state. PredatorLite preferences are stored in `%LocalAppData%\PredatorLite\settings.json`. Lighting preferences are not replayed as hardware writes during startup; the only automatically restored hardware selection is the separately profile-authorized operating mode.

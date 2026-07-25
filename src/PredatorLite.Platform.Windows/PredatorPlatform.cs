@@ -17,6 +17,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
     private readonly AcerSystemMonitorClient _systemMonitor;
     private readonly AcerWmiClient _wmi;
     private readonly IAppLogger _logger;
+    private readonly IFanGuardOwnership? _fanGuardOwnership;
     private readonly SemaphoreSlim _operationGate = new(1, 1);
     private readonly SemaphoreSlim _probeGate = new(1, 1);
     private readonly WindowsCpuTelemetryReader _windowsCpuTelemetry;
@@ -35,9 +36,12 @@ public sealed class PredatorPlatform : IPredatorPlatform
     private bool _extendedTelemetryEnabled;
     private bool _fullProbeCompleted;
 
-    public PredatorPlatform(IAppLogger logger)
+    public PredatorPlatform(
+        IAppLogger logger,
+        IFanGuardOwnership? fanGuardOwnership = null)
     {
         _logger = logger;
+        _fanGuardOwnership = fanGuardOwnership;
         _service = new AcerServiceClient(logger);
         _systemMonitor = new AcerSystemMonitorClient(logger);
         _wmi = new AcerWmiClient(logger);
@@ -78,7 +82,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
                 SetVerifiedOperatingMode(fallbackMode, allowStartupIdempotence: true);
             }
 
-            bool validated = IsValidatedIdentity(identity);
+            bool validated = HasTargetProfile(identity);
             if (validated && !serviceAvailable && !wmiAvailable)
             {
                 serviceMode = await RetryStartupServiceModeAsync(stopwatch, cancellationToken)
@@ -131,7 +135,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
                 cancellationToken);
             Task<ServiceProbeResult> serviceTask = ProbeServiceCapabilitiesAsync(
                 startup.Capabilities.AcerServiceAvailable,
-                startup.Capabilities.IsValidatedModel,
+                ResolveTargetProfile(startup.Capabilities.Device),
                 cancellationToken);
 
             ServiceProbeResult service = await serviceTask.ConfigureAwait(false);
@@ -141,6 +145,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
             bool serviceAvailable = service.ServiceAvailable;
             bool wmiAvailable = startup.Capabilities.AcerWmiAvailable;
             DeviceIdentity identity = startup.Capabilities.Device;
+            HardwareTargetProfile? profile = ResolveTargetProfile(identity);
             HardwareWriteBlockReason writeBlockReason = GetWriteBlockReason(
                 identity,
                 serviceAvailable,
@@ -149,17 +154,22 @@ public sealed class PredatorPlatform : IPredatorPlatform
             _capabilities = new DeviceCapabilities
             {
                 Device = identity,
-                IsValidatedModel = IsValidatedIdentity(identity),
+                TargetProfileId = profile?.Id,
+                IsValidatedTarget = profile is not null,
+                AuthorizedControls = profile?.AuthorizedControls ?? HardwareControlCapabilities.None,
                 WriteBlockReason = writeBlockReason,
                 CompatibilityMessage = GetCompatibilityMessage(identity, writeBlockReason),
                 AcerServiceAvailable = serviceAvailable,
                 AcerWmiAvailable = wmiAvailable,
                 AcerSystemMonitorAvailable = initialTelemetry?.HasPrimaryTelemetry == true,
-                BatteryControlAvailable = batteryAvailable,
+                BatteryControlAvailable = batteryAvailable && HasControl(profile, HardwareControlCapabilities.BatteryHealth),
                 ChargeLimitEnabled = chargeLimitEnabled,
-                LightingAvailable = service.Lighting?.IsSuccess == true,
-                FanControlAvailable = service.Fan?.IsSuccess == true || wmiAvailable,
-                GpuMuxAvailable = service.Gpu?.IsSuccess == true,
+                LightingAvailable = HasControl(profile, HardwareControlCapabilities.Lighting) &&
+                    service.Lighting?.IsSuccess == true,
+                FanControlAvailable = HasControl(profile, HardwareControlCapabilities.FanControl) &&
+                    (service.Fan?.IsSuccess == true || wmiAvailable),
+                GpuMuxAvailable = HasControl(profile, HardwareControlCapabilities.GpuMux) &&
+                    service.Gpu?.IsSuccess == true,
                 RefreshRates = refreshRates,
                 DeviceSettings = service.DeviceSettings
             };
@@ -174,7 +184,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
             _logger.Info($"Capability probe completed in {stopwatch.ElapsedMilliseconds} ms: " +
                 $"{identity.Model}, BIOS {identity.BiosVersion}, AcerService={serviceAvailable}, " +
                 $"AcerSystemMonitor={_capabilities.AcerSystemMonitorAvailable}, " +
-                $"WMI={wmiAvailable}, validated={_capabilities.IsValidatedModel}.");
+                $"WMI={wmiAvailable}, validated={_capabilities.IsValidatedTarget}.");
             return _capabilities;
         }
         finally
@@ -264,10 +274,13 @@ public sealed class PredatorPlatform : IPredatorPlatform
     {
         bool serviceAvailable = _capabilities?.AcerServiceAvailable ??
             await _service.IsAvailableAsync(cancellationToken).ConfigureAwait(false);
+        HardwareTargetProfile? profile = _capabilities is null
+            ? null
+            : ResolveTargetProfile(_capabilities.Device);
         Dictionary<DeviceSettingId, DeviceSettingState> states =
             await QueryDeviceSettingsCoreAsync(
                 serviceAvailable,
-                _capabilities?.IsValidatedModel == true,
+                profile,
                 cancellationToken).ConfigureAwait(false);
         if (_capabilities is not null)
         {
@@ -302,7 +315,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
             return ApplyResult.Failure("The operating mode value is invalid.");
         }
 
-        ApplyResult? blocked = EnsureWriteAllowed();
+        ApplyResult? blocked = EnsureWriteAllowed(HardwareControlCapabilities.OperatingMode);
         if (blocked is not null)
         {
             if (useStartupObservation)
@@ -381,7 +394,12 @@ public sealed class PredatorPlatform : IPredatorPlatform
         int gpuSpeedPercent = 50,
         CancellationToken cancellationToken = default)
     {
-        ApplyResult? blocked = EnsureWriteAllowed();
+        if (!Enum.IsDefined(mode))
+        {
+            return ApplyResult.Failure("The fan mode value is invalid.");
+        }
+
+        ApplyResult? blocked = EnsureWriteAllowed(HardwareControlCapabilities.FanControl);
         if (blocked is not null)
         {
             return blocked;
@@ -395,8 +413,21 @@ public sealed class PredatorPlatform : IPredatorPlatform
         int cpu = Math.Clamp(cpuSpeedPercent, 20, 100);
         int gpu = Math.Clamp(gpuSpeedPercent, 20, 100);
         await _operationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        IFanGuardWriteLease? fanGuardLease = null;
         try
         {
+            if (mode is (FanMode.Max or FanMode.Custom))
+            {
+                fanGuardLease = _fanGuardOwnership is null
+                    ? null
+                    : await _fanGuardOwnership.AcquireHardwareWriteLeaseAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                if (fanGuardLease is null)
+                {
+                    return ApplyResult.Unsupported("FanGuard must be active before applying this fan mode.");
+                }
+            }
+
             if (_capabilities!.AcerServiceAvailable)
             {
                 JsonObject parameters = CreateFanParameters(mode, cpu, gpu);
@@ -410,29 +441,80 @@ public sealed class PredatorPlatform : IPredatorPlatform
                         (int)mode,
                         cancellationToken).ConfigureAwait(false))
                 {
+                    if (fanGuardLease is not null && !fanGuardLease.IsValid)
+                    {
+                        return await RestoreAfterFanGuardLossAsync().ConfigureAwait(false);
+                    }
+
                     _fanMode = mode;
                     _fanWriteOwned = mode is FanMode.Max or FanMode.Custom;
                     return ApplyResult.Success($"Fan mode changed to {mode}.");
                 }
             }
 
-            if (_capabilities.AcerWmiAvailable &&
-                await _wmi.SetFanModeAsync(mode, cpu, gpu, cancellationToken).ConfigureAwait(false))
+            if (fanGuardLease is not null && !fanGuardLease.IsValid)
             {
-                _fanMode = mode;
-                _fanWriteOwned = mode is FanMode.Max or FanMode.Custom;
-                return ApplyResult.Success($"Fan mode changed to {mode} through WMI.");
+                return await RestoreAfterFanGuardLossAsync().ConfigureAwait(false);
             }
 
-            return ApplyResult.Failure("The fan mode could not be applied.");
+            if (_capabilities.AcerWmiAvailable)
+            {
+                bool applied = await _wmi.SetFanModeAsync(mode, cpu, gpu, cancellationToken)
+                    .ConfigureAwait(false);
+                if (applied)
+                {
+                    if (fanGuardLease is not null && !fanGuardLease.IsValid)
+                    {
+                        return await RestoreAfterFanGuardLossAsync().ConfigureAwait(false);
+                    }
+
+                    _fanMode = mode;
+                    _fanWriteOwned = mode is FanMode.Max or FanMode.Custom;
+                    return ApplyResult.Success($"Fan mode changed to {mode} through WMI.");
+                }
+            }
+
+            if (mode is FanMode.Max or FanMode.Custom)
+            {
+                await SetFanModeCoreWithoutValidationAsync(FanMode.Auto, CancellationToken.None)
+                    .ConfigureAwait(false);
+                _fanMode = FanMode.Auto;
+                _fanWriteOwned = false;
+            }
+
+            return mode is FanMode.Max or FanMode.Custom
+                ? ApplyResult.Failure("The fan mode could not be applied and was restored to Auto.")
+                : ApplyResult.Failure("The fan mode could not be applied.");
         }
         catch (Exception exception)
         {
+            if (mode is FanMode.Max or FanMode.Custom)
+            {
+                try
+                {
+                    await SetFanModeCoreWithoutValidationAsync(FanMode.Auto, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                catch
+                {
+                }
+
+                _fanMode = FanMode.Auto;
+                _fanWriteOwned = false;
+            }
+
             _logger.LogError($"Fan mode {mode} failed", exception);
-            return ApplyResult.Failure(exception.Message);
+            return mode is FanMode.Max or FanMode.Custom
+                ? ApplyResult.Failure($"{exception.Message}; fan control was restored to Auto.")
+                : ApplyResult.Failure(exception.Message);
         }
         finally
         {
+            if (fanGuardLease is not null)
+            {
+                await fanGuardLease.DisposeAsync().ConfigureAwait(false);
+            }
+
             _operationGate.Release();
         }
     }
@@ -441,7 +523,12 @@ public sealed class PredatorPlatform : IPredatorPlatform
         GpuMuxMode mode,
         CancellationToken cancellationToken = default)
     {
-        ApplyResult? blocked = EnsureWriteAllowed();
+        if (!Enum.IsDefined(mode))
+        {
+            return ApplyResult.Failure("The GPU routing mode value is invalid.");
+        }
+
+        ApplyResult? blocked = EnsureWriteAllowed(HardwareControlCapabilities.GpuMux);
         if (blocked is not null)
         {
             return blocked;
@@ -493,43 +580,60 @@ public sealed class PredatorPlatform : IPredatorPlatform
         bool limitTo80Percent,
         CancellationToken cancellationToken = default)
     {
-        ApplyResult? blocked = EnsureWriteAllowed();
-        if (blocked is not null)
+        await _operationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            return blocked;
-        }
+            ApplyResult? blocked = EnsureWriteAllowed(HardwareControlCapabilities.BatteryHealth);
+            if (blocked is not null)
+            {
+                return blocked;
+            }
 
-        if (_capabilities?.BatteryControlAvailable != true)
+            if (_capabilities?.BatteryControlAvailable != true)
+            {
+                return ApplyResult.Unsupported("Battery charge limiting is not available.");
+            }
+
+            bool applied = await _wmi.SetChargeLimitAsync(limitTo80Percent, cancellationToken)
+                .ConfigureAwait(false);
+            bool? readBack = applied
+                ? await _wmi.ReadChargeLimitAsync(cancellationToken).ConfigureAwait(false)
+                : null;
+            return readBack == limitTo80Percent
+                ? ApplyResult.Success(limitTo80Percent
+                    ? "Battery charge limit set to 80%."
+                    : "Battery charge limit set to 100%.")
+                : ApplyResult.Failure("The battery charge limit could not be verified.");
+        }
+        finally
         {
-            return ApplyResult.Unsupported("Battery charge limiting is not available.");
+            _operationGate.Release();
         }
-
-        bool applied = await _wmi.SetChargeLimitAsync(limitTo80Percent, cancellationToken).ConfigureAwait(false);
-        bool? readBack = applied
-            ? await _wmi.ReadChargeLimitAsync(cancellationToken).ConfigureAwait(false)
-            : null;
-        return readBack == limitTo80Percent
-            ? ApplyResult.Success(limitTo80Percent ? "Battery charge limit set to 80%." : "Battery charge limit set to 100%.")
-            : ApplyResult.Failure("The battery charge limit could not be verified.");
     }
 
     public async Task<ApplyResult> SetLightingAsync(
         LightingProfile profile,
         CancellationToken cancellationToken = default)
     {
-        ApplyResult? blocked = EnsureWriteAllowed();
-        if (blocked is not null)
-        {
-            return blocked;
-        }
-
-        if (_capabilities?.LightingAvailable != true)
-        {
-            return ApplyResult.Unsupported("Keyboard lighting is not available.");
-        }
-
+        await _operationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            ApplyResult? blocked = EnsureWriteAllowed(HardwareControlCapabilities.Lighting);
+            if (blocked is not null)
+            {
+                return blocked;
+            }
+
+            if (_capabilities?.LightingAvailable != true)
+            {
+                return ApplyResult.Unsupported("Keyboard lighting is not available.");
+            }
+
+            if (!Enum.IsDefined(profile.Effect))
+            {
+                return ApplyResult.Failure("The lighting effect value is invalid.");
+            }
+
             AcerResponse keyboard = await _service.SetAsync(
                 AcerProtocol.Lighting,
                 LightingPayloadFactory.CreateKeyboardPayload(profile),
@@ -543,14 +647,22 @@ public sealed class PredatorPlatform : IPredatorPlatform
                 AcerProtocol.Lighting,
                 LightingPayloadFactory.CreateLogoPayload(profile),
                 cancellationToken).ConfigureAwait(false);
-            return ApplyResult.Success(logo.IsSuccess
-                ? "Keyboard and logo lighting applied."
-                : "Keyboard lighting applied; logo lighting is unavailable.");
+            if (!logo.IsSuccess)
+            {
+                return ApplyResult.Failure(
+                    "Keyboard lighting applied, but logo lighting could not be verified.");
+            }
+
+            return ApplyResult.Success("Keyboard and logo lighting applied.");
         }
         catch (Exception exception)
         {
             _logger.LogError("Lighting update failed", exception);
             return ApplyResult.Failure(exception.Message);
+        }
+        finally
+        {
+            _operationGate.Release();
         }
     }
 
@@ -559,7 +671,24 @@ public sealed class PredatorPlatform : IPredatorPlatform
         bool enabled,
         CancellationToken cancellationToken = default)
     {
-        ApplyResult? blocked = EnsureWriteAllowed();
+        await _operationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await SetDeviceSettingCoreAsync(setting, enabled, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            _operationGate.Release();
+        }
+    }
+
+    private async Task<ApplyResult> SetDeviceSettingCoreAsync(
+        DeviceSettingId setting,
+        bool enabled,
+        CancellationToken cancellationToken)
+    {
+        ApplyResult? blocked = EnsureWriteAllowed(HardwareControlCapabilities.DeviceSettings);
         if (blocked is not null)
         {
             return blocked;
@@ -627,33 +756,52 @@ public sealed class PredatorPlatform : IPredatorPlatform
         bool enableOverdrive,
         CancellationToken cancellationToken = default)
     {
-        ApplyResult? blocked = EnsureWriteAllowed();
-        if (blocked is not null)
+        await _operationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            return blocked;
-        }
-
-        bool changed = await Task.Run(() => DisplayController.SetRefreshRate(refreshRate), cancellationToken)
-            .ConfigureAwait(false);
-        if (!changed || DisplayController.GetCurrentRefreshRate() != refreshRate)
-        {
-            return ApplyResult.Failure($"Refresh rate {refreshRate} Hz could not be applied.");
-        }
-
-        if (_capabilities?.DeviceSettings.TryGetValue(DeviceSettingId.LcdOverdrive, out DeviceSettingState? overdrive) == true &&
-            overdrive.IsSupported)
-        {
-            ApplyResult overdriveResult = await SetDeviceSettingAsync(
-                DeviceSettingId.LcdOverdrive,
-                enableOverdrive,
-                cancellationToken).ConfigureAwait(false);
-            if (!overdriveResult.IsSuccess)
+            ApplyResult? blocked = EnsureWriteAllowed(HardwareControlCapabilities.Display);
+            if (blocked is not null)
             {
-                return ApplyResult.Failure($"Refresh rate changed, but overdrive failed: {overdriveResult.Message}");
+                return blocked;
             }
-        }
 
-        return ApplyResult.Success($"Display refresh rate changed to {refreshRate} Hz.");
+            int? previousRefreshRate = DisplayController.GetCurrentRefreshRate();
+            bool changed = await Task.Run(
+                () => DisplayController.SetRefreshRate(refreshRate),
+                cancellationToken).ConfigureAwait(false);
+            if (!changed || DisplayController.GetCurrentRefreshRate() != refreshRate)
+            {
+                return ApplyResult.Failure($"Refresh rate {refreshRate} Hz could not be applied.");
+            }
+
+            if (_capabilities?.DeviceSettings.TryGetValue(
+                    DeviceSettingId.LcdOverdrive,
+                    out DeviceSettingState? overdrive) == true &&
+                overdrive.IsSupported)
+            {
+                ApplyResult overdriveResult = await SetDeviceSettingCoreAsync(
+                    DeviceSettingId.LcdOverdrive,
+                    enableOverdrive,
+                    cancellationToken).ConfigureAwait(false);
+                if (!overdriveResult.IsSuccess)
+                {
+                    bool rolledBack = previousRefreshRate is int previous &&
+                        await Task.Run(
+                            () => DisplayController.SetRefreshRate(previous) &&
+                                DisplayController.GetCurrentRefreshRate() == previous,
+                            cancellationToken).ConfigureAwait(false);
+                    return ApplyResult.Failure(rolledBack
+                        ? $"Overdrive failed; refresh rate was restored: {overdriveResult.Message}"
+                        : $"Refresh rate changed, but overdrive failed and could not be restored: {overdriveResult.Message}");
+                }
+            }
+
+            return ApplyResult.Success($"Display refresh rate changed to {refreshRate} Hz.");
+        }
+        finally
+        {
+            _operationGate.Release();
+        }
     }
 
     public Task<IReadOnlyList<ManagedServiceInfo>> GetManagedServicesAsync(
@@ -733,7 +881,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
 
     private async Task<ServiceProbeResult> ProbeServiceCapabilitiesAsync(
         bool serviceAvailable,
-        bool isValidatedModel,
+        HardwareTargetProfile? profile,
         CancellationToken cancellationToken)
     {
         bool backendDiscovered = !serviceAvailable;
@@ -772,7 +920,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
         Dictionary<DeviceSettingId, DeviceSettingState> settings =
             await QueryDeviceSettingsCoreAsync(
                 serviceAvailable,
-                isValidatedModel,
+                profile,
                 cancellationToken).ConfigureAwait(false);
         if (backendDiscovered && serviceAvailable)
         {
@@ -794,6 +942,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
         bool serviceAvailable,
         bool wmiAvailable)
     {
+        HardwareTargetProfile? profile = ResolveTargetProfile(identity);
         HardwareWriteBlockReason writeBlockReason = GetWriteBlockReason(
             identity,
             serviceAvailable,
@@ -801,12 +950,15 @@ public sealed class PredatorPlatform : IPredatorPlatform
         return new DeviceCapabilities
         {
             Device = identity,
-            IsValidatedModel = IsValidatedIdentity(identity),
+            TargetProfileId = profile?.Id,
+            IsValidatedTarget = profile is not null,
+            AuthorizedControls = profile?.AuthorizedControls ?? HardwareControlCapabilities.None,
             WriteBlockReason = writeBlockReason,
             CompatibilityMessage = GetCompatibilityMessage(identity, writeBlockReason),
             AcerServiceAvailable = serviceAvailable,
             AcerWmiAvailable = wmiAvailable,
-            FanControlAvailable = wmiAvailable
+            FanControlAvailable = HasControl(profile, HardwareControlCapabilities.FanControl) &&
+                wmiAvailable
         };
     }
 
@@ -815,16 +967,9 @@ public sealed class PredatorPlatform : IPredatorPlatform
         bool serviceAvailable,
         bool wmiAvailable)
     {
-        bool modelMatches = identity.Manufacturer.Contains("Acer", StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(identity.Model, "Predator PHN16-71", StringComparison.OrdinalIgnoreCase);
-        if (!modelMatches)
+        if (!HardwareTargetProfileCatalog.TryResolve(identity, out _))
         {
-            return HardwareWriteBlockReason.UnsupportedModel;
-        }
-
-        if (!string.Equals(identity.BiosVersion, "V1.20", StringComparison.OrdinalIgnoreCase))
-        {
-            return HardwareWriteBlockReason.UnvalidatedBios;
+            return HardwareWriteBlockReason.UnsupportedTargetProfile;
         }
 
         return serviceAvailable || wmiAvailable
@@ -832,21 +977,31 @@ public sealed class PredatorPlatform : IPredatorPlatform
             : HardwareWriteBlockReason.ControlBackendUnavailable;
     }
 
-    private static bool IsValidatedIdentity(DeviceIdentity identity) =>
-        GetWriteBlockReason(identity, serviceAvailable: true, wmiAvailable: false) ==
-        HardwareWriteBlockReason.None;
+    private static HardwareTargetProfile? ResolveTargetProfile(DeviceIdentity identity) =>
+        HardwareTargetProfileCatalog.TryResolve(identity, out HardwareTargetProfile? profile)
+            ? profile
+            : null;
+
+    private static bool HasControl(
+        HardwareTargetProfile? profile,
+        HardwareControlCapabilities control) =>
+        profile?.ControlProfiles.Any(profileControl => profileControl.Control == control) == true;
+
+    private static bool HasTargetProfile(DeviceIdentity identity) =>
+        HardwareTargetProfileCatalog.TryResolve(identity, out _);
 
     private static string GetCompatibilityMessage(
         DeviceIdentity identity,
         HardwareWriteBlockReason writeBlockReason) => writeBlockReason switch
         {
-            HardwareWriteBlockReason.None => "Predator PHN16-71 BIOS V1.20 validated.",
-            HardwareWriteBlockReason.UnsupportedModel =>
-                $"Model {identity.Model} is not yet supported; diagnostics remain available.",
-            HardwareWriteBlockReason.UnvalidatedBios =>
-                $"BIOS {identity.BiosVersion} is not yet validated; hardware writes are disabled.",
+            HardwareWriteBlockReason.None =>
+                $"{identity.Model} BIOS {identity.BiosVersion} has a validated hardware profile.",
+            HardwareWriteBlockReason.UnsupportedTargetProfile =>
+                $"No validated hardware profile exists for {identity.Model} BIOS {identity.BiosVersion}; diagnostics remain available.",
             HardwareWriteBlockReason.ControlBackendUnavailable =>
                 "No supported Acer control backend is available; hardware writes are disabled.",
+            HardwareWriteBlockReason.ControlNotAuthorized =>
+                "The current hardware profile does not authorize this control.",
             _ => "Hardware writes are disabled."
         };
 
@@ -893,10 +1048,11 @@ public sealed class PredatorPlatform : IPredatorPlatform
 
     private async Task<Dictionary<DeviceSettingId, DeviceSettingState>> QueryDeviceSettingsCoreAsync(
         bool serviceAvailable,
-        bool isValidatedPhn1671,
+        HardwareTargetProfile? profile,
         CancellationToken cancellationToken)
     {
         Dictionary<DeviceSettingId, DeviceSettingState> states = [];
+        bool writesAuthorized = HasControl(profile, HardwareControlCapabilities.DeviceSettings);
         foreach ((DeviceSettingId id, string function, bool writable) in new[]
         {
             (DeviceSettingId.WindowsKey, AcerProtocol.WindowsKey, true),
@@ -908,16 +1064,14 @@ public sealed class PredatorPlatform : IPredatorPlatform
             (DeviceSettingId.BatteryBoost, AcerProtocol.BatteryBoost, false)
         })
         {
-            if (isValidatedPhn1671 && id is DeviceSettingId.PanelDynamicRefresh or DeviceSettingId.SoundMode)
+            if (profile?.UnsupportedDeviceSettings.Contains(id) == true)
             {
                 states[id] = new DeviceSettingState(
                     id,
                     false,
                     false,
                     null,
-                    id == DeviceSettingId.SoundMode
-                        ? "Not supported by PHN16-71/V1.20"
-                        : "Unavailable on this panel");
+                    "Not supported by this hardware profile");
                 continue;
             }
 
@@ -934,7 +1088,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
             states[id] = new DeviceSettingState(
                 id,
                 supported,
-                supported && writable,
+                supported && writable && writesAuthorized,
                 supported ? value != 0 : null,
                 response is null ? "Query failed" : response.Result switch
                 {
@@ -949,7 +1103,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
         states[DeviceSettingId.KeyboardBacklightTimeout] = new DeviceSettingState(
             DeviceSettingId.KeyboardBacklightTimeout,
             ledTimeout.HasValue,
-            ledTimeout.HasValue,
+            ledTimeout.HasValue && writesAuthorized,
             ledTimeout,
             ledTimeout.HasValue ? null : "APGe WMI unavailable");
         return states;
@@ -988,16 +1142,57 @@ public sealed class PredatorPlatform : IPredatorPlatform
         return response?.IsSuccess == true && response.TryGetInt(property, out int value) && value == expected;
     }
 
-    private ApplyResult? EnsureWriteAllowed()
+    private ApplyResult? EnsureWriteAllowed(HardwareControlCapabilities control)
     {
         if (_capabilities is null)
         {
             return ApplyResult.Failure("Hardware capabilities have not been probed.");
         }
 
-        return _capabilities.CanWriteHardware
+        HardwareTargetProfile? profile = ResolveTargetProfile(_capabilities.Device);
+        HardwareControlProfile? policy = profile?.ControlProfiles.FirstOrDefault(
+            profileControl => profileControl.Control == control);
+        if (policy is null)
+        {
+            return ApplyResult.Unsupported(
+                "The current hardware profile does not authorize this control.");
+        }
+
+        if (control != HardwareControlCapabilities.Display && !_capabilities.CanWriteHardware)
+        {
+            return ApplyResult.Unsupported(_capabilities.CompatibilityMessage);
+        }
+
+        return IsTransportAvailable(_capabilities, policy)
             ? null
-            : ApplyResult.Unsupported(_capabilities.CompatibilityMessage);
+            : ApplyResult.Unsupported("The profile-authorized control backend is unavailable.");
+    }
+
+    private static bool IsTransportAvailable(
+        DeviceCapabilities capabilities,
+        HardwareControlProfile policy) =>
+        IsTransportAvailable(capabilities, policy.PrimaryTransport) ||
+        (policy.FallbackTransport is HardwareTransportKind fallback &&
+            IsTransportAvailable(capabilities, fallback));
+
+    private static bool IsTransportAvailable(
+        DeviceCapabilities capabilities,
+        HardwareTransportKind transport) => transport switch
+        {
+            HardwareTransportKind.AcerService => capabilities.AcerServiceAvailable,
+            HardwareTransportKind.AcerWmi => capabilities.AcerWmiAvailable,
+            HardwareTransportKind.WindowsDisplay => capabilities.RefreshRates.Count > 0,
+            _ => false
+        };
+
+    private async Task<ApplyResult> RestoreAfterFanGuardLossAsync()
+    {
+        await SetFanModeCoreWithoutValidationAsync(FanMode.Auto, CancellationToken.None)
+            .ConfigureAwait(false);
+        _fanMode = FanMode.Auto;
+        _fanWriteOwned = false;
+        return ApplyResult.Failure(
+            "FanGuard became inactive during the fan write; fan control was restored to Auto.");
     }
 
     private async Task SetFanModeCoreWithoutValidationAsync(FanMode mode, CancellationToken cancellationToken)
@@ -1008,10 +1203,17 @@ public sealed class PredatorPlatform : IPredatorPlatform
                 AcerProtocol.FanControl,
                 CreateFanParameters(mode, 50, 50),
                 cancellationToken).ConfigureAwait(false);
-            if (!response.IsSuccess)
+            if (response.IsSuccess &&
+                await VerifyIntAsync(
+                    AcerProtocol.FanControl,
+                    "mode",
+                    (int)mode,
+                    cancellationToken).ConfigureAwait(false))
             {
-                await _wmi.SetFanModeAsync(mode, 50, 50, cancellationToken).ConfigureAwait(false);
+                return;
             }
+
+            await _wmi.SetFanModeAsync(mode, 50, 50, cancellationToken).ConfigureAwait(false);
         }
         catch
         {

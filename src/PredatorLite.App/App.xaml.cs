@@ -57,12 +57,13 @@ public partial class App : Application
                 localization,
                 _logger);
 
+            FanGuardClient fanGuard = new(_logger);
             _viewModel = new MainViewModel(
-                new PredatorPlatform(_logger),
+                new PredatorPlatform(_logger, fanGuard),
                 new JsonSettingsStore(),
                 _logger,
                 new QuickAccessModeKeySource(_logger),
-                new FanGuardClient(_logger),
+                fanGuard,
                 localization,
                 interaction,
                 new WinUiDispatcher(dispatcher, _logger));

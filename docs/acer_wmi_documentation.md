@@ -1,6 +1,6 @@
 # Acer Platform Interfaces
 
-This document describes the AcerService, Acer system-monitor, WMI, and input interfaces currently used by PredatorLite. Hardware writes remain constrained by [`hardware-safety.md`](hardware-safety.md); interoperability provenance is recorded in [`protocol-provenance.md`](protocol-provenance.md).
+This document describes the AcerService, Acer system-monitor, WMI, and input interfaces currently used by PredatorLite. Hardware writes remain constrained by the explicit profile catalog and [`hardware-safety.md`](hardware-safety.md); interoperability provenance is recorded in [`protocol-provenance.md`](protocol-provenance.md).
 
 ## Code references
 
@@ -18,7 +18,7 @@ Do not scatter raw packet IDs, service function names, WMI methods, sensor IDs, 
 
 | Component | PredatorLite use |
 | --- | --- |
-| `AcerServiceSvc` | AcerService state queries and validated hardware commands |
+| `AcerServiceSvc` | AcerService state queries and profile-authorized hardware commands |
 | `AcerLightingService` | Keyboard/logo lighting and related service routing |
 | `ASMSvc` | Ordinary-user primary telemetry on TCP 46753 |
 | `AcerQAAgentSvis` | Optional physical performance Mode-key notification channel |
@@ -52,7 +52,7 @@ Packet IDs used by PredatorLite:
 | `0` | Initialization/handshake |
 | `10` | `GET_MONITOR_DATA` telemetry |
 | `20` | Query current state |
-| `100` | Apply a validated device setting |
+| `100` | Apply a profile-authorized device setting |
 
 Set functions used by the platform layer:
 
@@ -86,7 +86,7 @@ Primary methods are defined in `AcerProtocol` and invoked through `AcerWmiClient
 | Turbo | `0x05` |
 | Eco | `0x06` |
 
-AcerService is attempted first. `AcerGamingFunction.SetGamingMiscSetting` is the validated fallback. Successful changes also select the matching Windows efficiency, balanced, or performance overlay.
+AcerService is attempted first. `AcerGamingFunction.SetGamingMiscSetting` is the documented fallback for the current writable profile. Successful changes also select the matching Windows efficiency, balanced, or performance overlay.
 
 ## GPU routing
 
@@ -99,7 +99,7 @@ PredatorLite does not expose iGPU-only/Endurance routing, disable a Windows disp
 
 ## Persistence
 
-Application settings are stored in `%LocalAppData%\PredatorLite\settings.json` using temporary-file replacement and a `.bak` backup. On each primary-instance launch, PredatorLite restores only the saved non-Eco operating mode, or Eco when battery automation requires it, after the exact hardware gate succeeds. Fan, lighting, GPU-routing, charge-limit and device-setting selections are not replayed.
+Application settings are stored in `%LocalAppData%\PredatorLite\settings.json` using temporary-file replacement and a `.bak` backup. On each primary-instance launch, PredatorLite restores only the saved non-Eco operating mode, or Eco when battery automation requires it, after the exact profile gate succeeds. Fan, lighting, GPU-routing, charge-limit and device-setting selections are not replayed.
 
 Service-conflict backups are stored separately at `%ProgramData%\PredatorLite\service-backup.json` and are accessible only through the fixed elevated-helper command surface.
 
@@ -111,6 +111,6 @@ This channel requires `AcerQAAgentSvis`. If it is unavailable, users can still s
 
 ## PredatorSense launch key
 
-The separate PredatorSense launch key is a keyboard input, not a Quick Access notification. On the validated PHN16-71 it arrives with scan code `0x75`. While PredatorLite is running, its low-level keyboard listener consumes physical transitions and toggles the main window once on key release. Injected and Unicode packet events are deliberately ignored.
+The separate PredatorSense launch key is a keyboard input, not a Quick Access notification. On the current PHN16-71 profile it arrives with scan code `0x75`. While PredatorLite is running, its low-level keyboard listener consumes physical transitions and toggles the main window once on key release. Injected and Unicode packet events are deliberately ignored.
 
 PredatorLite does not install a system launcher for this key and does not modify `PredatorSenseLauncher` automatically. The key cannot cold-start PredatorLite after the process exits. The explicit conflict-management action remains available if an Acer software version launches PredatorSense through a separate channel.

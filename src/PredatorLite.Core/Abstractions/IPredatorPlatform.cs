@@ -55,6 +55,19 @@ public interface IPredatorPlatform : IAsyncDisposable
         CancellationToken cancellationToken = default);
 }
 
+public interface IFanGuardWriteLease : IAsyncDisposable
+{
+    bool IsValid { get; }
+}
+
+public interface IFanGuardOwnership
+{
+    bool IsActive { get; }
+
+    ValueTask<IFanGuardWriteLease?> AcquireHardwareWriteLeaseAsync(
+        CancellationToken cancellationToken = default);
+}
+
 public interface IModeKeySource : IAsyncDisposable
 {
     event EventHandler? ModeKeyPressed;

@@ -3,9 +3,9 @@ namespace PredatorLite.Core.Models;
 public enum HardwareWriteBlockReason
 {
     None,
-    UnsupportedModel,
-    UnvalidatedBios,
-    ControlBackendUnavailable
+    UnsupportedTargetProfile,
+    ControlBackendUnavailable,
+    ControlNotAuthorized
 }
 
 public sealed record DeviceIdentity(
@@ -32,7 +32,11 @@ public sealed record DeviceCapabilities
 {
     public required DeviceIdentity Device { get; init; }
 
-    public bool IsValidatedModel { get; init; }
+    public string? TargetProfileId { get; init; }
+
+    public bool IsValidatedTarget { get; init; }
+
+    public HardwareControlCapabilities AuthorizedControls { get; init; }
 
     public required HardwareWriteBlockReason WriteBlockReason { get; init; }
 
@@ -60,7 +64,8 @@ public sealed record DeviceCapabilities
         new Dictionary<DeviceSettingId, DeviceSettingState>();
 
     public bool CanWriteHardware =>
-        IsValidatedModel &&
+        IsValidatedTarget &&
+        !string.IsNullOrWhiteSpace(TargetProfileId) &&
         WriteBlockReason == HardwareWriteBlockReason.None &&
         (AcerServiceAvailable || AcerWmiAvailable);
 }

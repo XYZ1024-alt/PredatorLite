@@ -33,7 +33,7 @@
     <sys:String x:Key="Description.CpuTelemetry">Processor temperature, load, clock, and fan.</sys:String>
     <sys:String x:Key="Description.GpuTelemetry">Graphics temperature, load, power, clock, and fan.</sys:String>
     <sys:String x:Key="Description.SystemTelemetry">Memory, VRAM, battery, power, and display.</sys:String>
-    <sys:String x:Key="Description.Application">These preferences affect PredatorLite behavior only.</sys:String>
+    <sys:String x:Key="Description.Application">PredatorLite is an independent, unofficial alternative to PredatorSense. These preferences affect PredatorLite behavior only.</sys:String>
     <sys:String x:Key="Description.Services">Advanced service management requires administrator access and preserves original start modes.</sys:String>
     <sys:String x:Key="Description.ServiceActions">Disabling conflicts requests administrator access. Restore uses the previously backed-up start modes.</sys:String>
     <sys:String x:Key="Description.Diagnostics">Export diagnostic context or open the local log directory.</sys:String>
@@ -87,9 +87,9 @@
     <sys:String x:Key="FanCurveValidation.SpeedDecreases">{0} point {1}: speed cannot decrease.</sys:String>
     <sys:String x:Key="FanCurveValidation.InvalidSafetyEndpoint">{0} safety endpoint must be {1}°C at 100%.</sys:String>
     <sys:String x:Key="Compatibility.None">{0} BIOS {1} is validated for hardware control.</sys:String>
-    <sys:String x:Key="Compatibility.UnsupportedModel">Model {0} is not supported. Diagnostics remain available.</sys:String>
-    <sys:String x:Key="Compatibility.UnvalidatedBios">BIOS {0} has not been validated. Hardware controls are read-only.</sys:String>
+    <sys:String x:Key="Compatibility.UnsupportedTargetProfile">No validated hardware profile exists for {0} / BIOS {1}. Diagnostics remain available.</sys:String>
     <sys:String x:Key="Compatibility.ControlBackendUnavailable">No supported Acer control backend is available. Hardware controls are read-only.</sys:String>
+    <sys:String x:Key="Compatibility.ControlNotAuthorized">This control is not authorized by the current hardware profile.</sys:String>
     <sys:String x:Key="LightingEffect.Static">Static</sys:String>
     <sys:String x:Key="LightingEffect.Breathing">Breathing</sys:String>
     <sys:String x:Key="LightingEffect.Neon">Neon</sys:String>

@@ -5,7 +5,7 @@ using PredatorLite.Core.Abstractions;
 
 namespace PredatorLite.App.Services;
 
-public sealed class FanGuardClient : IAsyncDisposable
+public sealed class FanGuardClient : IAsyncDisposable, IFanGuardOwnership
 {
     private readonly IAppLogger _logger;
     private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
@@ -16,13 +16,25 @@ public sealed class FanGuardClient : IAsyncDisposable
     private Process? _process;
     private CancellationTokenSource? _heartbeatCancellation;
     private Task? _heartbeatTask;
+    private int _heartbeatFailed;
 
     public FanGuardClient(IAppLogger logger)
     {
         _logger = logger;
     }
 
-    public bool IsActive => _pipe?.IsConnected == true && _process?.HasExited == false;
+    public bool IsActive =>
+        Volatile.Read(ref _heartbeatFailed) == 0 &&
+        _pipe?.IsConnected == true &&
+        _process?.HasExited == false;
+
+    public ValueTask<IFanGuardWriteLease?> AcquireHardwareWriteLeaseAsync(
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return ValueTask.FromResult<IFanGuardWriteLease?>(
+            IsActive ? new HardwareWriteLease(this) : null);
+    }
 
     public async Task<bool> StartAsync(CancellationToken cancellationToken = default)
     {
@@ -73,6 +85,7 @@ public sealed class FanGuardClient : IAsyncDisposable
                 throw new InvalidDataException("FanGuard did not complete its handshake.");
             }
 
+            _heartbeatFailed = 0;
             _heartbeatCancellation = new CancellationTokenSource();
             _heartbeatTask = RunHeartbeatAsync(_heartbeatCancellation.Token);
             _logger.Info("FanGuard started.");
@@ -110,6 +123,27 @@ public sealed class FanGuardClient : IAsyncDisposable
         _sendGate.Dispose();
     }
 
+    private sealed class HardwareWriteLease : IFanGuardWriteLease
+    {
+        private readonly FanGuardClient _owner;
+        private int _disposed;
+
+        public HardwareWriteLease(FanGuardClient owner)
+        {
+            _owner = owner;
+        }
+
+        public bool IsValid =>
+            Volatile.Read(ref _disposed) == 0 &&
+            _owner.IsActive;
+
+        public ValueTask DisposeAsync()
+        {
+            Interlocked.Exchange(ref _disposed, 1);
+            return ValueTask.CompletedTask;
+        }
+    }
+
     private async Task RunHeartbeatAsync(CancellationToken cancellationToken)
     {
         try
@@ -125,6 +159,7 @@ public sealed class FanGuardClient : IAsyncDisposable
         }
         catch (Exception exception)
         {
+            Interlocked.Exchange(ref _heartbeatFailed, 1);
             _logger.LogError("FanGuard heartbeat failed", exception);
         }
     }
@@ -147,6 +182,7 @@ public sealed class FanGuardClient : IAsyncDisposable
 
     private async Task StopCoreAsync(bool sendStop)
     {
+        Interlocked.Exchange(ref _heartbeatFailed, 1);
         CancellationTokenSource? heartbeatCancellation = _heartbeatCancellation;
         Task? heartbeatTask = _heartbeatTask;
         _heartbeatCancellation = null;

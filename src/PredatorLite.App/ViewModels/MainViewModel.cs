@@ -428,7 +428,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             else if (!_capabilities.CanWriteHardware)
             {
                 _startupRestoreAwaitingBackend =
-                    _capabilities.IsValidatedModel &&
+                    _capabilities.IsValidatedTarget &&
                     _capabilities.WriteBlockReason == HardwareWriteBlockReason.ControlBackendUnavailable;
                 modeOutcome = $"skipped-{_capabilities.WriteBlockReason}";
             }
@@ -1334,7 +1334,9 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             RefreshRates.Add(rate);
         }
 
-        DisplayControlAvailable = capabilities.CanWriteHardware && RefreshRates.Count > 0;
+        DisplayControlAvailable = capabilities.IsValidatedTarget &&
+            capabilities.AuthorizedControls.HasFlag(HardwareControlCapabilities.Display) &&
+            RefreshRates.Count > 0;
     }
 
     private void ApplySnapshot(HardwareSnapshot snapshot)
@@ -1529,6 +1531,16 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     private async Task UpdateCustomFanAsync(HardwareSnapshot snapshot, CancellationToken cancellationToken)
     {
+        if (!_fanGuard.IsActive)
+        {
+            _customFanActive = false;
+            _activeFanCurve = null;
+            FanGuardActive = false;
+            UpdateExtendedTelemetryState();
+            _logger.Info("FanGuard is no longer active; custom fan updates stopped.");
+            return;
+        }
+
         FanCurve curve = _activeFanCurve ?? BuildFanCurve();
         (int cpu, int gpu) = EvaluateFanTargets(curve, snapshot);
         bool targetChanged = Math.Abs(cpu - _lastCpuFanTarget) >= 2 || Math.Abs(gpu - _lastGpuFanTarget) >= 2;
@@ -1766,14 +1778,12 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
                 template,
                 capabilities.Device.Model,
                 capabilities.Device.BiosVersion),
-            HardwareWriteBlockReason.UnsupportedModel => string.Format(
+            HardwareWriteBlockReason.UnsupportedTargetProfile => string.Format(
                 CultureInfo.CurrentCulture,
                 template,
-                capabilities.Device.Model),
-            HardwareWriteBlockReason.UnvalidatedBios => string.Format(
-                CultureInfo.CurrentCulture,
-                template,
+                capabilities.Device.Model,
                 capabilities.Device.BiosVersion),
+            HardwareWriteBlockReason.ControlNotAuthorized => template,
             _ => template
         };
     }

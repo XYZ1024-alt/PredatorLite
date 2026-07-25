@@ -33,7 +33,7 @@
     <PlatformTarget>$(PredatorLitePlatformTarget)</PlatformTarget>
     <AssemblyName>PredatorLite</AssemblyName>
     <Product>PredatorLite</Product>
-    <Description>Lightweight Acer Predator PHN16-71 control utility</Description>
+    <Description>Independent, unofficial PredatorSense alternative for Acer Predator devices</Description>
   </PropertyGroup>
 
   <ItemGroup>

@@ -3,6 +3,7 @@ using System.IO.Pipes;
 using System.Text.Json.Nodes;
 using PredatorLite.Core.Models;
 using PredatorLite.Core.Services;
+using PredatorLite.Platform.Windows;
 using PredatorLite.Platform.Windows.Acer;
 
 namespace PredatorLite.FanGuard;
@@ -19,6 +20,14 @@ internal static class Program
         }
 
         using FileAppLogger logger = new();
+        if (!HardwareTargetProfileCatalog.TryResolveCurrent(out HardwareTargetProfile? profile) ||
+            profile is null ||
+            !profile.AuthorizedControls.HasFlag(HardwareControlCapabilities.FanControl))
+        {
+            logger.LogError("FanGuard found no authorized hardware profile for fan recovery.");
+            return 4;
+        }
+
         await using AcerServiceClient service = new(logger);
         AcerWmiClient wmi = new(logger);
 
@@ -49,20 +58,26 @@ internal static class Program
                 catch (OperationCanceledException)
                 {
                     logger.LogError("FanGuard heartbeat timed out; restoring automatic fan control.");
-                    await RestoreAutomaticFanAsync(service, wmi).ConfigureAwait(false);
-                    return 3;
+                    FanRecoveryStatus recovery = await RestoreAutomaticFanAsync(service, wmi)
+                        .ConfigureAwait(false);
+                    LogRecoveryStatus(logger, recovery);
+                    return RecoveryExitCode(recovery, 3);
                 }
 
                 if (message is null)
                 {
-                    await RestoreAutomaticFanAsync(service, wmi).ConfigureAwait(false);
-                    return 0;
+                    FanRecoveryStatus recovery = await RestoreAutomaticFanAsync(service, wmi)
+                        .ConfigureAwait(false);
+                    LogRecoveryStatus(logger, recovery);
+                    return RecoveryExitCode(recovery, 0);
                 }
 
                 if (string.Equals(message, "STOP", StringComparison.Ordinal))
                 {
-                    await RestoreAutomaticFanAsync(service, wmi).ConfigureAwait(false);
-                    return 0;
+                    FanRecoveryStatus recovery = await RestoreAutomaticFanAsync(service, wmi)
+                        .ConfigureAwait(false);
+                    LogRecoveryStatus(logger, recovery);
+                    return RecoveryExitCode(recovery, 0);
                 }
 
                 if (!string.Equals(message, "PING", StringComparison.Ordinal))
@@ -71,18 +86,51 @@ internal static class Program
                 }
             }
 
-            await RestoreAutomaticFanAsync(service, wmi).ConfigureAwait(false);
-            return 0;
+            FanRecoveryStatus parentExitRecovery = await RestoreAutomaticFanAsync(service, wmi)
+                .ConfigureAwait(false);
+            LogRecoveryStatus(logger, parentExitRecovery);
+            return RecoveryExitCode(parentExitRecovery, 0);
         }
         catch (Exception exception)
         {
             logger.LogError("FanGuard failed", exception);
-            await RestoreAutomaticFanAsync(service, wmi).ConfigureAwait(false);
+            FanRecoveryStatus failureRecovery = await RestoreAutomaticFanAsync(service, wmi)
+                .ConfigureAwait(false);
+            LogRecoveryStatus(logger, failureRecovery);
             return 1;
         }
     }
 
-    private static async Task RestoreAutomaticFanAsync(AcerServiceClient service, AcerWmiClient wmi)
+    internal enum FanRecoveryStatus
+    {
+        Failed,
+        Verified,
+        TransportAccepted
+    }
+
+    private static void LogRecoveryStatus(FileAppLogger logger, FanRecoveryStatus status)
+    {
+        if (status == FanRecoveryStatus.Failed)
+        {
+            logger.LogError("FanGuard could not restore automatic fan control.");
+        }
+        else if (status == FanRecoveryStatus.TransportAccepted)
+        {
+            logger.LogError("FanGuard WMI recovery was accepted without a fan-mode read-back endpoint.");
+        }
+    }
+
+    internal static int RecoveryExitCode(FanRecoveryStatus status, int verifiedExitCode) =>
+        status switch
+        {
+            FanRecoveryStatus.Verified => verifiedExitCode,
+            FanRecoveryStatus.TransportAccepted => 2,
+            _ => 1
+        };
+
+    private static async Task<FanRecoveryStatus> RestoreAutomaticFanAsync(
+        AcerServiceClient service,
+        AcerWmiClient wmi)
     {
         JsonObject parameters = CreateAutomaticFanParameters();
 
@@ -90,10 +138,12 @@ internal static class Program
         {
             try
             {
-                AcerResponse response = await service.SetAsync(AcerProtocol.FanControl, parameters).ConfigureAwait(false);
-                if (response.IsSuccess)
+                AcerResponse response = await service.SetAsync(
+                    AcerProtocol.FanControl,
+                    parameters).ConfigureAwait(false);
+                if (response.IsSuccess && await IsAutomaticFanVerifiedAsync(service).ConfigureAwait(false))
                 {
-                    return;
+                    return FanRecoveryStatus.Verified;
                 }
             }
             catch
@@ -102,7 +152,7 @@ internal static class Program
 
             if (await wmi.SetFanModeAsync(FanMode.Auto, 50, 50).ConfigureAwait(false))
             {
-                return;
+                return FanRecoveryStatus.TransportAccepted;
             }
 
             if (attempt < 2)
@@ -110,6 +160,16 @@ internal static class Program
                 await Task.Delay(300).ConfigureAwait(false);
             }
         }
+
+        return FanRecoveryStatus.Failed;
+    }
+
+    private static async Task<bool> IsAutomaticFanVerifiedAsync(AcerServiceClient service)
+    {
+        AcerResponse response = await service.QueryAsync(AcerProtocol.FanControl).ConfigureAwait(false);
+        return response.IsSuccess &&
+            response.TryGetInt("mode", out int mode) &&
+            mode == (int)FanMode.Auto;
     }
 
     internal static JsonObject CreateAutomaticFanParameters() => new()

@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using PredatorLite.Core.Models;
+using PredatorLite.ElevatedHelper;
 using ElevatedHelperProgram = PredatorLite.ElevatedHelper.Program;
 using FanGuardProgram = PredatorLite.FanGuard.Program;
 
@@ -27,6 +28,98 @@ public sealed class CompanionSafetyBoundaryTests
     public void ElevatedHelperServiceAllowlistIsExact(string serviceName, bool expected)
     {
         Assert.Equal(expected, ElevatedHelperProgram.IsManagedService(serviceName));
+    }
+
+    [Fact]
+    public void ElevatedHelperRejectsTamperedBackupEntries()
+    {
+        ServiceBackup backup = new()
+        {
+            IsApplied = true,
+            Services =
+            [
+                new ServiceBackupItem
+                {
+                    Name = "Spooler",
+                    StartValue = 2
+                }
+            ]
+        };
+
+        Assert.False(ElevatedHelperProgram.IsValidBackup(backup));
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(5)]
+    public void ElevatedHelperRejectsInvalidServiceStartValues(int startValue)
+    {
+        ServiceBackup backup = new()
+        {
+            Services =
+            [
+                new ServiceBackupItem
+                {
+                    Name = "PredatorService",
+                    StartValue = startValue
+                }
+            ]
+        };
+
+        Assert.False(ElevatedHelperProgram.IsValidBackup(backup));
+    }
+
+    [Fact]
+    public void ElevatedHelperAcceptsAValidBackup()
+    {
+        ServiceBackup backup = new()
+        {
+            Services =
+            [
+                new ServiceBackupItem
+                {
+                    Name = "PredatorService",
+                    StartValue = 3
+                }
+            ]
+        };
+
+        Assert.True(ElevatedHelperProgram.IsValidBackup(backup));
+    }
+
+    [Fact]
+    public void ElevatedHelperRequiresAnAppliedBackupForRestore()
+    {
+        ServiceBackup backup = new()
+        {
+            Services =
+            [
+                new ServiceBackupItem
+                {
+                    Name = "PredatorService",
+                    StartValue = 3
+                }
+            ]
+        };
+
+        Assert.False(ElevatedHelperProgram.IsValidRestoreBackup(backup));
+        backup.IsApplied = true;
+        Assert.True(ElevatedHelperProgram.IsValidRestoreBackup(backup));
+    }
+
+    [Theory]
+    [InlineData(1, 0, 0)]
+    [InlineData(1, 3, 3)]
+    [InlineData(2, 0, 2)]
+    [InlineData(0, 0, 1)]
+    public void FanGuardDoesNotReportUnverifiedRecoveryAsSuccess(
+        int statusValue,
+        int verifiedExitCode,
+        int expectedExitCode)
+    {
+        FanGuardProgram.FanRecoveryStatus status =
+            (FanGuardProgram.FanRecoveryStatus)statusValue;
+        Assert.Equal(expectedExitCode, FanGuardProgram.RecoveryExitCode(status, verifiedExitCode));
     }
 
     [Fact]

@@ -33,7 +33,7 @@
     <sys:String x:Key="Description.CpuTelemetry">处理器温度、负载、频率与风扇。</sys:String>
     <sys:String x:Key="Description.GpuTelemetry">显卡温度、负载、功耗、频率与风扇。</sys:String>
     <sys:String x:Key="Description.SystemTelemetry">内存、显存、电池、供电与屏幕。</sys:String>
-    <sys:String x:Key="Description.Application">这些偏好只影响 PredatorLite 的行为。</sys:String>
+    <sys:String x:Key="Description.Application">PredatorLite 是独立、非官方的 PredatorSense 替代方案。这些偏好只影响 PredatorLite 的行为。</sys:String>
     <sys:String x:Key="Description.Services">高级服务管理需要管理员权限，并保留原启动方式。</sys:String>
     <sys:String x:Key="Description.ServiceActions">停用冲突服务会请求管理员权限；恢复操作会使用此前备份的启动方式。</sys:String>
     <sys:String x:Key="Description.Diagnostics">导出诊断信息或直接打开本地日志目录。</sys:String>
@@ -87,9 +87,9 @@
     <sys:String x:Key="FanCurveValidation.SpeedDecreases">{0} 第 {1} 点：转速不能降低。</sys:String>
     <sys:String x:Key="FanCurveValidation.InvalidSafetyEndpoint">{0} 安全端点必须为 {1}°C、100%。</sys:String>
     <sys:String x:Key="Compatibility.None">{0} BIOS {1} 已通过硬件控制验证。</sys:String>
-    <sys:String x:Key="Compatibility.UnsupportedModel">暂不支持型号 {0}，仍可使用诊断功能。</sys:String>
-    <sys:String x:Key="Compatibility.UnvalidatedBios">BIOS {0} 尚未验证，硬件控制保持只读。</sys:String>
+    <sys:String x:Key="Compatibility.UnsupportedTargetProfile">当前机型 {0} / BIOS {1} 尚无已验证的硬件 profile，仍可使用诊断功能。</sys:String>
     <sys:String x:Key="Compatibility.ControlBackendUnavailable">未检测到受支持的 Acer 控制后端，硬件控制保持只读。</sys:String>
+    <sys:String x:Key="Compatibility.ControlNotAuthorized">当前硬件 profile 未授权此控制项。</sys:String>
     <sys:String x:Key="LightingEffect.Static">静态</sys:String>
     <sys:String x:Key="LightingEffect.Breathing">呼吸</sys:String>
     <sys:String x:Key="LightingEffect.Neon">霓虹</sys:String>

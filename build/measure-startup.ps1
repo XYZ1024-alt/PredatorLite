@@ -21,7 +21,7 @@ if (-not (Test-Path -LiteralPath $executablePath -PathType Leaf)) {
     throw "PredatorLite executable was not found: $executablePath"
 }
 if ($Scope -notin @("Tray", "Shell") -and -not $AllowHardwareInitialization) {
-    throw "Critical and Deferred measurements run hardware initialization. Pass -AllowHardwareInitialization only on the validated PHN16-71 / BIOS V1.20 test machine."
+    throw "Critical and Deferred measurements run hardware initialization. Pass -AllowHardwareInitialization only on the current PHN16-71 / BIOS V1.20 profile test machine."
 }
 
 $targetMilestone = switch ($Scope) {
