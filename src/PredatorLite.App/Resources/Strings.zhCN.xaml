@@ -32,7 +32,7 @@
     <sys:String x:Key="Hint.ApplyRequired">更改后应用</sys:String>
     <sys:String x:Key="Description.CpuTelemetry">处理器温度、负载、频率与风扇。</sys:String>
     <sys:String x:Key="Description.GpuTelemetry">显卡温度、负载、功耗、频率与风扇。</sys:String>
-    <sys:String x:Key="Description.SystemTelemetry">内存、显存、电池、供电、屏幕与帧率。</sys:String>
+    <sys:String x:Key="Description.SystemTelemetry">内存、显存、电池、供电与屏幕。</sys:String>
     <sys:String x:Key="Description.Application">这些偏好只影响 PredatorLite 的行为。</sys:String>
     <sys:String x:Key="Description.Services">高级服务管理需要管理员权限，并保留原启动方式。</sys:String>
     <sys:String x:Key="Description.ServiceActions">停用冲突服务会请求管理员权限；恢复操作会使用此前备份的启动方式。</sys:String>
@@ -43,7 +43,6 @@
     <sys:String x:Key="Description.AutoEco">使用电池供电时自动进入节能模式。</sys:String>
     <sys:String x:Key="Description.AutoRefresh">根据电源状态选择最低或最高刷新率。</sys:String>
     <sys:String x:Key="Description.ShowOsd">在桌面顶部显示紧凑性能浮窗。</sys:String>
-    <sys:String x:Key="Description.ShowFps">将实时帧率加入性能浮窗。</sys:String>
     <sys:String x:Key="Description.GlobalHotkeys">允许全局显示窗口与循环切换模式。</sys:String>
     <sys:String x:Key="Section.OperatingMode">运行模式</sys:String>
     <sys:String x:Key="Section.Fan">风扇控制</sys:String>
@@ -115,7 +114,6 @@
     <sys:String x:Key="Metric.Battery">电量</sys:String>
     <sys:String x:Key="Metric.PowerSource">供电</sys:String>
     <sys:String x:Key="Metric.RefreshRate">刷新率</sys:String>
-    <sys:String x:Key="Metric.Fps">帧率</sys:String>
     <sys:String x:Key="Label.Current">当前</sys:String>
     <sys:String x:Key="Label.Zone">区域</sys:String>
     <sys:String x:Key="Label.Model">型号</sys:String>
@@ -143,7 +141,6 @@
     <sys:String x:Key="Label.AutoEco">电池供电时自动节能</sys:String>
     <sys:String x:Key="Label.AutoRefresh">按供电状态自动切换刷新率</sys:String>
     <sys:String x:Key="Label.ShowOsd">显示性能浮窗</sys:String>
-    <sys:String x:Key="Label.ShowFps">在浮窗中显示帧率</sys:String>
     <sys:String x:Key="Label.GlobalHotkeys">启用全局快捷操作</sys:String>
     <sys:String x:Key="Label.Required">必需</sys:String>
     <sys:String x:Key="Label.Optional">可管理</sys:String>
@@ -181,7 +178,6 @@
     <sys:String x:Key="Status.DiagnosticsExported">诊断包已导出</sys:String>
     <sys:String x:Key="Status.FanGuardFailed">无法启动风扇守护，未切换风扇模式。</sys:String>
     <sys:String x:Key="Status.StartupFailed">无法更新开机启动设置。</sys:String>
-    <sys:String x:Key="Status.FpsFailed">无法启动帧率采集。</sys:String>
     <sys:String x:Key="Status.InitializationFailed">PredatorLite 初始化失败，请查看日志或重试。</sys:String>
     <sys:String x:Key="Status.OperationFailed">无法应用所请求的更改，详细信息已写入日志。</sys:String>
     <sys:String x:Key="Status.NotSupported">当前设备不支持此项控制。</sys:String>

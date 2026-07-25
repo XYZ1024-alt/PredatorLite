@@ -49,6 +49,7 @@ public partial class App : Application
             DispatcherQueue dispatcher = DispatcherQueue.GetForCurrentThread();
             localization = new LocalizationService();
             localization.SetLanguage("zh-CN");
+            StartupTelemetry.Mark("localization-ready");
             MainWindow? window = null;
             DesktopUserInteraction interaction = new(
                 () => window?.Content is FrameworkElement element ? element.XamlRoot : null,
@@ -61,7 +62,6 @@ public partial class App : Application
                 new JsonSettingsStore(),
                 _logger,
                 new QuickAccessModeKeySource(_logger),
-                new DeferredFpsSource(() => new EtwFpsSource(_logger)),
                 new FanGuardClient(_logger),
                 localization,
                 interaction,
@@ -79,6 +79,7 @@ public partial class App : Application
                 startHidden,
                 ExitAsync);
             _mainWindow = window;
+            StartupTelemetry.Mark("window-created");
             window.Activate();
             if (startHidden)
             {
@@ -90,6 +91,7 @@ public partial class App : Application
                 ShowForRedirectedActivation();
             }
 
+            await window.TrayReady;
             StartupTelemetry.Mark("tray-ready");
             _logger.Info(
                 $"Startup tray ready in {StartupTelemetry.ElapsedMilliseconds} ms: hidden={startHidden}.");

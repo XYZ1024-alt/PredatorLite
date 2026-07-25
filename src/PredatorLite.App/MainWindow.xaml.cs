@@ -35,6 +35,8 @@ public sealed partial class MainWindow : Window, IDisposable
     private readonly InputNonClientPointerSource _nonClientPointerSource;
     private readonly NativeWindowSubclass _windowSubclass;
     private readonly PredatorKeySource _predatorKeySource;
+    private readonly TaskCompletionSource _trayReady = new(
+        TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly List<MainShell> _shellLayers = [];
     private MainShell? _shell;
     private XamlRoot? _shellXamlRoot;
@@ -43,6 +45,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private OsdWindow? _osdWindow;
     private bool _allowClose;
     private bool _disposed;
+    private bool _shellReadyReported;
     private readonly bool _startHidden;
     private int _shellRebuildGeneration;
 
@@ -76,16 +79,20 @@ public sealed partial class MainWindow : Window, IDisposable
             EnsureShell();
         }
 
-        CreateTrayIcon();
         _localization.LanguageChanged += OnLanguageChanged;
 
         Closed += OnClosed;
         _viewModel.PropertyChanged += ViewModelOnPropertyChanged;
         _predatorKeySource.ActivationRequested += OnPredatorKeyActivationRequested;
-        _predatorKeySource.Start();
+        if (startHidden)
+        {
+            CreateTrayIconAndSignal();
+        }
     }
 
     public IntPtr WindowHandle { get; }
+
+    public Task TrayReady => _trayReady.Task;
 
     public void ShowAndActivate()
     {
@@ -160,6 +167,7 @@ public sealed partial class MainWindow : Window, IDisposable
         _osdWindow = null;
         TryCleanup(() => _trayIcon?.Dispose(), "tray icon");
         _trayIcon = null;
+        TryCleanup(() => CompositionTarget.Rendering -= OnFirstShellRendering, "startup rendering handler");
         TryCleanup(_motion.Dispose, "motion service");
         GC.SuppressFinalize(this);
     }
@@ -201,15 +209,20 @@ public sealed partial class MainWindow : Window, IDisposable
     {
         ExtendsContentIntoTitleBar = true;
         _appWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Collapsed;
-        SystemBackdrop = DesktopAcrylicController.IsSupported()
-            ? new DesktopAcrylicBackdrop()
-            : new MicaBackdrop { Kind = MicaKind.BaseAlt };
         if (_appWindow.Presenter is OverlappedPresenter presenter)
         {
             presenter.IsMaximizable = false;
         }
 
         PositionAtBottomRight(windowId, useInitialSize: true);
+    }
+
+    private void ApplyDeferredWindowChrome()
+    {
+        SystemBackdrop = DesktopAcrylicController.IsSupported()
+            ? new DesktopAcrylicBackdrop()
+            : new MicaBackdrop { Kind = MicaKind.BaseAlt };
+        WindowHost.Background = null;
 
         string iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "PredatorLiteFluent.ico");
         if (File.Exists(iconPath))
@@ -371,7 +384,8 @@ public sealed partial class MainWindow : Window, IDisposable
             _motion,
             _logger,
             MinimizeWindow,
-            HideToTray);
+            HideToTray,
+            deferHomeContent: !_shellReadyReported);
         foreach (MainShell staleShell in _shellLayers.ToArray())
         {
             staleShell.Loaded -= OnShellLoaded;
@@ -419,6 +433,39 @@ public sealed partial class MainWindow : Window, IDisposable
         }
 
         UpdateCaptionButtonInputRegion(shell);
+        if (!_shellReadyReported)
+        {
+            CompositionTarget.Rendering += OnFirstShellRendering;
+        }
+    }
+
+    private void OnFirstShellRendering(object? sender, object args)
+    {
+        CompositionTarget.Rendering -= OnFirstShellRendering;
+        if (_shellReadyReported)
+        {
+            return;
+        }
+
+        _shellReadyReported = true;
+        StartupTelemetry.Mark("shell-ready");
+        if (!DispatcherQueue.TryEnqueue(CompleteVisibleStartup))
+        {
+            CompleteVisibleStartup();
+        }
+    }
+
+    private void CompleteVisibleStartup()
+    {
+        CreateTrayIconAndSignal();
+        try
+        {
+            _shell?.LoadDeferredHomeContent();
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError("Deferred Home content initialization failed", exception);
+        }
     }
 
     private void OnShellSizeChanged(object sender, SizeChangedEventArgs e)
@@ -467,6 +514,26 @@ public sealed partial class MainWindow : Window, IDisposable
             [new RectInt32(left, top, right - left, bottom - top)]);
     }
 
+    private void CreateTrayIconAndSignal()
+    {
+        if (_trayReady.Task.IsCompleted)
+        {
+            return;
+        }
+
+        try
+        {
+            CreateTrayIcon();
+            ApplyDeferredWindowChrome();
+            _predatorKeySource.Start();
+            _trayReady.TrySetResult();
+        }
+        catch (Exception exception)
+        {
+            _trayReady.TrySetException(exception);
+        }
+    }
+
     private void CreateTrayIcon()
     {
         _trayIcon = new TrayIconView();
@@ -493,7 +560,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private void UpdateOsdVisibility()
     {
-        bool visible = _viewModel.ShowOsd || _viewModel.ShowFps;
+        bool visible = _viewModel.ShowOsd;
         if (!visible)
         {
             _osdWindow?.HideOverlay();
@@ -506,7 +573,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private void ViewModelOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(MainViewModel.ShowOsd) or nameof(MainViewModel.ShowFps))
+        if (e.PropertyName == nameof(MainViewModel.ShowOsd))
         {
             if (_viewModel.IntegrationsReady)
             {
@@ -526,8 +593,6 @@ public sealed partial class MainWindow : Window, IDisposable
             {
                 RebuildShell(animate: true);
             }
-
-            _osdWindow?.RebuildContent();
         }
         else if (e.PropertyName == nameof(MainViewModel.IsInitialized) && _viewModel.IsInitialized)
         {

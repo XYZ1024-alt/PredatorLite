@@ -8,7 +8,6 @@ public sealed partial class SettingsPage : Page
 {
     private bool _loaded;
     private bool _handlingRunAtStartup;
-    private bool _handlingFps;
     private bool _savingPreferences;
     private bool _preferencesDirty;
 
@@ -69,25 +68,4 @@ public sealed partial class SettingsPage : Page
             _savingPreferences = false;
         }
     }
-
-    private async void ShowFps_Toggled(object sender, RoutedEventArgs e)
-    {
-        if (!_loaded || _handlingFps || sender is not ToggleSwitch toggle)
-        {
-            return;
-        }
-
-        _handlingFps = true;
-        toggle.IsEnabled = false;
-        try
-        {
-            await ViewModel.SetFpsEnabledCommand.ExecuteAsync(toggle.IsOn);
-        }
-        finally
-        {
-            toggle.IsEnabled = true;
-            _handlingFps = false;
-        }
-    }
-
 }

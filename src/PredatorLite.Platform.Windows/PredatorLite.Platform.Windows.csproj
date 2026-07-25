@@ -6,13 +6,15 @@
 
   <ItemGroup>
     <PackageReference Include="LibreHardwareMonitorLib" />
-    <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" />
     <PackageReference Include="System.Management" />
     <PackageReference Include="System.ServiceProcess.ServiceController" />
   </ItemGroup>
 
   <PropertyGroup>
     <TargetFramework>$(PredatorLiteWindowsTargetFramework)</TargetFramework>
+    <RuntimeIdentifier>$(PredatorLiteRuntimeIdentifier)</RuntimeIdentifier>
+    <Platforms>$(PredatorLitePlatformTarget)</Platforms>
+    <PlatformTarget>$(PredatorLitePlatformTarget)</PlatformTarget>
   </PropertyGroup>
 
 </Project>

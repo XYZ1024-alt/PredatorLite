@@ -9,7 +9,8 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>$(PredatorLiteWindowsTargetFramework)</TargetFramework>
     <RuntimeIdentifier>$(PredatorLiteRuntimeIdentifier)</RuntimeIdentifier>
-    <PlatformTarget>x64</PlatformTarget>
+    <Platforms>$(PredatorLitePlatformTarget)</Platforms>
+    <PlatformTarget>$(PredatorLitePlatformTarget)</PlatformTarget>
   </PropertyGroup>
 
 </Project>

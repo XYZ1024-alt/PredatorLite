@@ -79,18 +79,9 @@ public sealed partial class OsdWindow : Window, IDisposable
         GC.SuppressFinalize(this);
     }
 
-    public void RebuildContent()
-    {
-        if (!_closed)
-        {
-            _content.RefreshLocalizedContent();
-        }
-    }
-
     private void OnClosed(object sender, WindowEventArgs args)
     {
         _closed = true;
-        _content.Dispose();
         Closed -= OnClosed;
     }
 

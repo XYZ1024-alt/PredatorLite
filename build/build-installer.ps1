@@ -405,6 +405,21 @@ try {
         if (-not (Test-Path -LiteralPath $stagedSetupPath -PathType Leaf)) {
             throw "Inno Setup did not create the expected installer: $stagedSetupPath"
         }
+        $maximumInstallerBytes = 25MB
+        $installerBytes = (Get-Item -LiteralPath $stagedSetupPath).Length
+        if ($installerBytes -gt $maximumInstallerBytes) {
+            Write-Host "Largest installer payload files:"
+            Get-ChildItem -LiteralPath $publishDirectory -Recurse -File |
+                Sort-Object Length -Descending |
+                Select-Object -First 15 |
+                ForEach-Object {
+                    $relativePath = [System.IO.Path]::GetRelativePath(
+                        $publishDirectory,
+                        $_.FullName)
+                    Write-Host ("  {0,12:N0}  {1}" -f $_.Length, $relativePath)
+                }
+            throw "Installer exceeds the $maximumInstallerBytes byte budget: $installerBytes bytes"
+        }
         if ($signingEnabled) {
             Invoke-NativeCommand `
                 -FilePath $signTool `

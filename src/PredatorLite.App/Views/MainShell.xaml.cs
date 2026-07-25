@@ -16,6 +16,7 @@ public sealed partial class MainShell : UserControl
     private readonly IAppLogger _logger;
     private readonly Action _minimizeWindow;
     private readonly Action _hideWindow;
+    private bool _deferHomeContent;
     private AppSection? _currentSection;
     private bool _loaded;
 
@@ -24,13 +25,15 @@ public sealed partial class MainShell : UserControl
         UiMotionService motion,
         IAppLogger logger,
         Action minimizeWindow,
-        Action hideWindow)
+        Action hideWindow,
+        bool deferHomeContent)
     {
         ViewModel = viewModel;
         _motion = motion;
         _logger = logger;
         _minimizeWindow = minimizeWindow;
         _hideWindow = hideWindow;
+        _deferHomeContent = deferHomeContent;
         try
         {
             InitializeComponent();
@@ -43,7 +46,7 @@ public sealed partial class MainShell : UserControl
         RootLayout.AddHandler(UIElement.KeyDownEvent, new KeyEventHandler(OnRootKeyDown), true);
         _pageFactories = new Dictionary<AppSection, Func<Page>>
         {
-            [AppSection.Home] = () => new HomePage(viewModel),
+            [AppSection.Home] = CreateHomePage,
             [AppSection.Cooling] = () => new CoolingPage(viewModel),
             [AppSection.Lighting] = () => new LightingPage(viewModel),
             [AppSection.Monitor] = () => new MonitorPage(viewModel),
@@ -58,6 +61,15 @@ public sealed partial class MainShell : UserControl
     public FrameworkElement TitleBarDragRegion => TitleBarDragSurface;
 
     public FrameworkElement CaptionButtonInputRegion => CaptionButtonRegion;
+
+    internal void LoadDeferredHomeContent()
+    {
+        _deferHomeContent = false;
+        if (_pages.TryGetValue(AppSection.Home, out Page? page) && page is HomePage homePage)
+        {
+            homePage.LoadDeferredContent();
+        }
+    }
 
     public void ResetCaptionButtonVisualStates()
     {
@@ -74,6 +86,17 @@ public sealed partial class MainShell : UserControl
 
         Navigate(AppSection.Home, animate: true);
         return true;
+    }
+
+    private HomePage CreateHomePage()
+    {
+        HomePage page = new(ViewModel);
+        if (!_deferHomeContent)
+        {
+            page.LoadDeferredContent();
+        }
+
+        return page;
     }
 
     private Page GetOrCreatePage(AppSection section)

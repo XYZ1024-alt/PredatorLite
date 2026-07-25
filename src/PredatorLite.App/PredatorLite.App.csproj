@@ -29,8 +29,8 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\PredatorLiteFluent.ico</ApplicationIcon>
     <RuntimeIdentifier>$(PredatorLiteRuntimeIdentifier)</RuntimeIdentifier>
-    <Platforms>x64</Platforms>
-    <PlatformTarget>x64</PlatformTarget>
+    <Platforms>$(PredatorLitePlatformTarget)</Platforms>
+    <PlatformTarget>$(PredatorLitePlatformTarget)</PlatformTarget>
     <AssemblyName>PredatorLite</AssemblyName>
     <Product>PredatorLite</Product>
     <Description>Lightweight Acer Predator PHN16-71 control utility</Description>
@@ -54,6 +54,45 @@
       <CompanionFile Include="$(MSBuildProjectDirectory)\..\PredatorLite.ElevatedHelper\bin\$(Configuration)\$(PredatorLiteWindowsTargetFramework)\$(RuntimeIdentifier)\PredatorLite.ElevatedHelper.*" />
     </ItemGroup>
     <Copy SourceFiles="@(CompanionFile)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+  </Target>
+
+  <ItemGroup>
+    <PublishReadyToRunExclude Include="BlackSharp.Core.dll" />
+    <PublishReadyToRunExclude Include="DiskInfoToolkit.dll" />
+    <PublishReadyToRunExclude Include="HidSharp.dll" />
+    <PublishReadyToRunExclude Include="LibreHardwareMonitorLib.dll" />
+    <PublishReadyToRunExclude Include="Microsoft.Graphics.Imaging.Projection.dll" />
+    <PublishReadyToRunExclude Include="Microsoft.ML.OnnxRuntime.dll" />
+    <PublishReadyToRunExclude Include="Microsoft.Windows.AI.ContentSafety.Projection.dll" />
+    <PublishReadyToRunExclude Include="Microsoft.Windows.AI.Foundation.Projection.dll" />
+    <PublishReadyToRunExclude Include="Microsoft.Windows.AI.Imaging.Projection.dll" />
+    <PublishReadyToRunExclude Include="Microsoft.Windows.AI.MachineLearning.Projection.dll" />
+    <PublishReadyToRunExclude Include="Microsoft.Windows.AI.Projection.dll" />
+    <PublishReadyToRunExclude Include="Microsoft.Windows.AI.Text.Projection.dll" />
+    <PublishReadyToRunExclude Include="Microsoft.Windows.AI.Video.Projection.dll" />
+    <PublishReadyToRunExclude Include="Microsoft.Windows.Widgets.Projection.dll" />
+    <PublishReadyToRunExclude Include="Mono.Posix.NETStandard.dll" />
+    <PublishReadyToRunExclude Include="RAMSPDToolkit-NDD.dll" />
+    <PublishReadyToRunExclude Include="System.IO.Ports.dll" />
+    <PublishReadyToRunExclude Include="System.Numerics.Tensors.dll" />
+  </ItemGroup>
+
+  <Target Name="SuppressFrameworkProvidedWindowsMlNativePublishAssets"
+          BeforeTargets="_ResolveCopyLocalAssetsForPublish;GeneratePublishDependencyFile"
+          DependsOnTargets="ResolveLockFileCopyLocalFiles"
+          Condition="'$(SelfContained)' != 'true' and
+                     '$(WindowsAppSDKSelfContained)' != 'true' and
+                     '$(MicrosoftWindowsAppSDKPackageDir)' != ''">
+    <ItemGroup>
+      <NativeCopyLocalItems Remove="@(NativeCopyLocalItems)"
+                            Condition="'%(NativeCopyLocalItems.NuGetPackageId)' == 'Microsoft.Windows.AI.MachineLearning'" />
+      <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)"
+                               Condition="'%(ReferenceCopyLocalPaths.NuGetPackageId)' == 'Microsoft.Windows.AI.MachineLearning' and
+                                          '%(ReferenceCopyLocalPaths.AssetType)' == 'native'" />
+      <_ResolvedCopyLocalBuildAssets Remove="@(_ResolvedCopyLocalBuildAssets)"
+                                     Condition="'%(_ResolvedCopyLocalBuildAssets.NuGetPackageId)' == 'Microsoft.Windows.AI.MachineLearning' and
+                                                '%(_ResolvedCopyLocalBuildAssets.AssetType)' == 'native'" />
+    </ItemGroup>
   </Target>
 
   <Target Name="CopyWinUiResourcesToPublish" AfterTargets="Publish">

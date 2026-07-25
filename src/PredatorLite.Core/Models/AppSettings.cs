@@ -20,8 +20,6 @@ public sealed class AppSettings
 
     public bool ShowOsd { get; set; }
 
-    public bool ShowFps { get; set; }
-
     public bool ChargeLimit80Percent { get; set; }
 
     public int? PreferredRefreshRate { get; set; }

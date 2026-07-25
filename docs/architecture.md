@@ -13,7 +13,7 @@ IPredatorPlatform
    |                |             |                |
    v                v             v                v
 AcerService   AcerSysMonitor   Acer WMI     Windows read-only telemetry
-TCP 46933     TCP 46753        provider     display, power, LHM, ETW FPS
+TCP 46933     TCP 46753        provider     display, power, LHM
 
 MainViewModel -- named-pipe heartbeat --> FanGuard
 Settings UI  -- explicit UAC action --> ElevatedHelper
@@ -26,7 +26,7 @@ Settings UI  -- explicit UAC action --> ElevatedHelper
 Startup is split into a control-critical phase and deferred initialization:
 
 1. Before XAML starts, the synchronous STA entry point initializes COM wrappers and registers `Microsoft.Windows.AppLifecycle.AppInstance`. A secondary process redirects activation with a COM-aware wait and exits; the primary marshals redirected activation to its UI dispatcher without rerunning initialization.
-2. Start WinUI with `DispatcherQueueSynchronizationContext`, load the compiled language XBF, and create the lightweight window and tray. A `--background` launch does not create the shell or any page.
+2. Start WinUI with `DispatcherQueueSynchronizationContext` and load the compiled language resources. Hidden startup creates the lightweight window and tray without the shell or any page. Visible startup enters the shell's first rendering tick, then queues Acrylic/Mica, the tray, window icon, dedicated-key listener, and compiled lower Home graphics/display template for the next dispatcher turn.
 3. Start versioned, source-generated JSON settings loading and the read-only platform startup probe concurrently. Apply settings and the selected compiled resource dictionary on the UI thread.
 4. Read identity/BIOS, power state, the AcerService operating-mode state and an operational Acer WMI mode fallback.
 5. After the exact model/BIOS gate succeeds, restore the saved non-Eco mode, or Eco on battery when that automation is enabled. A freshly verified matching mode only reapplies the Windows power overlay and sends no Acer write.
@@ -40,9 +40,9 @@ The ordinary-user `AcerSysMonitorService` endpoint on `127.0.0.1:46753` supplies
 frequency, load and fan speed on every telemetry cycle. Acer WMI remains a temperature/fan fallback,
 and Windows processor counters remain a CPU load/frequency fallback.
 
-LibreHardwareMonitor is created only while the Monitor tab, OSD/FPS, or an explicitly enabled Custom
+LibreHardwareMonitor is created only while the Monitor tab, OSD, or an explicitly enabled Custom
 fan curve needs GPU power, VRAM, memory or other extended telemetry. Its CPU backend is always disabled
-so PredatorLite does not initialize PawnIO or a privileged MSR path. ETW is loaded only after FPS is enabled.
+so PredatorLite does not initialize PawnIO or a privileged MSR path.
 
 ## Hardware command sequence
 

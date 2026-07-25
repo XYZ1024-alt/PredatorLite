@@ -32,7 +32,7 @@
     <sys:String x:Key="Hint.ApplyRequired">Apply after changes</sys:String>
     <sys:String x:Key="Description.CpuTelemetry">Processor temperature, load, clock, and fan.</sys:String>
     <sys:String x:Key="Description.GpuTelemetry">Graphics temperature, load, power, clock, and fan.</sys:String>
-    <sys:String x:Key="Description.SystemTelemetry">Memory, VRAM, battery, power, display, and frame rate.</sys:String>
+    <sys:String x:Key="Description.SystemTelemetry">Memory, VRAM, battery, power, and display.</sys:String>
     <sys:String x:Key="Description.Application">These preferences affect PredatorLite behavior only.</sys:String>
     <sys:String x:Key="Description.Services">Advanced service management requires administrator access and preserves original start modes.</sys:String>
     <sys:String x:Key="Description.ServiceActions">Disabling conflicts requests administrator access. Restore uses the previously backed-up start modes.</sys:String>
@@ -43,7 +43,6 @@
     <sys:String x:Key="Description.AutoEco">Enter Eco mode automatically while running on battery.</sys:String>
     <sys:String x:Key="Description.AutoRefresh">Select the lowest or highest refresh rate based on power source.</sys:String>
     <sys:String x:Key="Description.ShowOsd">Show a compact performance overlay near the top of the desktop.</sys:String>
-    <sys:String x:Key="Description.ShowFps">Include live frame rate in the performance overlay.</sys:String>
     <sys:String x:Key="Description.GlobalHotkeys">Allow global window access and operating mode cycling.</sys:String>
     <sys:String x:Key="Section.OperatingMode">Operating mode</sys:String>
     <sys:String x:Key="Section.Fan">Fan control</sys:String>
@@ -115,7 +114,6 @@
     <sys:String x:Key="Metric.Battery">Battery</sys:String>
     <sys:String x:Key="Metric.PowerSource">Power source</sys:String>
     <sys:String x:Key="Metric.RefreshRate">Refresh rate</sys:String>
-    <sys:String x:Key="Metric.Fps">Frame rate</sys:String>
     <sys:String x:Key="Label.Current">Current</sys:String>
     <sys:String x:Key="Label.Zone">Zone</sys:String>
     <sys:String x:Key="Label.Model">Model</sys:String>
@@ -143,7 +141,6 @@
     <sys:String x:Key="Label.AutoEco">Use Eco mode on battery</sys:String>
     <sys:String x:Key="Label.AutoRefresh">Switch refresh rate with power source</sys:String>
     <sys:String x:Key="Label.ShowOsd">Show performance overlay</sys:String>
-    <sys:String x:Key="Label.ShowFps">Show FPS in overlay</sys:String>
     <sys:String x:Key="Label.GlobalHotkeys">Enable global shortcuts</sys:String>
     <sys:String x:Key="Label.Required">Required</sys:String>
     <sys:String x:Key="Label.Optional">Managed</sys:String>
@@ -181,7 +178,6 @@
     <sys:String x:Key="Status.DiagnosticsExported">Diagnostics archive exported</sys:String>
     <sys:String x:Key="Status.FanGuardFailed">Fan guard could not start. Fan mode was not changed.</sys:String>
     <sys:String x:Key="Status.StartupFailed">The startup setting could not be updated.</sys:String>
-    <sys:String x:Key="Status.FpsFailed">FPS capture could not start.</sys:String>
     <sys:String x:Key="Status.InitializationFailed">PredatorLite could not initialize. Review the logs or retry.</sys:String>
     <sys:String x:Key="Status.OperationFailed">The requested change could not be applied. Details were written to the log.</sys:String>
     <sys:String x:Key="Status.NotSupported">This control is not available on the current device.</sys:String>

@@ -2,6 +2,9 @@
 
   <PropertyGroup>
     <TargetFramework>$(PredatorLiteWindowsTargetFramework)</TargetFramework>
+    <RuntimeIdentifier>$(PredatorLiteRuntimeIdentifier)</RuntimeIdentifier>
+    <Platforms>$(PredatorLitePlatformTarget)</Platforms>
+    <PlatformTarget>$(PredatorLitePlatformTarget)</PlatformTarget>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 

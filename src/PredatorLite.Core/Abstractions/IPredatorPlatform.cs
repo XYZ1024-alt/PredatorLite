@@ -62,17 +62,6 @@ public interface IModeKeySource : IAsyncDisposable
     Task StartAsync(CancellationToken cancellationToken = default);
 }
 
-public interface IFpsSource : IAsyncDisposable
-{
-    bool IsRunning { get; }
-
-    double? FramesPerSecond { get; }
-
-    Task<bool> StartAsync(CancellationToken cancellationToken = default);
-
-    Task StopAsync();
-}
-
 public interface ISettingsStore : IDisposable
 {
     string SettingsPath { get; }

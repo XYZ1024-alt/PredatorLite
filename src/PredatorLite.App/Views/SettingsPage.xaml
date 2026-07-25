@@ -99,17 +99,6 @@
                 </controls:SettingsCard>
                 <controls:SettingsCard
                     MinHeight="48"
-                    Description="{StaticResource Description.ShowFps}"
-                    Header="{StaticResource Label.ShowFps}">
-                    <ToggleSwitch
-                        AutomationProperties.AutomationId="Settings.ShowFps"
-                        IsOn="{x:Bind ViewModel.ShowFps, Mode=OneWay}"
-                        OffContent="{StaticResource State.Off}"
-                        OnContent="{StaticResource State.On}"
-                        Toggled="ShowFps_Toggled" />
-                </controls:SettingsCard>
-                <controls:SettingsCard
-                    MinHeight="48"
                     Description="{StaticResource Description.GlobalHotkeys}"
                     Header="{StaticResource Label.GlobalHotkeys}">
                     <ToggleSwitch

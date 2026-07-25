@@ -127,6 +127,33 @@ public sealed class JsonSettingsStoreTests
         }
     }
 
+    [Fact]
+    public async Task LegacyFpsSettingIsIgnoredAndRemovedOnNextSave()
+    {
+        string directory = CreateTestDirectory();
+        string path = Path.Combine(directory, "settings.json");
+        try
+        {
+            await File.WriteAllTextAsync(
+                path,
+                "{\"SchemaVersion\":1,\"Language\":\"en-US\",\"LastAcMode\":\"Performance\",\"ShowFps\":true}");
+            using JsonSettingsStore store = new(path);
+
+            AppSettings settings = await store.LoadAsync();
+
+            Assert.Equal("en-US", settings.Language);
+            Assert.Equal(OperatingMode.Performance, settings.LastAcMode);
+
+            await store.SaveAsync(settings);
+            string saved = await File.ReadAllTextAsync(path);
+            Assert.DoesNotContain("\"ShowFps\"", saved, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
     private static string CreateTestDirectory()
     {
         string directory = Path.Combine(Path.GetTempPath(), "PredatorLite.Tests", Guid.NewGuid().ToString("N"));

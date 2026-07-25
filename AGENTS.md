@@ -57,7 +57,7 @@ CI runs restore, dependency audit, Release build, format verification, tests, Be
 - `src/PredatorLite.App/App.xaml.cs` is the manual composition root and ordered lifetime/shutdown owner. There is no DI container.
 - `MainViewModel` is a CommunityToolkit `ObservableObject` shared by lazily created pages. It coordinates critical/deferred startup, settings, commands, telemetry polling, automation, and disposal.
 - UI commands flow through `MainViewModel`, then `IPredatorPlatform`, then `PredatorPlatform`; hardware protocol details must stay outside Core and XAML/code-behind.
-- Critical startup loads settings and probes identity, power, backend, and operating mode. Deferred startup performs the full capability probe, telemetry, optional listeners and FPS/ETW initialization, service inventory, and polling. Hidden startup must keep pages lazy.
+- Critical startup loads settings and probes identity, power, backend, and operating mode. Deferred startup performs the full capability probe, telemetry, optional listeners, service inventory, and polling. Hidden startup must keep pages lazy.
 - User-initiated hardware workflows are serialized by `MainViewModel._hardwareGate`. `PredatorPlatform._operationGate` additionally serializes operating-mode, fan, and GPU-MUX Acer operations; not every Platform setter uses that gate. Preserve these boundaries and assess concurrency explicitly when adding or changing setters.
 - Settings and diagnostics use source-generated `System.Text.Json` metadata. When serialized models change, update the applicable JSON context in Core, App diagnostics, Acer integration, Quick Access integration, or ElevatedHelper.
 
@@ -96,7 +96,7 @@ Read `docs/hardware-safety.md` and `docs/protocol-provenance.md` before changing
 
 ## RELEASE NOTES
 
-- `build/publish.ps1` produces a validated framework-dependent ReadyToRun layout in `publish\win-x64`. Retain the entire directory; target machines need .NET 10 Runtime x64 and Windows App Runtime 2.3 x64.
+- `build/publish.ps1` produces a validated framework-dependent balanced ReadyToRun layout in `publish\win-x64`: startup-critical assemblies use R2R while deferred telemetry and unused projection assemblies remain IL. Retain the entire directory; target machines need .NET 10 Runtime x64 and Windows App Runtime 2.3 x64.
 - ReadyToRun is the production mode. Native AOT is currently blocked by documented trim/AOT and unpackaged WinUI resource issues; do not suppress diagnostics or promote it without the full regression matrix.
 - Unsigned installers belong under `artifacts\installer\unsigned` and are test-only. Production installer work requires Inno Setup, SignTool, a publicly trusted code-signing certificate, and the process documented in `README.md`; only validated final artifacts are promoted to `publish\installer`.
 - Never commit generated `bin/`, `obj/`, `publish/`, `artifacts/`, `BenchmarkDotNet.Artifacts/`, `TestResults/`, `coverage/`, UI captures, logs, dumps, traces, archives/packages, machine settings, environment files, diagnostics, or signing key/certificate material.

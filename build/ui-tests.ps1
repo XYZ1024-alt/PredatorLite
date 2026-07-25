@@ -486,6 +486,19 @@ Test-Ui "CPU package power is absent from Monitor" {
         throw "Monitor must not expose CPU package power."
     }
 }
+Test-Ui "Monitor omits FPS telemetry" {
+    $monitorTreeJson = winapp ui inspect -a $AppPid --interactive --json 2>$null
+    Assert-WinAppSucceeded "Inspecting Monitor for removed FPS telemetry"
+    $monitorTree = $monitorTreeJson | ConvertFrom-Json -ErrorAction Stop
+    $monitorElements = @($monitorTree.elements)
+    $monitorElements += @($monitorTree.windows | ForEach-Object { $_.elements })
+    $fpsElements = @($monitorElements | Where-Object {
+        $_.automationId -match "Fps" -or $_.name -match "^(FPS|Frame rate|\u5E27\u7387)$"
+    })
+    if ($fpsElements.Count -gt 0) {
+        throw "Monitor still exposes removed FPS telemetry."
+    }
+}
 Save-UiStateScreenshot "05-monitor.png" "Shell.Nav.Monitor"
 
 Test-Ui "Settings controls are reachable" {
@@ -496,6 +509,9 @@ Test-Ui "Settings controls are reachable" {
     winapp ui wait-for "Settings.Services" -a $AppPid -t 3000
     Assert-WinAppSucceeded "Waiting for service settings"
     winapp ui wait-for "Settings.ExportDiagnostics" -a $AppPid -t 3000
+    Assert-WinAppSucceeded "Waiting for diagnostics settings"
+    winapp ui wait-for "Settings.ShowFps" -a $AppPid --gone -t 1000
+    Assert-WinAppSucceeded "Checking that the FPS setting is absent"
 }
 Test-Ui "Generic device switches are absent" {
     $settingsTreeJson = winapp ui inspect -a $AppPid --interactive --json 2>$null

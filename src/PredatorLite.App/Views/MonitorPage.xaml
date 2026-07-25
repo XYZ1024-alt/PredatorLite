@@ -143,14 +143,10 @@
                             <TextBlock Style="{StaticResource MetricValueTextStyle}" Text="{x:Bind ViewModel.RefreshRateText, Mode=OneWay}" />
                         </StackPanel>
                         <StackPanel Grid.Row="2" Grid.Column="1" Spacing="4">
-                            <TextBlock Style="{StaticResource MetricLabelTextStyle}" Text="{StaticResource Metric.Fps}" />
-                            <TextBlock Style="{StaticResource MetricValueTextStyle}" Text="{x:Bind ViewModel.FpsText, Mode=OneWay}" />
-                        </StackPanel>
-                        <StackPanel Grid.Row="3" Spacing="4">
                             <TextBlock Style="{StaticResource MetricLabelTextStyle}" Text="{StaticResource Section.OperatingMode}" />
                             <TextBlock Style="{StaticResource MetricValueTextStyle}" Text="{x:Bind ViewModel.CurrentOperatingModeName, Mode=OneWay}" />
                         </StackPanel>
-                        <StackPanel Grid.Row="3" Grid.Column="1" Spacing="4">
+                        <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Spacing="4">
                             <TextBlock Style="{StaticResource MetricLabelTextStyle}" Text="{StaticResource Section.Fan}" />
                             <TextBlock Style="{StaticResource MetricValueTextStyle}" Text="{x:Bind ViewModel.CurrentFanModeName, Mode=OneWay}" />
                         </StackPanel>

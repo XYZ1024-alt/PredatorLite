@@ -65,7 +65,6 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition x:Name="FpsColumn" Width="*" />
                 </Grid.ColumnDefinitions>
                 <StackPanel Spacing="4">
                     <TextBlock Style="{StaticResource MutedTextStyle}" Text="{x:Bind ViewModel.CpuLabel, Mode=OneWay}" />
@@ -78,13 +77,6 @@
                 <StackPanel Grid.Column="2" Spacing="4">
                     <TextBlock Style="{StaticResource MutedTextStyle}" Text="{x:Bind ViewModel.CpuFanLabel, Mode=OneWay}" />
                     <TextBlock FontWeight="SemiBold" Text="{x:Bind ViewModel.CpuFanText, Mode=OneWay}" />
-                </StackPanel>
-                <StackPanel
-                    Grid.Column="3"
-                    Spacing="4"
-                    Visibility="{x:Bind ViewModel.ShowFps, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <TextBlock Style="{StaticResource MutedTextStyle}" Text="{x:Bind ViewModel.FpsLabel, Mode=OneWay}" />
-                    <TextBlock FontWeight="SemiBold" Text="{x:Bind ViewModel.FpsText, Mode=OneWay}" />
                 </StackPanel>
             </Grid>
         </Grid>

@@ -77,6 +77,116 @@ function Assert-FrameworkDependentRuntimeConfig {
     }
 }
 
+function Assert-X64BinaryLayout {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    $unsupportedDirectories = @(
+        Get-ChildItem -LiteralPath $Path -Recurse -Directory |
+            Where-Object { $_.Name -match '^(arm|arm64|arm64ec|x86)$' }
+    )
+    if ($unsupportedDirectories.Count -ne 0) {
+        throw "Published output contains unsupported architecture directories: $($unsupportedDirectories.FullName -join ', ')"
+    }
+
+    foreach ($binary in Get-ChildItem -LiteralPath $Path -Recurse -File |
+        Where-Object { $_.Extension -in @('.exe', '.dll') }) {
+        $stream = [System.IO.File]::OpenRead($binary.FullName)
+        $reader = [System.Reflection.PortableExecutable.PEReader]::new($stream)
+        try {
+            $headers = $reader.PEHeaders
+            $machine = $headers.CoffHeader.Machine
+            $corHeader = $headers.CorHeader
+            if ($null -eq $corHeader) {
+                if ($machine -ne [System.Reflection.PortableExecutable.Machine]::Amd64) {
+                    throw "Native binary is not AMD64: $($binary.FullName) ($machine)"
+                }
+                continue
+            }
+
+            $requires32Bit = ([int]$corHeader.Flags -band
+                [int][System.Reflection.PortableExecutable.CorFlags]::Requires32Bit) -ne 0
+            if ($requires32Bit) {
+                throw "Managed binary requires 32-bit execution: $($binary.FullName)"
+            }
+            if ($machine.ToString().StartsWith('Arm', [System.StringComparison]::OrdinalIgnoreCase)) {
+                throw "Managed binary targets an ARM architecture: $($binary.FullName) ($machine)"
+            }
+            $ilOnly = ([int]$corHeader.Flags -band
+                [int][System.Reflection.PortableExecutable.CorFlags]::ILOnly) -ne 0
+            if (-not $ilOnly -and $machine -ne [System.Reflection.PortableExecutable.Machine]::Amd64) {
+                throw "Mixed-mode managed binary is not AMD64: $($binary.FullName) ($machine)"
+            }
+        }
+        finally {
+            $reader.Dispose()
+            $stream.Dispose()
+        }
+    }
+}
+
+function Assert-DependencyAssetsAbsent {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path,
+        [Parameter(Mandatory)]
+        [string[]]$PackagePrefixes,
+        [Parameter(Mandatory)]
+        [string[]]$FileNames
+    )
+
+    $configuration = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json -AsHashtable
+    $unexpectedPackages = @(
+        $configuration.libraries.Keys | Where-Object {
+            $name = $_
+            $PackagePrefixes | Where-Object {
+                $name.StartsWith($_, [System.StringComparison]::OrdinalIgnoreCase)
+            }
+        }
+    )
+    if ($unexpectedPackages.Count -ne 0) {
+        throw "Dependency manifest contains removed packages: $($unexpectedPackages -join ', ')"
+    }
+
+    $unexpectedAssets = [System.Collections.Generic.List[string]]::new()
+    foreach ($target in $configuration.targets.Values) {
+        foreach ($library in $target.Values) {
+            foreach ($assetKind in @('runtime', 'native', 'runtimeTargets')) {
+                if (-not $library.Contains($assetKind)) {
+                    continue
+                }
+                foreach ($assetPath in $library[$assetKind].Keys) {
+                    $leafName = [System.IO.Path]::GetFileName($assetPath)
+                    if ($leafName -in $FileNames) {
+                        $unexpectedAssets.Add($assetPath)
+                    }
+                }
+            }
+        }
+    }
+    if ($unexpectedAssets.Count -ne 0) {
+        throw "Dependency manifest contains excluded local assets: $($unexpectedAssets -join ', ')"
+    }
+}
+
+function Write-LargestPublishedFiles {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    Write-Host "Largest published files:"
+    Get-ChildItem -LiteralPath $Path -Recurse -File |
+        Sort-Object Length -Descending |
+        Select-Object -First 15 |
+        ForEach-Object {
+            $relativePath = [System.IO.Path]::GetRelativePath($Path, $_.FullName)
+            Write-Host ("  {0,12:N0}  {1}" -f $_.Length, $relativePath)
+        }
+}
+
 $ownsOutputLock = $null -eq $OutputLock
 if ($ownsOutputLock) {
     $OutputLock = Enter-PredatorLiteOutputLock -RepositoryRoot $repositoryRoot
@@ -218,6 +328,50 @@ try {
         throw "Published output contains development-only files: $($unexpectedDevelopmentFiles.FullName -join ', ')"
     }
 
+    $removedRuntimeFiles = @(
+        "Dia2Lib.dll",
+        "DirectML.dll",
+        "KernelTraceControl.dll",
+        "KernelTraceControl.Win61.dll",
+        "Microsoft.Diagnostics.FastSerialization.dll",
+        "Microsoft.Diagnostics.NETCore.Client.dll",
+        "Microsoft.Diagnostics.Tracing.TraceEvent.dll",
+        "Microsoft.Extensions.DependencyInjection.Abstractions.dll",
+        "Microsoft.Extensions.DependencyInjection.dll",
+        "Microsoft.Extensions.Logging.Abstractions.dll",
+        "Microsoft.Extensions.Logging.dll",
+        "Microsoft.Extensions.Options.dll",
+        "Microsoft.Extensions.Primitives.dll",
+        "Microsoft.Windows.AI.MachineLearning.dll",
+        "msdia140.dll",
+        "onnxruntime.dll",
+        "TraceReloggerLib.dll"
+    )
+    $unexpectedRemovedRuntimeFiles = @(
+        Get-ChildItem -LiteralPath $destination -Recurse -File |
+            Where-Object { $_.Name -in $removedRuntimeFiles }
+    )
+    if ($unexpectedRemovedRuntimeFiles.Count -ne 0) {
+        throw "Published output contains removed runtime files: $($unexpectedRemovedRuntimeFiles.FullName -join ', ')"
+    }
+
+    Assert-X64BinaryLayout -Path $destination
+    Assert-DependencyAssetsAbsent `
+        -Path (Join-Path $destination "PredatorLite.deps.json") `
+        -PackagePrefixes @(
+            "Microsoft.Diagnostics.NETCore.Client/",
+            "Microsoft.Diagnostics.Tracing.TraceEvent/",
+            "Microsoft.Extensions.DependencyInjection/",
+            "Microsoft.Extensions.DependencyInjection.Abstractions/",
+            "Microsoft.Extensions.Logging/",
+            "Microsoft.Extensions.Logging.Abstractions/",
+            "Microsoft.Extensions.Options/",
+            "Microsoft.Extensions.Primitives/") `
+        -FileNames @(
+            "DirectML.dll",
+            "Microsoft.Windows.AI.MachineLearning.dll",
+            "onnxruntime.dll")
+
     foreach ($runtimeBinary in @("coreclr.dll", "hostfxr.dll", "System.Private.CoreLib.dll")) {
         if (Test-Path -LiteralPath (Join-Path $destination $runtimeBinary) -PathType Leaf) {
             throw "Framework-dependent output unexpectedly contains $runtimeBinary"
@@ -235,14 +389,46 @@ try {
         "PredatorLite.Core.dll",
         "PredatorLite.Platform.Windows.dll",
         "PredatorLite.FanGuard.dll",
-        "PredatorLite.ElevatedHelper.dll"
+        "PredatorLite.ElevatedHelper.dll",
+        "CommunityToolkit.Mvvm.dll",
+        "H.NotifyIcon.dll",
+        "H.NotifyIcon.WinUI.dll",
+        "Microsoft.WinUI.dll"
+    )
+    $deferredIlAssemblies = @(
+        "BlackSharp.Core.dll",
+        "DiskInfoToolkit.dll",
+        "HidSharp.dll",
+        "LibreHardwareMonitorLib.dll",
+        "Microsoft.Graphics.Imaging.Projection.dll",
+        "Microsoft.ML.OnnxRuntime.dll",
+        "Microsoft.Windows.AI.ContentSafety.Projection.dll",
+        "Microsoft.Windows.AI.Foundation.Projection.dll",
+        "Microsoft.Windows.AI.Imaging.Projection.dll",
+        "Microsoft.Windows.AI.MachineLearning.Projection.dll",
+        "Microsoft.Windows.AI.Projection.dll",
+        "Microsoft.Windows.AI.Text.Projection.dll",
+        "Microsoft.Windows.AI.Video.Projection.dll",
+        "Microsoft.Windows.Widgets.Projection.dll",
+        "Mono.Posix.NETStandard.dll",
+        "RAMSPDToolkit-NDD.dll",
+        "System.IO.Ports.dll",
+        "System.Numerics.Tensors.dll"
     )
     if ($ReadyToRun) {
         $notReadyToRun = @($readyToRunAssemblies | Where-Object {
             -not (Test-ReadyToRunImage -Path (Join-Path $destination $_))
         })
         if ($notReadyToRun.Count -ne 0) {
-            throw "ReadyToRun was requested but these assemblies lack a managed native header: $($notReadyToRun -join ', ')"
+            throw "ReadyToRun was requested but these startup assemblies lack a managed native header: $($notReadyToRun -join ', ')"
+        }
+
+        $unexpectedDeferredReadyToRun = @($deferredIlAssemblies | Where-Object {
+            -not (Test-Path -LiteralPath (Join-Path $destination $_) -PathType Leaf) -or
+                (Test-ReadyToRunImage -Path (Join-Path $destination $_))
+        })
+        if ($unexpectedDeferredReadyToRun.Count -ne 0) {
+            throw "Deferred assemblies must remain IL in the balanced layout: $($unexpectedDeferredReadyToRun -join ', ')"
         }
     }
     else {
@@ -257,6 +443,11 @@ try {
     $layoutKind = if ($ReadyToRun) { "framework-dependent ReadyToRun" } else { "framework-dependent IL" }
     $totalBytes = (Get-ChildItem -LiteralPath $destination -Recurse -File |
         Measure-Object -Property Length -Sum).Sum
+    $maximumBytes = if ($ReadyToRun) { 80MB } else { 65MB }
+    if ($totalBytes -gt $maximumBytes) {
+        Write-LargestPublishedFiles -Path $destination
+        throw "Published $layoutKind layout exceeds the $maximumBytes byte budget: $totalBytes bytes"
+    }
     Write-Host "PredatorLite $layoutKind layout published to $destination ($totalBytes bytes)"
 }
 catch {

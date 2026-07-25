@@ -11,7 +11,8 @@ public sealed class FileAppLogger : IAppLogger
             SingleReader = true,
             SingleWriter = false
         });
-    private readonly Task _writerTask;
+    private readonly object _lifetimeSync = new();
+    private Task? _writerTask;
     private readonly string _userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
     private int _disposed;
 
@@ -19,7 +20,6 @@ public sealed class FileAppLogger : IAppLogger
     {
         string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         LogDirectory = directory ?? Path.Combine(appData, "PredatorLite", "Logs");
-        _writerTask = Task.Run(ProcessEntriesAsync);
     }
 
     public string LogDirectory { get; }
@@ -31,15 +31,28 @@ public sealed class FileAppLogger : IAppLogger
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        Task? writerTask;
+        lock (_lifetimeSync)
         {
+            if (_disposed != 0)
+            {
+                return;
+            }
+
+            _disposed = 1;
+            _entries.Writer.TryComplete();
+            writerTask = _writerTask;
+        }
+
+        if (writerTask is null)
+        {
+            GC.SuppressFinalize(this);
             return;
         }
 
-        _entries.Writer.TryComplete();
         try
         {
-            _writerTask.GetAwaiter().GetResult();
+            writerTask.GetAwaiter().GetResult();
         }
         catch
         {
@@ -50,12 +63,16 @@ public sealed class FileAppLogger : IAppLogger
 
     private void Enqueue(string level, string message, Exception? exception)
     {
-        if (Volatile.Read(ref _disposed) != 0)
+        lock (_lifetimeSync)
         {
-            return;
-        }
+            if (_disposed != 0)
+            {
+                return;
+            }
 
-        _entries.Writer.TryWrite(new LogEntry(DateTimeOffset.Now, level, message, exception));
+            _writerTask ??= Task.Run(ProcessEntriesAsync);
+            _entries.Writer.TryWrite(new LogEntry(DateTimeOffset.Now, level, message, exception));
+        }
     }
 
     private async Task ProcessEntriesAsync()

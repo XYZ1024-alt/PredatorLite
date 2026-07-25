@@ -25,7 +25,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     private readonly ISettingsStore _settingsStore;
     private readonly IAppLogger _logger;
     private readonly IModeKeySource _modeKeySource;
-    private readonly IFpsSource _fpsSource;
     private readonly FanGuardClient _fanGuard;
     private readonly LocalizationService _localization;
     private readonly IUserInteraction _interaction;
@@ -59,7 +58,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         ISettingsStore settingsStore,
         IAppLogger logger,
         IModeKeySource modeKeySource,
-        IFpsSource fpsSource,
         FanGuardClient fanGuard,
         LocalizationService localization,
         IUserInteraction interaction,
@@ -69,12 +67,10 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         _settingsStore = settingsStore;
         _logger = logger;
         _modeKeySource = modeKeySource;
-        _fpsSource = fpsSource;
         _fanGuard = fanGuard;
         _localization = localization;
         _interaction = interaction;
         _uiDispatcher = uiDispatcher;
-        RebuildLightingEffects();
         StatusMessage = "PredatorLite";
     }
 
@@ -156,8 +152,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     public string GpuLabel => _localization.Get("Label.Gpu");
 
     public string CpuFanLabel => _localization.Get("Metric.CpuFan");
-
-    public string FpsLabel => _localization.Get("Metric.Fps");
 
     public string TelemetryStateText => _localization.Get("Status.TelemetryStale");
 
@@ -288,9 +282,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     public partial string RefreshRateText { get; set; } = "--";
 
     [ObservableProperty]
-    public partial string FpsText { get; set; } = "--";
-
-    [ObservableProperty]
     public partial int SelectedRefreshRate { get; set; }
 
     [ObservableProperty]
@@ -313,9 +304,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     [ObservableProperty]
     public partial bool ShowOsd { get; set; }
-
-    [ObservableProperty]
-    public partial bool ShowFps { get; set; }
 
     [ObservableProperty]
     public partial bool EnableGlobalHotkeys { get; set; } = true;
@@ -609,24 +597,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             catch (Exception exception)
             {
                 _logger.LogError("Deferred mode-key initialization failed", exception);
-            }
-
-            try
-            {
-                if (ShowFps && !await _fpsSource.StartAsync(_lifetime.Token))
-                {
-                    ShowFps = false;
-                    _logger.LogError("Deferred FPS initialization failed");
-                }
-            }
-            catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
-            {
-                return;
-            }
-            catch (Exception exception)
-            {
-                ShowFps = false;
-                _logger.LogError("Deferred FPS initialization failed", exception);
             }
 
             IntegrationsReady = true;
@@ -1082,23 +1052,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     }
 
     [RelayCommand]
-    private async Task SetFpsEnabledAsync(bool enabled)
-    {
-        ShowFps = enabled;
-        bool applied = enabled
-            ? await _fpsSource.StartAsync(_lifetime.Token)
-            : await StopFpsAsync();
-        if (!applied)
-        {
-            ShowFps = false;
-            PublishError(_localization.Get("Status.FpsFailed"));
-        }
-
-        _settings.ShowFps = ShowFps;
-        await SaveSettingsAsync();
-    }
-
-    [RelayCommand]
     private async Task RefreshServicesAsync()
     {
         IsBusy = true;
@@ -1271,7 +1224,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             }
         }
 
-        await _fpsSource.DisposeAsync().ConfigureAwait(false);
         await _modeKeySource.DisposeAsync().ConfigureAwait(false);
         await _fanGuard.DisposeAsync().ConfigureAwait(false);
         await _platform.DisposeAsync().ConfigureAwait(false);
@@ -1310,7 +1262,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         AutoEcoOnBattery = _settings.AutoEcoOnBattery;
         AutoRefreshRate = _settings.AutoRefreshRate;
         ShowOsd = _settings.ShowOsd;
-        ShowFps = _settings.ShowFps;
         EnableGlobalHotkeys = _settings.EnableGlobalHotkeys;
         ChargeLimitEnabled = _settings.ChargeLimit80Percent;
         LightingBrightness = _settings.Lighting.Brightness;
@@ -1411,7 +1362,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             null => "--"
         };
         RefreshRateText = FormatNumber(snapshot.DisplayRefreshRate, " Hz", 0);
-        FpsText = FormatNumber(_fpsSource.FramesPerSecond, " FPS", 0);
 
         if (snapshot.OperatingMode is OperatingMode operatingMode)
         {
@@ -1654,7 +1604,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(CpuLabel));
         OnPropertyChanged(nameof(GpuLabel));
         OnPropertyChanged(nameof(CpuFanLabel));
-        OnPropertyChanged(nameof(FpsLabel));
         OnPropertyChanged(nameof(TelemetryStateText));
         NotifyShellNoticeChanged();
     }
@@ -1864,7 +1813,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         _settings.AutoEcoOnBattery = AutoEcoOnBattery;
         _settings.AutoRefreshRate = AutoRefreshRate;
         _settings.ShowOsd = ShowOsd;
-        _settings.ShowFps = ShowFps;
         _settings.EnableGlobalHotkeys = EnableGlobalHotkeys;
         _settings.ChargeLimit80Percent = ChargeLimitEnabled;
         await _settingsStore.SaveAsync(_settings, CancellationToken.None);
@@ -1918,16 +1866,9 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             ? $"{used.Value:F1} / {total.Value:F1}{suffix}"
             : "--";
 
-    private async Task<bool> StopFpsAsync()
-    {
-        await _fpsSource.StopAsync();
-        FpsText = "--";
-        return true;
-    }
-
     private void UpdateExtendedTelemetryState() =>
         _platform.SetExtendedTelemetryEnabled(
-            SelectedSection == AppSection.Monitor || ShowOsd || ShowFps || _customFanActive);
+            SelectedSection == AppSection.Monitor || ShowOsd || _customFanActive);
 
     private void NotifyShellNoticeChanged()
     {
@@ -1965,8 +1906,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(CanApplyFanCurve));
 
     partial void OnShowOsdChanged(bool value) => UpdateExtendedTelemetryState();
-
-    partial void OnShowFpsChanged(bool value) => UpdateExtendedTelemetryState();
 
     private void OnModeKeyPressed(object? sender, EventArgs e)
     {

@@ -22,7 +22,7 @@ PredatorLite 是面向 Acer Predator PHN16-71 的轻量控制工具，用普通�
 - 屏幕刷新率、LCD 响应加速和 80% 充电上限
 - 四区静态键盘灯、动态灯效和机身标志灯
 - Windows 键、粘滞键快捷触发、开机音效和键盘灯超时等设备开关
-- CPU/GPU、风扇、内存、显存、电池与可选 FPS 监控
+- CPU/GPU、风扇、内存、显存、电池与性能浮窗监控
 - 系统托盘、单实例、中英文界面、可选 OSD 与全局快捷操作
 - 每次唤出自动停靠鼠标所在显示器右下角，并在运行期接管 PredatorSense 专用键
 - Acer 服务状态、冲突服务备份/停用/恢复和脱敏诊断包
@@ -55,7 +55,7 @@ PredatorLite 复用 Acer 官方驱动和服务提供的接口，不附带或替�
 
 ## 构建
 
-需要 Windows 11 24H2（build 26100+）x64 和 `global.json` 固定的 .NET SDK 10.0.302。所有 Windows 项目统一面向 `net10.0-windows10.0.26100.0`，界面使用稳定版 Microsoft Windows App SDK 2.3.1：
+需要 Windows 11 24H2（build 26100+）原生 x64 和 `global.json` 固定的 .NET SDK 10.0.302。所有 Windows 项目统一面向 `net10.0-windows10.0.26100.0`，界面使用稳定版 Microsoft Windows App SDK 2.3.1：
 
 ```powershell
 dotnet restore PredatorLite.slnx
@@ -82,7 +82,7 @@ dotnet run --project src\PredatorLite.App\PredatorLite.App.csproj
 - .NET 10 Runtime x64
 - Windows App Runtime 2.3 x64
 
-发布目录必须整体保留，不能只复制 `PredatorLite.exe`。发布脚本分别发布主程序、FanGuard 和 ElevatedHelper，再合并各自拥有的文件；默认启用经过测量验证的 framework-dependent ReadyToRun，并检查五个第一方程序集的 Managed Native Header。使用 `.\build\publish.ps1 -ReadyToRun:$false` 可生成 IL 对照布局。脚本还会检查三个 EXE、运行时配置、WinUI PRI/XBF、Bootstrap DLL、许可证和图标资源是否齐全。性能基准、启动回归门槛与 Native AOT 阻断项见[性能与部署证据](docs/performance.md)。该目录版默认没有 Authenticode 签名；`main` 推送和手动 `build` 工作流会把它作为带 `UNSIGNED-TEST-ONLY` 标识的 14 天测试 artifact，PR 不上传可下载产物。
+发布目录必须整体保留，不能只复制 `PredatorLite.exe`。发布脚本分别发布主程序、FanGuard 和 ElevatedHelper，再合并各自拥有的文件；默认采用经过测量验证的平衡型 framework-dependent ReadyToRun：启动关键程序集保留 R2R，延迟遥测和未使用的 AI/ML/Widgets 托管投影保持 IL。脚本拒绝非 AMD64 原生 PE、32 位托管程序集、ARM/x86 子目录、TraceEvent 残留和 framework-dependent 布局中不应本地携带的 Windows ML 原生运行库，并执行 80 MiB 的 R2R 预算。使用 `.\build\publish.ps1 -ReadyToRun:$false` 可生成 IL 对照布局，预算为 65 MiB。性能基准、启动回归门槛与 Native AOT 阻断项见[性能与部署证据](docs/performance.md)。该目录版默认没有 Authenticode 签名；`main` 推送和手动 `build` 工作流会把它作为带 `UNSIGNED-TEST-ONLY` 标识的 14 天测试 artifact，PR 不上传可下载产物。
 
 Inno Setup 本地安装测试包：
 

@@ -15,7 +15,6 @@ PredatorLite is licensed under the MIT License. Its build and published output a
 | H.NotifyIcon.WinUI | 2.4.1 | MIT | https://github.com/HavenDV/H.NotifyIcon |
 | Microsoft WebView2 | 1.0.3719.77 | BSD-3-Clause-style redistribution terms and notice | https://developer.microsoft.com/microsoft-edge/webview2 |
 | LibreHardwareMonitorLib | 0.9.6 | MPL-2.0 | https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/tree/3d331e3370efb858411f19511373eff65a218701 |
-| Microsoft.Diagnostics.Tracing.TraceEvent | 3.2.5 | MIT | https://github.com/microsoft/perfview |
 | System.Management | 10.0.10 | MIT | https://github.com/dotnet/dotnet |
 | System.ServiceProcess.ServiceController | 10.0.10 | MIT | https://github.com/dotnet/dotnet |
 
@@ -28,7 +27,6 @@ PredatorLite is licensed under the MIT License. Its build and published output a
 | RAMSPDToolkit-NDD | 1.4.2 | MPL-2.0 | https://github.com/Blacktempel/RAMSPDToolkit/tree/3b47b960e0830fef344624ad5e389675d5f0a1ce |
 | HidSharp | 2.6.4 | Apache-2.0 | https://software.seekye.com/hidsharp |
 | Mono.Posix.NETStandard | 1.0.0 | MIT/X11 and component-specific notices | https://github.com/mono/mono |
-| Microsoft.Extensions runtime libraries | 6.0.0 | MIT | https://github.com/dotnet/runtime |
 | .NET Windows support libraries | 10.0.10 | MIT and bundled third-party notices | https://github.com/dotnet/runtime |
 | Microsoft Windows SDK .NET runtime projections | 10.0.26100.57 | Microsoft Windows SDK License Terms | https://www.nuget.org/packages/Microsoft.Windows.SDK.NET.Ref/10.0.26100.57 |
 

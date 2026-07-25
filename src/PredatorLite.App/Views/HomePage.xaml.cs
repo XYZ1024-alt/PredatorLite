@@ -14,7 +14,7 @@ public sealed partial class HomePage : Page
     {
         ViewModel = viewModel;
         InitializeComponent();
-        Loaded += (_, _) => _loaded = true;
+        Loaded += OnLoaded;
     }
 
     public MainViewModel ViewModel { get; }
@@ -26,9 +26,16 @@ public sealed partial class HomePage : Page
     public OperatingMode TurboMode => OperatingMode.Turbo;
     public FanMode AutoFanMode => FanMode.Auto;
     public FanMode MaxFanMode => FanMode.Max;
-    public GpuMuxMode HybridMuxMode => GpuMuxMode.Hybrid;
-    public GpuMuxMode DiscreteMuxMode => GpuMuxMode.Discrete;
 #pragma warning restore CA1822
+
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        Loaded -= OnLoaded;
+        _loaded = true;
+    }
+
+    internal void LoadDeferredContent() =>
+        GraphicsDisplayHost.Content ??= new HomeGraphicsDisplayModel(ViewModel);
 
     private async void ChargeLimitToggle_Toggled(object sender, RoutedEventArgs e)
     {
@@ -52,4 +59,17 @@ public sealed partial class HomePage : Page
             _handlingChargeLimit = false;
         }
     }
+}
+
+public sealed class HomeGraphicsDisplayModel
+{
+    public HomeGraphicsDisplayModel(MainViewModel viewModel) => ViewModel = viewModel;
+
+    public MainViewModel ViewModel { get; }
+
+#pragma warning disable CA1822 // WinUI x:Bind emits instance access for these one-time values.
+    public GpuMuxMode HybridMuxMode => GpuMuxMode.Hybrid;
+
+    public GpuMuxMode DiscreteMuxMode => GpuMuxMode.Discrete;
+#pragma warning restore CA1822
 }

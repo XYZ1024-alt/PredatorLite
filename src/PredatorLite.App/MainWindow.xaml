@@ -2,5 +2,7 @@
     x:Class="PredatorLite.App.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Grid x:Name="WindowHost" Background="Transparent" />
+    <Grid
+        x:Name="WindowHost"
+        Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" />
 </Window>

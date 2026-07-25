@@ -2,7 +2,7 @@
 param(
     [Parameter(Mandatory)]
     [string]$Executable,
-    [ValidateSet("Tray", "Critical", "Deferred")]
+    [ValidateSet("Tray", "Shell", "Critical", "Deferred")]
     [string]$Scope = "Tray",
     [ValidateRange(1, 1000)]
     [int]$Iterations = 15,
@@ -20,12 +20,13 @@ $executablePath = [System.IO.Path]::GetFullPath($Executable)
 if (-not (Test-Path -LiteralPath $executablePath -PathType Leaf)) {
     throw "PredatorLite executable was not found: $executablePath"
 }
-if ($Scope -ne "Tray" -and -not $AllowHardwareInitialization) {
+if ($Scope -notin @("Tray", "Shell") -and -not $AllowHardwareInitialization) {
     throw "Critical and Deferred measurements run hardware initialization. Pass -AllowHardwareInitialization only on the validated PHN16-71 / BIOS V1.20 test machine."
 }
 
 $targetMilestone = switch ($Scope) {
     "Tray" { "tray-ready" }
+    "Shell" { "shell-ready" }
     "Critical" { "critical-ready" }
     "Deferred" { "deferred-ready" }
 }
@@ -65,7 +66,7 @@ function Invoke-StartupSample {
         [bool]$IsWarmup
     )
 
-    if ($Scope -ne "Tray") {
+    if ($Scope -notin @("Tray", "Shell")) {
         Assert-NoRunningInstance
     }
     $pipeName = "PredatorLite.Startup.$([guid]::NewGuid().ToString('N'))"
@@ -84,9 +85,11 @@ function Invoke-StartupSample {
         $startInfo.FileName = $executablePath
         $startInfo.WorkingDirectory = Split-Path -Parent $executablePath
         $startInfo.UseShellExecute = $false
-        $startInfo.ArgumentList.Add("--background")
+        if ($Scope -ne "Shell") {
+            $startInfo.ArgumentList.Add("--background")
+        }
         $startInfo.ArgumentList.Add("--startup-pipe=$pipeName")
-        if ($Scope -eq "Tray") {
+        if ($Scope -in @("Tray", "Shell")) {
             $startInfo.ArgumentList.Add("--startup-tray-only")
         }
 
@@ -106,6 +109,7 @@ function Invoke-StartupSample {
         $targetTimestamp = $null
         $frequency = $null
         $appRuntimeVersion = $null
+        $milestoneTimestamps = [ordered]@{}
         do {
             $remaining = [int][Math]::Max(1, ($deadline - [DateTime]::UtcNow).TotalMilliseconds)
             $readTask = $reader.ReadLineAsync()
@@ -126,6 +130,7 @@ function Invoke-StartupSample {
             $name = $parts[0]
             Write-Verbose "Startup milestone: $name"
             $timestamp = [long]::Parse($parts[1], [Globalization.CultureInfo]::InvariantCulture)
+            $milestoneTimestamps[$name] = $timestamp
             $messageFrequency = [long]::Parse($parts[2], [Globalization.CultureInfo]::InvariantCulture)
             if ($null -eq $frequency) {
                 $frequency = $messageFrequency
@@ -156,6 +161,12 @@ function Invoke-StartupSample {
 
         $launchMilliseconds = 1000.0 * ($targetTimestamp - $startTimestamp) / $frequency
         $entryMilliseconds = 1000.0 * ($targetTimestamp - $processStartTimestamp) / $frequency
+        $milestones = [ordered]@{}
+        foreach ($milestone in $milestoneTimestamps.GetEnumerator()) {
+            $milestones[$milestone.Key] = [Math]::Round(
+                1000.0 * ([long]$milestone.Value - $processStartTimestamp) / $frequency,
+                3)
+        }
         $kind = if ($IsWarmup) { "warmup" } else { "sample" }
         Write-Host ("{0} {1}: launch={2:N2} ms, entry={3:N2} ms" -f $kind, $Index, $launchMilliseconds, $entryMilliseconds)
         return [pscustomobject]@{
@@ -163,6 +174,7 @@ function Invoke-StartupSample {
             launchToMilestoneMs = [Math]::Round($launchMilliseconds, 3)
             entryToMilestoneMs = [Math]::Round($entryMilliseconds, 3)
             appRuntimeVersion = $appRuntimeVersion
+            milestonesMs = $milestones
         }
     }
     finally {
@@ -187,7 +199,7 @@ function Invoke-StartupSample {
     }
 }
 
-if ($Scope -ne "Tray") {
+if ($Scope -notin @("Tray", "Shell")) {
     Assert-NoRunningInstance
 }
 for ($index = 1; $index -le $WarmupIterations; $index++) {

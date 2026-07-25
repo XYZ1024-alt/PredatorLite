@@ -3,6 +3,7 @@
     <PredatorLiteWindowsVersion>10.0.26100.0</PredatorLiteWindowsVersion>
     <PredatorLiteWindowsTargetFramework>net10.0-windows$(PredatorLiteWindowsVersion)</PredatorLiteWindowsTargetFramework>
     <PredatorLiteRuntimeIdentifier>win-x64</PredatorLiteRuntimeIdentifier>
+    <PredatorLitePlatformTarget>x64</PredatorLitePlatformTarget>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
