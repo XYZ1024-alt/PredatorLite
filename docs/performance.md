@@ -94,7 +94,7 @@ The July 25, 2026 optimization removed the FPS/ETW feature and its runtime graph
 | --- | ---: | ---: | ---: |
 | R2R publish directory | 136,001,208 bytes | 68,924,181 bytes | 49.32% |
 | IL publish directory | 108,767,771 bytes | 51,938,493 bytes | 52.25% |
-| Unsigned installer | 36,094,770 bytes | 15,127,372 bytes | 58.09% |
+| Installer package | 36,094,770 bytes | 15,127,372 bytes | 58.09% |
 
 Startup was measured on the same machine with two excluded warmups and 15 samples. To control for background-load drift, the retained pre-optimization layout and final layout were measured back-to-back for each scope:
 

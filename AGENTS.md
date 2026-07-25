@@ -6,7 +6,7 @@
 
 Project: **PredatorLite**
 
-PredatorLite is a pre-release, ordinary-user Windows control utility and independent, unofficial alternative to PredatorSense for Acer Predator devices. Hardware writes are authorized only by explicit model/BIOS profiles. The current writable profile is `Predator PHN16-71`, BIOS `V1.20`, on Windows 11 24H2 (build 26100+) x64. Other models and BIOS versions may expose diagnostics and read-only telemetry, but must remain unable to write hardware state.
+PredatorLite is a v1.0.0 ordinary-user Windows control utility and independent, unofficial alternative to PredatorSense for Acer Predator devices. Hardware writes are authorized only by explicit model/BIOS profiles. The current writable profile is `Predator PHN16-71`, BIOS `V1.20`, on Windows 11 24H2 (build 26100+) x64. Other models and BIOS versions may expose diagnostics and read-only telemetry, but must remain unable to write hardware state.
 
 Stack: C# on .NET 10 SDK `10.0.302`; WinUI 3 with Microsoft Windows App SDK `2.3.1`; CommunityToolkit.Mvvm; xUnit; BenchmarkDotNet; PowerShell release tooling; Inno Setup 6.
 
@@ -45,7 +45,8 @@ Run commands from the repository root in PowerShell. Development requires Window
 | Run UI automation | `.\build\ui-tests.ps1 -AppPid <PID>` |
 | Publish ReadyToRun | `.\build\publish.ps1` |
 | Publish IL comparison | `.\build\publish.ps1 -OutputPath publish\win-x64-il -ReadyToRun:$false` |
-| Build unsigned installer | `.\build\build-installer.ps1 -SkipSigning` |
+| Build formal release package | `.\build\prepare-release.ps1 -Version 1.0.0` |
+| Build installer test package | `.\build\build-installer.ps1 -SkipSigning` |
 | Test signing integration | `.\build\test-installer-signing.ps1` |
 | Audit Native AOT | `.\build\aot-audit.ps1` |
 
@@ -98,7 +99,8 @@ Read `docs/hardware-safety.md` and `docs/protocol-provenance.md` before changing
 
 - `build/publish.ps1` produces a validated framework-dependent balanced ReadyToRun layout in `publish\win-x64`: startup-critical assemblies use R2R while deferred telemetry and unused projection assemblies remain IL. Retain the entire directory; target machines need .NET 10 Runtime x64 and Windows App Runtime 2.3 x64.
 - ReadyToRun is the production mode. Native AOT is currently blocked by documented trim/AOT and unpackaged WinUI resource issues; do not suppress diagnostics or promote it without the full regression matrix.
-- Unsigned installers belong under `artifacts\installer\unsigned` and are test-only. Production installer work requires Inno Setup, SignTool, a publicly trusted code-signing certificate, and the process documented in `README.md`; only validated final artifacts are promoted to `publish\installer`.
+- `build/prepare-release.ps1` produces the four v1.0.0 formal assets in `publish\release`: a ReadyToRun portable ZIP, the installer, and one SHA-256 sidecar for each. The public `main` CD workflow creates the matching GitHub Release only when its `vX.Y.Z` release does not already exist.
+- `build/build-installer.ps1 -SkipSigning` remains a test-only path under `artifacts\installer\unsigned`; certificate signing and the existing signing gates remain available for future releases.
 - Never commit generated `bin/`, `obj/`, `publish/`, `artifacts/`, `BenchmarkDotNet.Artifacts/`, `TestResults/`, `coverage/`, UI captures, logs, dumps, traces, archives/packages, machine settings, environment files, diagnostics, or signing key/certificate material.
 
 ## WHERE TO LOOK

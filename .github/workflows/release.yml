@@ -1,0 +1,247 @@
+name: release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Check release state
+        id: release_state
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          if ($env:GITHUB_REF -ne "refs/heads/main") {
+            throw "The release workflow must run from the main branch."
+          }
+          [xml]$buildProperties = Get-Content -LiteralPath "Directory.Build.props"
+          $version = [string]($buildProperties.Project.PropertyGroup.Version | Select-Object -First 1)
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            throw "Directory.Build.props does not contain a three-component release version: $version"
+          }
+          $tag = "v$version"
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+          $response = @(& gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$tag" 2>&1)
+          $exitCode = $LASTEXITCODE
+          if ($exitCode -eq 0) {
+            Write-Host "Release $tag already exists. The existing release will not be overwritten."
+            "should_publish=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            exit 0
+          }
+
+          $responseText = $response -join [Environment]::NewLine
+          if ($responseText -notmatch "404|Not Found") {
+            throw "Could not determine whether release $tag exists: $responseText"
+          }
+          "should_publish=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "Release $tag does not exist and will be created after validation."
+
+      - name: Install pinned Inno Setup
+        if: steps.release_state.outputs.should_publish == 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $uri = "https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe"
+          $expectedHash = "9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732"
+          $installer = Join-Path $env:RUNNER_TEMP "innosetup-6.7.3.exe"
+          $installDirectory = Join-Path $env:RUNNER_TEMP "Inno Setup 6"
+          Invoke-WebRequest -Uri $uri -OutFile $installer
+          $stream = [System.IO.File]::OpenRead($installer)
+          $sha256 = [System.Security.Cryptography.SHA256]::Create()
+          try {
+            $actualHash = ($sha256.ComputeHash($stream) | ForEach-Object { $_.ToString("x2") }) -join ""
+          } finally {
+            $sha256.Dispose()
+            $stream.Dispose()
+          }
+          if ($actualHash -ne $expectedHash) {
+            throw "Inno Setup installer hash mismatch: $actualHash"
+          }
+          $process = Start-Process -FilePath $installer -ArgumentList @(
+            "/VERYSILENT",
+            "/SUPPRESSMSGBOXES",
+            "/NORESTART",
+            "/CURRENTUSER",
+            "/DIR=`"$installDirectory`""
+          ) -PassThru -Wait
+          if ($process.ExitCode -ne 0) {
+            throw "Inno Setup installation failed with exit code $($process.ExitCode)"
+          }
+          $compiler = Join-Path $installDirectory "ISCC.exe"
+          if (-not (Test-Path -LiteralPath $compiler -PathType Leaf)) {
+            throw "ISCC.exe was not installed to $installDirectory"
+          }
+          "INNO_SETUP_COMPILER=$compiler" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Restore dependencies
+        if: steps.release_state.outputs.should_publish == 'true'
+        run: dotnet restore PredatorLite.slnx
+
+      - name: Audit dependencies
+        if: steps.release_state.outputs.should_publish == 'true'
+        run: dotnet package list --project PredatorLite.slnx --vulnerable --include-transitive --no-restore
+
+      - name: Build
+        if: steps.release_state.outputs.should_publish == 'true'
+        run: dotnet build PredatorLite.slnx -c Release --no-restore --nologo
+
+      - name: Format
+        if: steps.release_state.outputs.should_publish == 'true'
+        env:
+          Configuration: Release
+        run: dotnet format PredatorLite.slnx --verify-no-changes --no-restore --verbosity minimal
+
+      - name: Test
+        if: steps.release_state.outputs.should_publish == 'true'
+        run: dotnet test PredatorLite.slnx -c Release --no-build --nologo
+
+      - name: Benchmark smoke
+        if: steps.release_state.outputs.should_publish == 'true'
+        run: dotnet run --project benchmarks/PredatorLite.Benchmarks/PredatorLite.Benchmarks.csproj -c Release --no-build -- --job Dry --filter "*"
+
+      - name: Prepare release assets
+        if: steps.release_state.outputs.should_publish == 'true'
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.release_state.outputs.version }}
+        run: .\build\prepare-release.ps1 -Configuration Release -Version $env:RELEASE_VERSION
+
+      - name: Validate release assets
+        if: steps.release_state.outputs.should_publish == 'true'
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.release_state.outputs.version }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $releaseDirectory = "publish\release"
+          $portableName = "PredatorLite-$env:RELEASE_VERSION-win-x64-portable.zip"
+          $installerName = "PredatorLite-Setup-$env:RELEASE_VERSION-win-x64.exe"
+          $expectedNames = @(
+            $portableName,
+            "$portableName.sha256",
+            $installerName,
+            "$installerName.sha256"
+          )
+          $entries = @(Get-ChildItem -LiteralPath $releaseDirectory -Force)
+          $unexpected = @(
+            $entries | Where-Object {
+              $_.PSIsContainer -or
+              $_.Name -notin $expectedNames -or
+              $_.Name -match '(?i)unsigned|test-only|test-signed'
+            }
+          )
+          if ($entries.Count -ne $expectedNames.Count -or $unexpected.Count -ne 0) {
+            throw "Release directory contains unexpected assets."
+          }
+
+          foreach ($assetName in @($portableName, $installerName)) {
+            $assetPath = Join-Path $releaseDirectory $assetName
+            $hashPath = "$assetPath.sha256"
+            $hash = (Get-FileHash -LiteralPath $assetPath -Algorithm SHA256).Hash.ToLowerInvariant()
+            $expected = "$hash  $assetName`r`n"
+            $actual = [System.IO.File]::ReadAllText($hashPath, [System.Text.Encoding]::ASCII)
+            if ($actual -ne $expected) {
+              throw "Checksum mismatch for $assetName."
+            }
+          }
+          Write-Host "Validated release assets for v$env:RELEASE_VERSION."
+
+      - name: Write release notes
+        if: steps.release_state.outputs.should_publish == 'true'
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.release_state.outputs.version }}
+          RELEASE_NOTES_PATH: ${{ runner.temp }}\predatorlite-release-notes.md
+        run: |
+          $notes = @(
+            "# PredatorLite v$env:RELEASE_VERSION",
+            "",
+            "PredatorLite is an independent, unofficial PredatorSense alternative for supported Acer Predator devices.",
+            "",
+            "## Supported hardware profile",
+            "",
+            "- Acer Predator PHN16-71",
+            "- BIOS V1.20",
+            "- Windows 11 24H2 (build 26100+) x64",
+            "",
+            "Other models and BIOS versions remain limited to diagnostics and read-only telemetry.",
+            "",
+            "## Requirements",
+            "",
+            "- .NET 10 Runtime x64",
+            "- Windows App Runtime 2.3 x64",
+            "- Native x64 Windows 11 24H2 or newer",
+            "",
+            "## Assets",
+            "",
+            "- `PredatorLite-$env:RELEASE_VERSION-win-x64-portable.zip`",
+            "- `PredatorLite-Setup-$env:RELEASE_VERSION-win-x64.exe`",
+            "- SHA-256 sidecar files for both assets",
+            "",
+            "Windows may show a SmartScreen reputation prompt the first time a newly published build is launched. Verify the matching SHA-256 sidecar before installation.",
+            "",
+            "PredatorLite is not an Acer product and is not affiliated with or endorsed by Acer."
+          ) -join [Environment]::NewLine
+          if ($notes -match '(?i)unsigned|test-only|test-signed') {
+            throw "Release notes contain a test-only label."
+          }
+          [System.IO.File]::WriteAllText(
+            $env:RELEASE_NOTES_PATH,
+            "$notes$([Environment]::NewLine)",
+            [System.Text.Encoding]::UTF8)
+
+      - name: Create GitHub Release
+        if: steps.release_state.outputs.should_publish == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release_state.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.release_state.outputs.version }}
+          RELEASE_NOTES_PATH: ${{ runner.temp }}\predatorlite-release-notes.md
+        run: |
+          $ErrorActionPreference = "Stop"
+          $releaseDirectory = "publish\release"
+          $assetPaths = @(
+            (Join-Path $releaseDirectory "PredatorLite-$env:RELEASE_VERSION-win-x64-portable.zip"),
+            (Join-Path $releaseDirectory "PredatorLite-$env:RELEASE_VERSION-win-x64-portable.zip.sha256"),
+            (Join-Path $releaseDirectory "PredatorLite-Setup-$env:RELEASE_VERSION-win-x64.exe"),
+            (Join-Path $releaseDirectory "PredatorLite-Setup-$env:RELEASE_VERSION-win-x64.exe.sha256")
+          )
+          $arguments = @(
+            "release",
+            "create",
+            $env:RELEASE_TAG
+          ) + $assetPaths + @(
+            "--repo", $env:GITHUB_REPOSITORY,
+            "--target", $env:GITHUB_SHA,
+            "--title", "PredatorLite $env:RELEASE_TAG",
+            "--notes-file", $env:RELEASE_NOTES_PATH
+          )
+          & gh @arguments
+          if ($LASTEXITCODE -ne 0) {
+            throw "GitHub Release creation failed with exit code $LASTEXITCODE."
+          }
+          Write-Host "Created GitHub Release $env:RELEASE_TAG."

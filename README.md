@@ -13,8 +13,7 @@ PredatorLite 是面向 Acer Predator 设备的独立、非官方 PredatorSense �
 
 其他机型或 BIOS 版本仍可查看诊断信息和只读遥测，但没有已验证 profile 时所有硬件写入都会被禁用。新增写入支持必须逐机型、逐 BIOS 提供独立协议证据和人工验证。
 
-> [!WARNING]
-> PredatorLite 仍处于预发布阶段，是独立、非官方的 PredatorSense 替代方案，不代表 Acer 官方产品或授权。硬件控制存在固有风险；请确认当前设备存在匹配的已验证 profile，并阅读[硬件安全边界](docs/hardware-safety.md)。
+当前正式版本为 `v1.0.0`。PredatorLite 是独立、非官方的 PredatorSense 替代方案，不代表 Acer 官方产品或授权。硬件控制存在固有风险；请确认当前设备存在匹配的已验证 profile，并阅读[硬件安全边界](docs/hardware-safety.md)。首次运行新发布版本时，Windows 可能显示 SmartScreen 信誉提示。
 
 ## 功能
 
@@ -85,7 +84,22 @@ dotnet run --project src\PredatorLite.App\PredatorLite.App.csproj
 - .NET 10 Runtime x64
 - Windows App Runtime 2.3 x64
 
-发布目录必须整体保留，不能只复制 `PredatorLite.exe`。发布脚本分别发布主程序、FanGuard 和 ElevatedHelper，再合并各自拥有的文件；默认采用经过测量验证的平衡型 framework-dependent ReadyToRun：启动关键程序集保留 R2R，延迟遥测和未使用的 AI/ML/Widgets 托管投影保持 IL。脚本拒绝非 AMD64 原生 PE、32 位托管程序集、ARM/x86 子目录、TraceEvent 残留和 framework-dependent 布局中不应本地携带的 Windows ML 原生运行库，并执行 80 MiB 的 R2R 预算。使用 `.\build\publish.ps1 -ReadyToRun:$false` 可生成 IL 对照布局，预算为 65 MiB。性能基准、启动回归门槛与 Native AOT 阻断项见[性能与部署证据](docs/performance.md)。该目录版默认没有 Authenticode 签名；`main` 推送和手动 `build` 工作流会把它作为带 `UNSIGNED-TEST-ONLY` 标识的 14 天测试 artifact，PR 不上传可下载产物。
+发布目录必须整体保留，不能只复制 `PredatorLite.exe`。发布脚本分别发布主程序、FanGuard 和 ElevatedHelper，再合并各自拥有的文件；默认采用经过测量验证的平衡型 framework-dependent ReadyToRun：启动关键程序集保留 R2R，延迟遥测和未使用的 AI/ML/Widgets 托管投影保持 IL。脚本拒绝非 AMD64 原生 PE、32 位托管程序集、ARM/x86 子目录、TraceEvent 残留和 framework-dependent 布局中不应本地携带的 Windows ML 原生运行库，并执行 80 MiB 的 R2R 预算。使用 `build/prepare-release.ps1 -Version 1.0.0` 可生成正式发布包。使用 `build/publish.ps1 -ReadyToRun:$false` 可生成 IL 对照布局，预算为 65 MiB；正式发布脚本固定使用经过验证的 ReadyToRun 布局。
+
+正式 v1.0.0 发布包：
+
+```powershell
+.\build\prepare-release.ps1 -Version 1.0.0
+```
+
+脚本会生成以下四个资产到 `publish\release`：
+
+- `PredatorLite-1.0.0-win-x64-portable.zip`
+- `PredatorLite-1.0.0-win-x64-portable.zip.sha256`
+- `PredatorLite-Setup-1.0.0-win-x64.exe`
+- `PredatorLite-Setup-1.0.0-win-x64.exe.sha256`
+
+发布资产使用 framework-dependent ReadyToRun 便携目录和普通用户安装器。目标机器需要 .NET 10 Runtime x64、Windows App Runtime 2.3 x64，以及 Windows 11 24H2（build 26100+）原生 x64。首次运行新发布版本时，Windows 可能显示 SmartScreen 信誉提示；发布前后都应使用对应 `.sha256` 文件校验资产。
 
 Inno Setup 本地安装测试包：
 
@@ -93,18 +107,18 @@ Inno Setup 本地安装测试包：
 .\build\build-installer.ps1 -SkipSigning
 ```
 
-输出为 `artifacts\installer\unsigned\PredatorLite-Setup-0.1.0-win-x64-unsigned.exe`。未签名载荷和测试包都位于忽略的 `artifacts`，不会读写 `publish`。`main` 推送和手动运行 `build` 工作流还会生成同类安装器，并把它作为保留 14 天的 `PredatorLite-installer-UNSIGNED-TEST-ONLY` Actions artifact；artifact 内含未签名警告，只能用于测试，不能附加到 GitHub Release 或作为正式版本分发。日常工作流没有创建或修改 GitHub Release 的权限。
+输出为 `artifacts\installer\unsigned\PredatorLite-Setup-1.0.0-win-x64-unsigned.exe`。未签名载荷和测试包都位于忽略的 `artifacts`，不会读写 `publish`。`main` 推送和手动运行 `build` 工作流还会生成同类安装器，并把它作为保留 14 天的 `PredatorLite-installer-UNSIGNED-TEST-ONLY` Actions artifact；artifact 内含未签名警告，只能用于测试，不能附加到 GitHub Release 或作为正式版本分发。正式 v1.0.0 发布由 `.github\workflows\release.yml` 在 `main` 推送时处理；同版本 Release 已存在时不会覆盖。
 
 完整的临时证书签名、安装、卸载与时间戳集成测试不阻塞日常构建。发布前必须在本地运行 `build\test-installer-signing.ps1`；需要检查 GitHub 托管环境时，可从 Actions 页面手动运行 `installer signing gates` 工作流。该手动工作流不上传 artifact，也不能创建或修改 GitHub Release；其 `-test-signed` 产物只存在于临时 runner，并在测试结束时删除。
 
-生产构建要求把带私钥、Code Signing EKU 且由公共信任 CA 签发的 Authenticode 证书导入 `CurrentUser\My`，且证书链根必须存在于 Windows `LocalMachine\AuthRoot`，然后执行：
+可选的证书签名构建要求把带私钥、Code Signing EKU 且由公共信任 CA 签发的 Authenticode 证书导入 `CurrentUser\My`，且证书链根必须存在于 Windows `LocalMachine\AuthRoot`，然后执行：
 
 ```powershell
 $env:PREDATORLITE_SIGNING_THUMBPRINT = "<certificate SHA-1 thumbprint>"
 .\build\build-installer.ps1
 ```
 
-生产构建不会修改 `publish\win-x64`。它在每次调用的独立 `artifacts` 工作目录中签署 8 个 PredatorLite 自有 EXE/DLL，并用 SignTool 固定到预期证书验证 SHA-256 签名和 RFC 3161 时间戳；Inno Setup 同样签署 Setup 与内嵌卸载器，测试脚本会安装后验证卸载器。Setup 验证和 `.sha256` 生成全部成功后，脚本才通过同父目录移动将两个文件提升到 `publish\installer`。提升前失败会保留已有正式安装包；提升开始后失败会删除候选和不完整目标。证书自签名、仅受本机私有根信任、已吊销、缺少私钥、用途错误或已过期时构建会失败。第三方 DLL 保留其原始发布者签名，不会被 PredatorLite 重新签署。
+证书签名构建不会修改 `publish\win-x64`。它在每次调用的独立 `artifacts` 工作目录中签署 8 个 PredatorLite 自有 EXE/DLL，并用 SignTool 固定到预期证书验证 SHA-256 签名和 RFC 3161 时间戳；Inno Setup 同样签署 Setup 与内嵌卸载器，测试脚本会安装后验证卸载器。Setup 验证和 `.sha256` 生成全部成功后，脚本才通过同父目录移动将两个文件提升到 `publish\installer`。提升前失败会保留已有正式安装包；提升开始后失败会删除候选和不完整目标。证书自签名、仅受本机私有根信任、已吊销、缺少私钥、用途错误或已过期时构建会失败。第三方 DLL 保留其原始发布者签名，不会被 PredatorLite 重新签署。
 
 ## 项目结构
 

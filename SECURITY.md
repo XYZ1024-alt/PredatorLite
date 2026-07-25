@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-PredatorLite is pre-release software. Security fixes are applied to the latest commit on `main`; older snapshots and unpublished local builds are not supported.
+PredatorLite v1.0.0 is the first formal release. Security fixes are applied to the latest supported release branch and `main`; older snapshots and unpublished local builds are not supported.
 
 ## Reporting a vulnerability
 
