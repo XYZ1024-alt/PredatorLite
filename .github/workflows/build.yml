@@ -93,7 +93,7 @@ jobs:
       - name: Build formal installer artifact
         if: github.event_name != 'pull_request'
         shell: pwsh
-        run: .\build\build-installer.ps1 -PublicRelease
+        run: .\build\build-installer.ps1 -SkipSigning -PublicRelease
 
       - name: Validate formal installer artifact
         if: github.event_name != 'pull_request'
