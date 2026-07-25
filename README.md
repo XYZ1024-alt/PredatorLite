@@ -107,7 +107,7 @@ Inno Setup 本地安装测试包：
 .\build\build-installer.ps1 -SkipSigning
 ```
 
-输出为 `artifacts\installer\unsigned\PredatorLite-Setup-1.0.0-win-x64-unsigned.exe`。未签名载荷和测试包都位于忽略的 `artifacts`，不会读写 `publish`。`main` 推送和手动运行 `build` 工作流还会生成同类安装器，并把它作为保留 14 天的 `PredatorLite-installer-UNSIGNED-TEST-ONLY` Actions artifact；artifact 内含未签名警告，只能用于测试，不能附加到 GitHub Release 或作为正式版本分发。正式 v1.0.0 发布由 `.github\workflows\release.yml` 在 `main` 推送时处理；同版本 Release 已存在时不会覆盖。
+输出为 `artifacts\installer\unsigned\PredatorLite-Setup-1.0.0-win-x64-unsigned.exe`。内部测试载荷和测试包位于忽略的 `artifacts`，不会读写 `publish`；该路径只用于 signing-gates，不作为正式发布入口。`main` 推送和手动运行 `build` 工作流会上传 `PredatorLite-win-x64-portable` 与 `PredatorLite-installer` 两个正式命名的 Actions artifact。正式 v1.0.0 发布由 `.github\workflows\release.yml` 在 `main` 推送时处理；同版本 Release 已存在时不会覆盖。
 
 完整的临时证书签名、安装、卸载与时间戳集成测试不阻塞日常构建。发布前必须在本地运行 `build\test-installer-signing.ps1`；需要检查 GitHub 托管环境时，可从 Actions 页面手动运行 `installer signing gates` 工作流。该手动工作流不上传 artifact，也不能创建或修改 GitHub Release；其 `-test-signed` 产物只存在于临时 runner，并在测试结束时删除。
 
