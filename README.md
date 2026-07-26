@@ -42,6 +42,17 @@ PredatorLite 不提供用户超频、电压调节、功耗墙修改、MSR/NVAPI 
 
 详见 [架构说明](docs/architecture.md) 与 [硬件安全边界](docs/hardware-safety.md)。
 
+## Code signing policy
+
+Free code signing is provided by [SignPath.io](https://signpath.io/), with the certificate issued by the [SignPath Foundation](https://signpath.org/).
+
+- Authors, committers, and reviewers: [XYZ1024-alt](https://github.com/XYZ1024-alt)
+- Approvers: [XYZ1024-alt](https://github.com/XYZ1024-alt)
+- Every signing request must come from the automated GitHub Actions build for this repository and requires manual approval in SignPath.
+- Only PredatorLite-owned binaries are signed under this policy. Third-party binaries retain their upstream signatures or remain unsigned.
+
+Privacy statement: This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it. Runtime communication is limited to services on the local machine. Diagnostic archives are created only through an explicit user action and are saved to a location selected by the user.
+
 ## 依赖
 
 PredatorLite 复用 Acer 官方驱动和服务提供的接口，不附带或替换固件：
