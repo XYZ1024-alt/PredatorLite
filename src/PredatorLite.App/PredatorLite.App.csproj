@@ -71,6 +71,7 @@
     <PublishReadyToRunExclude Include="Microsoft.Windows.AI.Text.Projection.dll" />
     <PublishReadyToRunExclude Include="Microsoft.Windows.AI.Video.Projection.dll" />
     <PublishReadyToRunExclude Include="Microsoft.Windows.Widgets.Projection.dll" />
+    <PublishReadyToRunExclude Include="Microsoft.WindowsAppRuntime.Bootstrap.Net.dll" />
     <PublishReadyToRunExclude Include="Mono.Posix.NETStandard.dll" />
     <PublishReadyToRunExclude Include="RAMSPDToolkit-NDD.dll" />
     <PublishReadyToRunExclude Include="System.IO.Ports.dll" />

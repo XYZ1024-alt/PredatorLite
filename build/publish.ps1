@@ -77,6 +77,19 @@ function Assert-FrameworkDependentRuntimeConfig {
     }
 }
 
+function Assert-ValidAuthenticodeSignature {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    $signature = Get-AuthenticodeSignature -LiteralPath $Path
+    if ($signature.Status -ne [System.Management.Automation.SignatureStatus]::Valid -or
+        $null -eq $signature.SignerCertificate) {
+        throw "Published dependency does not have a valid Authenticode signature: $Path ($($signature.Status))"
+    }
+}
+
 function Assert-X64BinaryLayout {
     param(
         [Parameter(Mandatory)]
@@ -320,6 +333,12 @@ try {
         throw "Published output is incomplete. Missing: $($missingFiles -join ', ')"
     }
 
+    foreach ($bootstrapperFile in @(
+        "Microsoft.WindowsAppRuntime.Bootstrap.dll",
+        "Microsoft.WindowsAppRuntime.Bootstrap.Net.dll")) {
+        Assert-ValidAuthenticodeSignature -Path (Join-Path $destination $bootstrapperFile)
+    }
+
     $unexpectedDevelopmentFiles = @(
         Get-ChildItem -LiteralPath $destination -Recurse -File |
             Where-Object { $_.Extension -in @(".pdb", ".xaml") }
@@ -410,6 +429,7 @@ try {
         "Microsoft.Windows.AI.Text.Projection.dll",
         "Microsoft.Windows.AI.Video.Projection.dll",
         "Microsoft.Windows.Widgets.Projection.dll",
+        "Microsoft.WindowsAppRuntime.Bootstrap.Net.dll",
         "Mono.Posix.NETStandard.dll",
         "RAMSPDToolkit-NDD.dll",
         "System.IO.Ports.dll",
