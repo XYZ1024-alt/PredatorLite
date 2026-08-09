@@ -13,7 +13,7 @@ PredatorLite 是面向 Acer Predator 设备的独立、非官方 PredatorSense �
 
 其他机型或 BIOS 版本仍可查看诊断信息和只读遥测，但没有已验证 profile 时所有硬件写入都会被禁用。新增写入支持必须逐机型、逐 BIOS 提供独立协议证据和人工验证。
 
-当前正式版本为 `v1.0.1`。PredatorLite 是独立、非官方的 PredatorSense 替代方案，不代表 Acer 官方产品或授权。硬件控制存在固有风险；请确认当前设备存在匹配的已验证 profile，并阅读[硬件安全边界](docs/hardware-safety.md)。首次运行新发布版本时，Windows 可能显示 SmartScreen 信誉提示。
+当前最新目标版本为 `v1.0.2`（上一正式版本为 `v1.0.1`）。PredatorLite 是独立、非官方的 PredatorSense 替代方案，不代表 Acer 官方产品或授权。硬件控制存在固有风险；请确认当前设备存在匹配的已验证 profile，并阅读[硬件安全边界](docs/hardware-safety.md)。首次运行新发布版本时，Windows 可能显示 SmartScreen 信誉提示。
 
 ## 功能
 
@@ -100,17 +100,17 @@ dotnet run --project src\PredatorLite.App\PredatorLite.App.csproj
 本地生成 Stable、RC 或 Beta 发布资产：
 
 ```powershell
-.\build\prepare-release.ps1 -Version 1.0.1 -Channel Stable
-.\build\prepare-release.ps1 -Version 1.0.1 -Channel RC -Iteration 1
-.\build\prepare-release.ps1 -Version 1.0.1 -Channel Beta -Iteration 1
+.\build\prepare-release.ps1 -Version 1.0.2 -Channel Stable
+.\build\prepare-release.ps1 -Version 1.0.2 -Channel RC -Iteration 1
+.\build\prepare-release.ps1 -Version 1.0.2 -Channel Beta -Iteration 1
 ```
 
 脚本会生成对应版本的四个资产到 `publish\release`。以 RC 1 为例：
 
-- `PredatorLite-1.0.1-rc.1-win-x64-portable.zip`
-- `PredatorLite-1.0.1-rc.1-win-x64-portable.zip.sha256`
-- `PredatorLite-Setup-1.0.1-rc.1-win-x64.exe`
-- `PredatorLite-Setup-1.0.1-rc.1-win-x64.exe.sha256`
+- `PredatorLite-1.0.2-rc.1-win-x64-portable.zip`
+- `PredatorLite-1.0.2-rc.1-win-x64-portable.zip.sha256`
+- `PredatorLite-Setup-1.0.2-rc.1-win-x64.exe`
+- `PredatorLite-Setup-1.0.2-rc.1-win-x64.exe.sha256`
 
 发布资产使用 framework-dependent ReadyToRun 便携目录和普通用户安装器。目标机器需要 .NET 10 Runtime x64、Windows App Runtime 2.3 x64，以及 Windows 11 24H2（build 26100+）原生 x64。首次运行新发布版本时，Windows 可能显示 SmartScreen 信誉提示；发布前后都应使用对应 `.sha256` 文件校验资产。
 
@@ -120,7 +120,7 @@ Inno Setup 本地安装测试包：
 .\build\build-installer.ps1 -SkipSigning
 ```
 
-输出为 `artifacts\installer\unsigned\PredatorLite-Setup-1.0.1-win-x64-unsigned.exe`。内部测试载荷和测试包位于忽略的 `artifacts`，不会读写 `publish`；该路径只用于 signing-gates，不作为发布入口。公开仓库的 Actions artifact 不能作为内部分发渠道，因此 `build` 工作流只验证构建和 RC 安装器，不上传可下载产物。
+输出为 `artifacts\installer\unsigned\PredatorLite-Setup-1.0.2-win-x64-unsigned.exe`。内部测试载荷和测试包位于忽略的 `artifacts`，不会读写 `publish`；该路径只用于 signing-gates，不作为发布入口。公开仓库的 Actions artifact 不能作为内部分发渠道，因此 `build` 工作流只验证构建和 RC 安装器，不上传可下载产物。
 
 `.github\workflows\release.yml` 仅支持从 Actions 页面手动运行，并要求选择通道：
 

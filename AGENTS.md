@@ -6,7 +6,7 @@
 
 Project: **PredatorLite**
 
-PredatorLite is a v1.0.1 ordinary-user Windows control utility and independent, unofficial alternative to PredatorSense for Acer Predator devices. Hardware writes are authorized only by explicit model/BIOS profiles. The current writable profile is `Predator PHN16-71`, BIOS `V1.20`, on Windows 11 24H2 (build 26100+) x64. Other models and BIOS versions may expose diagnostics and read-only telemetry, but must remain unable to write hardware state.
+PredatorLite is a v1.0.2 ordinary-user Windows control utility and independent, unofficial alternative to PredatorSense for Acer Predator devices. Hardware writes are authorized only by explicit model/BIOS profiles. The current writable profile is `Predator PHN16-71`, BIOS `V1.20`, on Windows 11 24H2 (build 26100+) x64. Other models and BIOS versions may expose diagnostics and read-only telemetry, but must remain unable to write hardware state.
 
 Stack: C# on .NET 10 SDK `10.0.302`; WinUI 3 with Microsoft Windows App SDK `2.3.1`; CommunityToolkit.Mvvm; xUnit; BenchmarkDotNet; PowerShell release tooling; Inno Setup 6.
 
@@ -45,9 +45,9 @@ Run commands from the repository root in PowerShell. Development requires Window
 | Run UI automation | `.\build\ui-tests.ps1 -AppPid <PID>` |
 | Publish ReadyToRun | `.\build\publish.ps1` |
 | Publish IL comparison | `.\build\publish.ps1 -OutputPath publish\win-x64-il -ReadyToRun:$false` |
-| Build Stable release package | `.\build\prepare-release.ps1 -Version 1.0.1 -Channel Stable` |
-| Build RC release package | `.\build\prepare-release.ps1 -Version 1.0.1 -Channel RC -Iteration 1` |
-| Build Beta release package | `.\build\prepare-release.ps1 -Version 1.0.1 -Channel Beta -Iteration 1` |
+| Build Stable release package | `.\build\prepare-release.ps1 -Version 1.0.2 -Channel Stable` |
+| Build RC release package | `.\build\prepare-release.ps1 -Version 1.0.2 -Channel RC -Iteration 1` |
+| Build Beta release package | `.\build\prepare-release.ps1 -Version 1.0.2 -Channel Beta -Iteration 1` |
 | Build installer test package | `.\build\build-installer.ps1 -SkipSigning` |
 | Test release version policy | `.\build\test-release-version.ps1` |
 | Test signing integration | `.\build\test-installer-signing.ps1` |
