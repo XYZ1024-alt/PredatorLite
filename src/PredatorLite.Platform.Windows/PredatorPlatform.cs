@@ -9,9 +9,9 @@ namespace PredatorLite.Platform.Windows;
 
 public sealed class PredatorPlatform : IPredatorPlatform
 {
-    private static readonly TimeSpan StartupBackendRetryTimeout = TimeSpan.FromSeconds(10);
-    private static readonly TimeSpan StartupBackendInitialDelay = TimeSpan.FromMilliseconds(250);
-    private static readonly TimeSpan StartupBackendMaximumDelay = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan BackendRetryTimeout = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan BackendInitialDelay = TimeSpan.FromMilliseconds(250);
+    private static readonly TimeSpan BackendMaximumDelay = TimeSpan.FromSeconds(2);
 
     private readonly AcerServiceClient _service;
     private readonly AcerSystemMonitorClient _systemMonitor;
@@ -290,19 +290,19 @@ public sealed class PredatorPlatform : IPredatorPlatform
         return states;
     }
 
-    public Task<ApplyResult> EnsureStartupOperatingModeAsync(
+    public Task<ApplyResult> EnsureOperatingModeAsync(
         OperatingMode mode,
         CancellationToken cancellationToken = default) =>
-        SetOperatingModeCoreAsync(mode, useStartupObservation: true, cancellationToken);
+        SetOperatingModeCoreAsync(mode, ensureCurrentState: true, cancellationToken);
 
     public Task<ApplyResult> SetOperatingModeAsync(
         OperatingMode mode,
         CancellationToken cancellationToken = default) =>
-        SetOperatingModeCoreAsync(mode, useStartupObservation: false, cancellationToken);
+        SetOperatingModeCoreAsync(mode, ensureCurrentState: false, cancellationToken);
 
     private async Task<ApplyResult> SetOperatingModeCoreAsync(
         OperatingMode mode,
-        bool useStartupObservation,
+        bool ensureCurrentState,
         CancellationToken cancellationToken)
     {
         if (mode is not (
@@ -318,7 +318,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
         ApplyResult? blocked = EnsureWriteAllowed(HardwareControlCapabilities.OperatingMode);
         if (blocked is not null)
         {
-            if (useStartupObservation)
+            if (ensureCurrentState)
             {
                 _startupObservationAvailable = false;
                 _startupObservedOperatingMode = null;
@@ -330,13 +330,24 @@ public sealed class PredatorPlatform : IPredatorPlatform
         await _operationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            bool matchesStartupObservation = useStartupObservation &&
-                _startupObservationAvailable &&
-                _startupObservedOperatingMode == mode;
+            OperatingMode? observedMode = null;
+            if (ensureCurrentState)
+            {
+                observedMode = _startupObservationAvailable
+                    ? _startupObservedOperatingMode
+                    : await ReadOperatingModeWithRetryAsync(cancellationToken).ConfigureAwait(false);
+            }
+
             _startupObservationAvailable = false;
             _startupObservedOperatingMode = null;
-            if (matchesStartupObservation)
+            if (ensureCurrentState && !observedMode.HasValue)
             {
+                return ApplyResult.Failure("The operating mode could not be verified.");
+            }
+
+            if (observedMode == mode)
+            {
+                SetVerifiedOperatingMode(mode);
                 _wmi.ApplyWindowsPowerOverlay(mode);
                 return ApplyResult.Success($"Operating mode {mode} is already active.");
             }
@@ -832,7 +843,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
         Stopwatch stopwatch,
         CancellationToken cancellationToken)
     {
-        TimeSpan remaining = StartupBackendRetryTimeout - stopwatch.Elapsed;
+        TimeSpan remaining = BackendRetryTimeout - stopwatch.Elapsed;
         if (remaining <= TimeSpan.Zero)
         {
             return null;
@@ -841,7 +852,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
         using CancellationTokenSource deadline =
             CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(remaining);
-        TimeSpan delay = StartupBackendInitialDelay;
+        TimeSpan delay = BackendInitialDelay;
         try
         {
             while (!deadline.IsCancellationRequested)
@@ -857,7 +868,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
 
                 delay = TimeSpan.FromTicks(Math.Min(
                     delay.Ticks * 2,
-                    StartupBackendMaximumDelay.Ticks));
+                    BackendMaximumDelay.Ticks));
             }
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
@@ -866,6 +877,57 @@ public sealed class PredatorPlatform : IPredatorPlatform
         }
 
         return null;
+    }
+
+    private async Task<OperatingMode?> ReadOperatingModeWithRetryAsync(
+        CancellationToken cancellationToken)
+    {
+        using CancellationTokenSource deadline =
+            CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(BackendRetryTimeout);
+        TimeSpan delay = BackendInitialDelay;
+        try
+        {
+            while (!deadline.IsCancellationRequested)
+            {
+                OperatingMode? mode = await ReadOperatingModeOnceAsync(deadline.Token)
+                    .ConfigureAwait(false);
+                if (mode.HasValue)
+                {
+                    return mode;
+                }
+
+                await Task.Delay(delay, deadline.Token).ConfigureAwait(false);
+                delay = TimeSpan.FromTicks(Math.Min(
+                    delay.Ticks * 2,
+                    BackendMaximumDelay.Ticks));
+            }
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger.Info("Operating mode read reached its 10 second deadline.");
+        }
+
+        return null;
+    }
+
+    private async Task<OperatingMode?> ReadOperatingModeOnceAsync(
+        CancellationToken cancellationToken)
+    {
+        if (_capabilities?.AcerServiceAvailable == true)
+        {
+            AcerResponse? response = await TryQueryAsync(
+                AcerProtocol.OperatingMode,
+                cancellationToken).ConfigureAwait(false);
+            if (AcerControlStateParser.TryReadOperatingMode(response, out OperatingMode mode))
+            {
+                return mode;
+            }
+        }
+
+        return _capabilities?.AcerWmiAvailable == true
+            ? await _wmi.ReadOperatingModeAsync(cancellationToken).ConfigureAwait(false)
+            : null;
     }
 
     private async Task<(bool Available, bool? Enabled)> ProbeBatteryAsync(

@@ -35,11 +35,13 @@ Read-only CPU/GPU telemetry uses the ordinary-user Acer system monitor socket on
 
 Profile authorization does not replace live capability probing. A control is unavailable when its backend, function probe or read-back requirement is not satisfied.
 
-## Startup operating-mode automation
+## Automatic operating-mode restoration
 
-Each primary-instance launch may restore one operating mode after the target profile, identity, BIOS, power state and a usable control backend have been read. The target is the last successfully selected non-Eco mode, except that enabled battery automation selects Eco while on battery. Unknown power with battery automation enabled causes no write.
+Each primary-instance launch, AC/battery automation transition, and registered Windows resume may restore one operating mode after the target profile, identity, BIOS, current power state and a usable control backend have been read. The target is the last successfully selected non-Eco mode, except that enabled battery automation selects Eco while on battery. Unknown power with battery automation enabled causes no write.
 
-A freshly read matching mode sends no Acer write and only synchronizes the Windows power overlay. A changed mode uses the same serialized setter and read-back verification as an interactive request. An unknown profile, missing backend or invalid saved enum value cannot bypass the write gate. No fan, lighting, GPU-routing, battery or device setting is replayed during startup.
+A freshly read matching mode sends no Acer write and only synchronizes the Windows power overlay. A changed mode uses the same serialized setter and read-back verification as an interactive request. Resume notifications are coalesced and consumed once by the next fresh telemetry snapshot; a simultaneous power transition cannot trigger a second operating-mode attempt or replace the saved AC intent with firmware-reset state. An unknown profile, missing backend or invalid saved enum value cannot bypass the write gate.
+
+No fan, lighting, GPU-routing, battery or device setting is replayed by automatic restoration. The existing Silent/Eco safety transition may restore an active Custom fan mode to Auto before applying the operating mode; failure to verify Auto blocks the mode change.
 
 ## Explicitly excluded
 

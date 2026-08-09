@@ -36,6 +36,8 @@ A target whose profile is known but whose control backend is still starting rece
 
 Only the operating mode is restored at startup. Fan settings, lighting, GPU routing, charge limits and device settings are never replayed. Hidden startup defers the complete `MainShell`; visible startup creates pages only when first navigated to.
 
+While the primary process remains alive, its main HWND is registered for suspend/resume notifications even when hidden to the tray. `PBT_APMRESUMEAUTOMATIC` only queues one restore; the next normal snapshot supplies fresh AC/battery state, then the same profile-gated, serialized, read-before-write operating-mode path restores the saved target. A simultaneous AC transition still runs refresh-rate automation but skips its duplicate operating-mode branch.
+
 The ordinary-user `AcerSysMonitorService` endpoint on `127.0.0.1:46753` supplies CPU/GPU temperature,
 frequency, load and fan speed on every telemetry cycle. Acer WMI remains a temperature/fan fallback,
 and Windows processor counters remain a CPU load/frequency fallback.

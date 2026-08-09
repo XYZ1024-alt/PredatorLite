@@ -66,7 +66,7 @@ Run this checklist on Windows 11 24H2 (build 26100+) x64. Hardware-write cases r
 9. Press the separate physical Mode key and verify it still cycles exactly one operating mode per press.
 10. Export diagnostics and confirm a ZIP is created at the selected path. Open Logs must open `%LocalAppData%\PredatorLite\logs`.
 
-## Startup mode restoration
+## Startup and resume mode restoration
 
 1. On the current writable PHN16-71 / BIOS V1.20 profile, select Silent, Balanced, Performance and Turbo in turn. After each selection, exit PredatorLite, change the hardware mode and launch PredatorLite manually; the saved mode must be restored and verified.
 2. Repeat with Start with Windows enabled and `StartMinimized` on. The tray must appear before full telemetry and the saved mode must be restored without opening the shell.
@@ -77,6 +77,11 @@ Run this checklist on Windows 11 24H2 (build 26100+) x64. Hardware-write cases r
 7. During hidden startup, verify no `MainShell` or page is created until the tray, dedicated key, or existing-instance activation shows the window. Navigate through every page after opening and confirm each page initializes once and remains functional.
 8. Review EventSource provider `PredatorLite-Startup` and the startup timing lines from at least five healthy cold launches. `critical-ready` must precede `deferred-ready`; APGe, service inventory, and non-current page construction must remain outside the critical path.
 9. Run both safe non-writing startup comparisons in [`performance.md`](performance.md). Confirm `Tray` emits `tray-ready`, `Shell` emits `shell-ready`, and both `--startup-tray-only` paths stop without `critical-ready`, a hardware setter, or a FanGuard launch.
+10. Select Performance, record the app PID, then sleep and wake Windows without exiting PredatorLite. Within 15 seconds, Performance must be selected with the same PID. The log must contain one queued resume line and exactly one `applied` or `already-active` outcome for that wake.
+11. Repeat the resume check with Turbo and Silent, then with Performance while the main window is hidden to the tray. The hidden HWND must still queue and complete exactly one restore.
+12. Enable battery Eco automation, select Performance on AC, sleep, disconnect AC while asleep, and wake. Eco must become active while `LastAcMode` remains Performance; reconnecting AC must restore Performance.
+13. Sleep and wake while hardware retains the selected mode. The outcome must be `already-active`, with no `applied` outcome or operating-mode setter packet, and the Windows power overlay must remain synchronized.
+14. Stop AcerService only for a controlled failure case. With WMI available, resume restoration must use its verified fallback. Without WMI, the log must show the ten-second read deadline and one failed outcome without changing `LastAcMode`. Restart AcerService immediately, then repeat on an unknown model or BIOS to confirm the profile gate remains read-only.
 
 ## Hardware controls
 
