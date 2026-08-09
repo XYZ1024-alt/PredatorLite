@@ -5,7 +5,7 @@ Before launching PredatorLite, install:
 - Microsoft .NET 10 Runtime for Windows x64
 - Microsoft Windows App Runtime 2.3 for Windows x64
 
-The installer deploys PredatorLite for the current user. The main application runs without administrator privileges. Windows requests elevation only when you explicitly ask PredatorLite to manage a conflicting service.
+The installer requires an administrator account to install PredatorLite into a protected Program Files directory. This prevents a non-administrator from substituting the elevated helper that Windows launches with administrator rights. The main application runs without administrator privileges; Windows requests elevation only when you explicitly ask PredatorLite to manage a conflicting service.
 
 PredatorLite 是面向 Windows 11 24H2（build 26100+）x64 的框架依赖 ReadyToRun 应用。
 
@@ -14,4 +14,4 @@ PredatorLite 是面向 Windows 11 24H2（build 26100+）x64 的框架依赖 Read
 - Microsoft .NET 10 Runtime for Windows x64
 - Microsoft Windows App Runtime 2.3 for Windows x64
 
-安装程序仅为当前用户部署 PredatorLite。主程序始终以普通用户权限运行；只有当你明确要求管理冲突服务时，Windows 才会请求管理员授权。
+安装程序需要管理员账户将 PredatorLite 安装到受保护的 Program Files 目录。这可以防止非管理员用户替换 Windows 以管理员身份启动的提权助手。主程序始终以普通用户权限运行；只有当你明确要求管理冲突服务时，Windows 才会请求管理员授权。

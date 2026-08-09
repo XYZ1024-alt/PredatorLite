@@ -183,7 +183,7 @@ function Remove-TestRegistryState {
     $runKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($runRegistryPath, $true)
     try { if ($null -ne $runKey) { $runKey.DeleteValue("PredatorLite", $false) } }
     finally { if ($null -ne $runKey) { $runKey.Dispose() } }
-    [Microsoft.Win32.Registry]::CurrentUser.DeleteSubKeyTree($uninstallRegistryPath, $false)
+    [Microsoft.Win32.Registry]::LocalMachine.DeleteSubKeyTree($uninstallRegistryPath, $false)
 }
 
 function Assert-ExpectedFailure {
@@ -234,7 +234,7 @@ function Enter-TestLock {
 
 $testLock = Enter-TestLock
 try {
-$uninstallKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($uninstallRegistryPath)
+$uninstallKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey($uninstallRegistryPath)
 $runKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($runRegistryPath)
 try {
     $hasStartupEntry = $null -ne $runKey -and $null -ne $runKey.GetValue("PredatorLite")
@@ -423,7 +423,7 @@ try {
         "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/NOICONS", "/DIR=`"$installDirectory`"") -PassThru -Wait
     if ($installer.ExitCode -ne 0) { throw "Test-signed installer exited with code $($installer.ExitCode)" }
 
-    $uninstallKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($uninstallRegistryPath)
+    $uninstallKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey($uninstallRegistryPath)
     try { if ($null -eq $uninstallKey) { throw "Test-signed install did not create uninstall registration." } }
     finally { if ($null -ne $uninstallKey) { $uninstallKey.Dispose() } }
 
@@ -452,7 +452,7 @@ try {
     if (Test-Path -LiteralPath $installDirectory) { throw "Test-signed uninstall left the install directory behind." }
 
     $runKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($runRegistryPath)
-    $uninstallKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($uninstallRegistryPath)
+    $uninstallKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey($uninstallRegistryPath)
     try {
         if ($null -ne $runKey -and $null -ne $runKey.GetValue("PredatorLite")) {
             throw "Test-signed uninstall left the PredatorLite startup value behind."

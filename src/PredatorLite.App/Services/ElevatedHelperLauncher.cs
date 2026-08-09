@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using PredatorLite.Core.Models;
+using PredatorLite.Platform.Windows.SystemIntegration;
 
 namespace PredatorLite.App.Services;
 
@@ -15,6 +16,13 @@ public static class ElevatedHelperLauncher
             return ApplyResult.Failure("The elevated helper executable was not found.");
         }
 
+        if (!ProtectedApplicationPathValidator.IsCompanionExecutableTrusted(executable))
+        {
+            return ApplyResult.Failure(
+                "The elevated helper is not located in a protected installation directory. " +
+                "Reinstall PredatorLite to continue managing conflicting services.");
+        }
+
         string programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
         string backupPath = Path.Combine(programData, "PredatorLite", "service-backup.json");
         try
@@ -22,7 +30,11 @@ public static class ElevatedHelperLauncher
             using Process? process = Process.Start(new ProcessStartInfo
             {
                 FileName = executable,
-                Arguments = $"{(disabled ? "disable" : "restore")} \"{backupPath}\"",
+                ArgumentList =
+                {
+                    disabled ? "disable" : "restore",
+                    backupPath
+                },
                 UseShellExecute = true,
                 Verb = "runas",
                 WindowStyle = ProcessWindowStyle.Hidden
