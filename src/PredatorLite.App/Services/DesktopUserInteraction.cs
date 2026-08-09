@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
@@ -13,6 +14,7 @@ namespace PredatorLite.App.Services;
 public enum ConfirmationKind
 {
     Standard,
+    Update,
     RebootRequired,
     Destructive
 }
@@ -22,13 +24,17 @@ public interface IUserInteraction : IDisposable
     Task<bool> ConfirmAsync(
         string message,
         string title,
-        ConfirmationKind kind = ConfirmationKind.Standard);
+        ConfirmationKind kind = ConfirmationKind.Standard,
+        string? primaryButtonText = null,
+        CancellationToken cancellationToken = default);
 
     Task<string?> ChooseDiagnosticsPathAsync();
 
     Task<string?> PickColorAsync(string currentColor);
 
     void OpenFolder(string path);
+
+    bool TryLaunchUpdateInstaller(string path);
 }
 
 public sealed class DesktopUserInteraction(
@@ -42,7 +48,9 @@ public sealed class DesktopUserInteraction(
     public async Task<bool> ConfirmAsync(
         string message,
         string title,
-        ConfirmationKind kind = ConfirmationKind.Standard)
+        ConfirmationKind kind = ConfirmationKind.Standard,
+        string? primaryButtonText = null,
+        CancellationToken cancellationToken = default)
     {
         XamlRoot? root = xamlRootProvider();
         if (root is null)
@@ -51,9 +59,10 @@ public sealed class DesktopUserInteraction(
             return false;
         }
 
-        await _dialogGate.WaitAsync();
+        await _dialogGate.WaitAsync(cancellationToken);
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             ContentDialog dialog = new()
             {
                 XamlRoot = root,
@@ -64,13 +73,16 @@ public sealed class DesktopUserInteraction(
                     TextWrapping = TextWrapping.Wrap,
                     MaxWidth = 460
                 },
-                PrimaryButtonText = localization.Get("Action.Confirm"),
+                PrimaryButtonText = primaryButtonText ?? localization.Get("Action.Confirm"),
                 CloseButtonText = localization.Get("Action.Cancel"),
                 DefaultButton = kind == ConfirmationKind.Standard
                     ? ContentDialogButton.Primary
                     : ContentDialogButton.Close
             };
             AutomationProperties.SetAutomationId(dialog, $"ConfirmationDialog.{kind}");
+            DispatcherQueue dispatcher = root.Content.DispatcherQueue;
+            using CancellationTokenRegistration registration = cancellationToken.Register(
+                () => dispatcher.TryEnqueue(dialog.Hide));
             return await dialog.ShowAsync() == ContentDialogResult.Primary;
         }
         finally
@@ -158,6 +170,34 @@ public sealed class DesktopUserInteraction(
             FileName = path,
             UseShellExecute = true
         });
+    }
+
+    public bool TryLaunchUpdateInstaller(string path)
+    {
+        try
+        {
+            string fullPath = Path.GetFullPath(path);
+            string fileName = Path.GetFileName(fullPath);
+            if (!File.Exists(fullPath) ||
+                !fileName.StartsWith("PredatorLite-Setup-", StringComparison.Ordinal) ||
+                !fileName.EndsWith("-win-x64.exe", StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogError("The verified update installer path was invalid.");
+                return false;
+            }
+
+            using Process? process = Process.Start(new ProcessStartInfo
+            {
+                FileName = fullPath,
+                UseShellExecute = true
+            });
+            return process is not null;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError("The update installer could not be launched.", exception);
+            return false;
+        }
     }
 
     public void Dispose() => _dialogGate.Dispose();

@@ -83,4 +83,10 @@ Settings are written to `%LocalAppData%\PredatorLite\settings.json` through a te
 
 Logs retain seven days and redact the current user profile path. Directory creation, retention cleanup, and buffered file writes run on one background writer; disposal drains queued entries. Diagnostic ZIP files and settings use source-generated JSON metadata. Diagnostic ZIP files include identity, capabilities, one telemetry snapshot, service state, settings and up to three redacted logs. They do not include protocol secrets or the AcerService AES registry value.
 
+## Application updates
+
+Update checks are manual and use GitHub's `releases/latest` endpoint, which is restricted to the latest published non-draft, non-prerelease release. The response must contain exactly one stable x64 Setup asset and its matching `.sha256` sidecar under the configured PredatorLite repository. Asset URLs must remain HTTPS GitHub release URLs, installer size is bounded, and any GitHub asset digest must match the sidecar.
+
+After explicit user confirmation, the installer is downloaded to `%LocalAppData%\PredatorLite\Updates` through a uniquely named partial file. PredatorLite verifies the declared byte count and SHA-256 before atomically promoting the file and invoking it through the Windows shell. A failed or cancelled download deletes the partial file and never starts Setup. The main process remains `asInvoker`; the Inno Setup executable owns its existing administrator prompt, application shutdown, and in-place upgrade behavior.
+
 Startup and deployment measurements, the ReadyToRun decision, regression thresholds, and Native AOT audit blockers are documented in [`performance.md`](performance.md).

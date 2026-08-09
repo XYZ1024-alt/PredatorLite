@@ -44,6 +44,7 @@
     <sys:String x:Key="Description.AutoRefresh">Select the lowest or highest refresh rate based on power source.</sys:String>
     <sys:String x:Key="Description.ShowOsd">Show a compact performance overlay near the top of the desktop.</sys:String>
     <sys:String x:Key="Description.GlobalHotkeys">Allow global window access and operating mode cycling.</sys:String>
+    <sys:String x:Key="Description.CheckForUpdates">Check the latest stable release on GitHub.</sys:String>
     <sys:String x:Key="Section.OperatingMode">Operating mode</sys:String>
     <sys:String x:Key="Section.Fan">Fan control</sys:String>
     <sys:String x:Key="Section.Performance">Performance</sys:String>
@@ -136,6 +137,8 @@
     <sys:String x:Key="Label.ChargeLimit">80% charge limit</sys:String>
     <sys:String x:Key="Label.FanGuard">Fan guard</sys:String>
     <sys:String x:Key="Label.Language">Language</sys:String>
+    <sys:String x:Key="Label.Version">Current version</sys:String>
+    <sys:String x:Key="Label.ApplicationUpdates">Software updates</sys:String>
     <sys:String x:Key="Label.RunAtStartup">Run at startup</sys:String>
     <sys:String x:Key="Label.StartMinimized">Start minimized to tray</sys:String>
     <sys:String x:Key="Label.AutoEco">Use Eco mode on battery</sys:String>
@@ -166,6 +169,8 @@
     <sys:String x:Key="Action.Exit">Exit</sys:String>
     <sys:String x:Key="Action.Confirm">Confirm</sys:String>
     <sys:String x:Key="Action.Cancel">Cancel</sys:String>
+    <sys:String x:Key="Action.CheckForUpdates">Check for updates</sys:String>
+    <sys:String x:Key="Action.DownloadAndInstall">Download and install</sys:String>
     <sys:String x:Key="Action.Open">Open PredatorLite</sys:String>
     <sys:String x:Key="Action.Retry">Retry</sys:String>
     <sys:String x:Key="FileType.ZipArchive">ZIP archive</sys:String>
@@ -183,6 +188,14 @@
     <sys:String x:Key="Status.NotSupported">This control is not available on the current device.</sys:String>
     <sys:String x:Key="Status.ElevationCancelled">Administrator approval was cancelled.</sys:String>
     <sys:String x:Key="Status.DiagnosticsFailed">The diagnostics archive could not be exported. Details were written to the log.</sys:String>
+    <sys:String x:Key="Status.CheckingForUpdates">Checking the latest stable release...</sys:String>
+    <sys:String x:Key="Status.UpdateUpToDate">You are up to date ({0}).</sys:String>
+    <sys:String x:Key="Status.UpdateAvailable">Version {0} is available and ready to download.</sys:String>
+    <sys:String x:Key="Status.UpdateDownloading">Downloading and verifying {0}: {1}%</sys:String>
+    <sys:String x:Key="Status.UpdateCheckFailed">Updates could not be checked. Try again later. Details were written to the log.</sys:String>
+    <sys:String x:Key="Status.UpdateDownloadFailed">The update download or SHA-256 verification failed. The installer was not started.</sys:String>
+    <sys:String x:Key="Status.UpdateInstallerStarted">The installer has started and will close PredatorLite to continue the update.</sys:String>
+    <sys:String x:Key="Status.UpdateInstallerLaunchFailed">The update installer could not be started. Review the log for details.</sys:String>
     <sys:String x:Key="Status.FanCurveValid">The custom fan curve is valid and ready to apply.</sys:String>
     <sys:String x:Key="Status.TelemetryStale">Stale data</sys:String>
     <sys:String x:Key="Status.RebootRequired">Graphics routing will take effect after Windows restarts.</sys:String>
@@ -193,6 +206,7 @@
     <sys:String x:Key="Status.Standby">Standby</sys:String>
     <sys:String x:Key="Confirm.Mux">Switching to “{0}” requires a Windows restart. Continue?</sys:String>
     <sys:String x:Key="Confirm.DisableServices">PredatorLite will request administrator access, disable known conflicting services, and back up their start modes. Continue?</sys:String>
+    <sys:String x:Key="Confirm.UpdateAvailable">PredatorLite {0} is available; the current version is {1}. Download this stable release, verify its SHA-256 checksum, and start the installer?</sys:String>
     <sys:String x:Key="Tip.Minimize">Minimize</sys:String>
     <sys:String x:Key="Tip.Close">Hide to tray</sys:String>
     <sys:String x:Key="Tip.PickColor">Choose color</sys:String>
