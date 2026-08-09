@@ -11,6 +11,10 @@ $fail = 0
 $results = @()
 $homeLightingEffectValue = $null
 $lightingZoneOneValue = $null
+$versionProperties = [xml](Get-Content (Join-Path $PSScriptRoot "..\Directory.Build.props"))
+$expectedApplicationVersion = [string](
+    $versionProperties.Project.PropertyGroup.Version |
+        Select-Object -First 1)
 
 if (-not (Get-Command winapp -ErrorAction SilentlyContinue)) {
     throw "winapp is required. Run /winui-setup, then retry this script."
@@ -506,6 +510,8 @@ Test-Ui "Settings controls are reachable" {
     Assert-WinAppSucceeded "Opening Settings"
     winapp ui wait-for "Settings.Language" -a $AppPid -t 3000
     Assert-WinAppSucceeded "Waiting for language settings"
+    winapp ui wait-for "Settings.Version" -a $AppPid --value $expectedApplicationVersion -t 3000
+    Assert-WinAppSucceeded "Checking the application version"
     winapp ui wait-for "Settings.Services" -a $AppPid -t 3000
     Assert-WinAppSucceeded "Waiting for service settings"
     winapp ui wait-for "Settings.ExportDiagnostics" -a $AppPid -t 3000

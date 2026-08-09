@@ -18,6 +18,9 @@ public sealed partial class SettingsPage : Page
         Loaded += (_, _) => _loaded = true;
     }
 
+    public string ApplicationVersion { get; } =
+        typeof(SettingsPage).Assembly.GetName().Version?.ToString(3) ?? "--";
+
     public MainViewModel ViewModel { get; }
 
     private async void RunAtStartup_Toggled(object sender, RoutedEventArgs e)

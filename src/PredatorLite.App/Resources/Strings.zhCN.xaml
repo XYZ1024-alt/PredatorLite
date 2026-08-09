@@ -136,6 +136,7 @@
     <sys:String x:Key="Label.ChargeLimit">80% 充电上限</sys:String>
     <sys:String x:Key="Label.FanGuard">风扇守护</sys:String>
     <sys:String x:Key="Label.Language">语言</sys:String>
+    <sys:String x:Key="Label.Version">当前版本</sys:String>
     <sys:String x:Key="Label.RunAtStartup">开机启动</sys:String>
     <sys:String x:Key="Label.StartMinimized">启动后最小化到托盘</sys:String>
     <sys:String x:Key="Label.AutoEco">电池供电时自动节能</sys:String>

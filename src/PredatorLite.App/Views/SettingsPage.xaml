@@ -108,6 +108,14 @@
                         OnContent="{StaticResource State.On}"
                         Toggled="Preference_Toggled" />
                 </controls:SettingsCard>
+                <controls:SettingsCard
+                    MinHeight="48"
+                    Header="{StaticResource Label.Version}">
+                    <TextBlock
+                        AutomationProperties.AutomationId="Settings.Version"
+                        Style="{StaticResource BodyTextBlockStyle}"
+                        Text="{x:Bind ApplicationVersion, Mode=OneTime}" />
+                </controls:SettingsCard>
             </StackPanel>
 
             <StackPanel Grid.Row="1" Spacing="8">

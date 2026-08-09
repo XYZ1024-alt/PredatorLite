@@ -136,6 +136,7 @@
     <sys:String x:Key="Label.ChargeLimit">80% charge limit</sys:String>
     <sys:String x:Key="Label.FanGuard">Fan guard</sys:String>
     <sys:String x:Key="Label.Language">Language</sys:String>
+    <sys:String x:Key="Label.Version">Current version</sys:String>
     <sys:String x:Key="Label.RunAtStartup">Run at startup</sys:String>
     <sys:String x:Key="Label.StartMinimized">Start minimized to tray</sys:String>
     <sys:String x:Key="Label.AutoEco">Use Eco mode on battery</sys:String>
