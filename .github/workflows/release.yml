@@ -36,6 +36,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
@@ -225,21 +226,92 @@ jobs:
         env:
           RELEASE_VERSION: ${{ steps.release_state.outputs.version }}
           RELEASE_CHANNEL: ${{ steps.release_state.outputs.channel }}
+          RELEASE_TAG: ${{ steps.release_state.outputs.tag }}
           RELEASE_NOTES_PATH: ${{ runner.temp }}\predatorlite-release-notes.md
+          GH_TOKEN: ${{ github.token }}
         run: |
+          $ErrorActionPreference = "Stop"
+
           $distributionNotice = switch ($env:RELEASE_CHANNEL) {
             "beta" { "Internal beta draft. Do not redistribute this build outside the PredatorLite maintainer group." }
             "rc" { "Public release candidate. This build may still contain defects and is not the final release." }
             "stable" { "Stable public release." }
             default { throw "Unsupported release channel: $env:RELEASE_CHANNEL" }
           }
-          $notes = @(
+
+          # Baseline is the newest existing GitHub release on the same channel as this
+          # release: stable diffs against the previous stable, rc against the previous rc,
+          # beta against the previous beta. Channel is read from the enforced tag naming
+          # contract (vX.Y.Z / -rc.N / -beta.N). The diff range uses target_commitish,
+          # the commit SHA the release points at, so tags are not required locally.
+          $channelPattern = switch ($env:RELEASE_CHANNEL) {
+            "stable" { '^v\d+\.\d+\.\d+$' }
+            "rc"     { '-rc\.\d+$' }
+            "beta"   { '-beta\.\d+$' }
+            default { throw "Unsupported release channel: $env:RELEASE_CHANNEL" }
+          }
+          $previousSha = $null
+          $previousTagName = $null
+          $releasesJson = (& gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" 2>$null)
+          if ($LASTEXITCODE -ne 0) {
+            throw "Could not list releases for $env:GITHUB_REPOSITORY."
+          }
+          $previousRelease = @($releasesJson | ConvertFrom-Json) |
+            Where-Object { -not $_.draft -and $_.tag_name -match $channelPattern } |
+            Select-Object -First 1
+          if ($previousRelease -and $previousRelease.target_commitish -and $previousRelease.tag_name) {
+            $previousSha = [string]$previousRelease.target_commitish
+            $previousTagName = [string]$previousRelease.tag_name
+          }
+
+          if ($previousSha) {
+            $commits = @(
+              & git log --no-merges --format="%s" "$previousSha..HEAD" |
+                Where-Object { $_.Trim() } |
+                Select-Object -Unique
+            )
+            $compareLink = "https://github.com/$env:GITHUB_REPOSITORY/compare/$previousTagName...$env:RELEASE_TAG"
+          } else {
+            $commits = @(
+              & git log --no-merges --format="%s" |
+                Where-Object { $_.Trim() } |
+                Select-Object -Unique
+            )
+            $compareLink = $null
+          }
+
+          # Group conventional-commit subjects by type; anything else lands in Other changes.
+          $groups = @{
+            "Features"      = [System.Collections.Generic.List[string]]::new()
+            "Bug fixes"     = [System.Collections.Generic.List[string]]::new()
+            "Performance"   = [System.Collections.Generic.List[string]]::new()
+            "Other changes" = [System.Collections.Generic.List[string]]::new()
+          }
+          $conventionalPattern = '^(feat|fix|perf)(?:\([^)]*\))?:\s+(.+)$'
+          foreach ($subject in $commits) {
+            if ($subject -match $conventionalPattern) {
+              $description = $Matches[2]
+              switch ($Matches[1]) {
+                "feat" { $groups["Features"].Add("- $description") }
+                "fix"  { $groups["Bug fixes"].Add("- $description") }
+                "perf" { $groups["Performance"].Add("- $description") }
+              }
+            } else {
+              $groups["Other changes"].Add("- $subject")
+            }
+          }
+
+          # Static sections are authored in this workflow, so they stay guarded against
+          # test-only labels. Commit-derived lines are factual history and are not guarded.
+          $staticHeader = @(
             "# PredatorLite v$env:RELEASE_VERSION",
             "",
             $distributionNotice,
             "",
-            "PredatorLite is an independent, unofficial PredatorSense alternative for supported Acer Predator devices.",
-            "",
+            "PredatorLite is an independent, unofficial PredatorSense alternative for supported Acer Predator devices."
+          ) -join [Environment]::NewLine
+
+          $staticFooter = @(
             "## Supported hardware profile",
             "",
             "- Acer Predator PHN16-71",
@@ -264,12 +336,33 @@ jobs:
             "",
             "PredatorLite is not an Acer product and is not affiliated with or endorsed by Acer."
           ) -join [Environment]::NewLine
-          if ($notes -match '(?i)unsigned|test-only|test-signed') {
+
+          if (($staticHeader + $staticFooter) -match '(?i)unsigned|test-only|test-signed') {
             throw "Release notes contain a test-only label."
           }
+
+          $sections = @($staticHeader, "", "## What's changed", "")
+          if ($commits.Count -eq 0) {
+            $sections += $(if ($previousTagName) { "No new commits since $previousTagName." } else { "Initial release." }), ""
+          } else {
+            foreach ($groupName in @("Features", "Bug fixes", "Performance", "Other changes")) {
+              if ($groups[$groupName].Count -gt 0) {
+                $sections += "### $groupName", ""
+                foreach ($item in $groups[$groupName]) {
+                  $sections += $item
+                }
+                $sections += ""
+              }
+            }
+            if ($compareLink) {
+              $sections += "**Full Changelog**: $compareLink", ""
+            }
+          }
+          $sections += $staticFooter
+          $finalNotes = $sections -join [Environment]::NewLine
           [System.IO.File]::WriteAllText(
             $env:RELEASE_NOTES_PATH,
-            "$notes$([Environment]::NewLine)",
+            "$finalNotes$([Environment]::NewLine)",
             [System.Text.Encoding]::UTF8)
 
       - name: Create GitHub Release
