@@ -1,9 +1,25 @@
 name: release
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      channel:
+        description: Release channel
+        required: true
+        type: choice
+        options:
+          - beta
+          - rc
+          - stable
+      iteration:
+        description: Beta or RC number; leave empty for stable
+        required: false
+        type: string
+      confirm_public:
+        description: Confirm public publication for RC or stable
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -25,23 +41,48 @@ jobs:
         with:
           global-json-file: global.json
 
+      - name: Test release version policy
+        shell: pwsh
+        run: .\build\test-release-version.ps1
+
       - name: Check release state
         id: release_state
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_CHANNEL: ${{ inputs.channel }}
+          RELEASE_ITERATION: ${{ inputs.iteration }}
+          CONFIRM_PUBLIC: ${{ inputs.confirm_public }}
         run: |
           $ErrorActionPreference = "Stop"
           if ($env:GITHUB_REF -ne "refs/heads/main") {
             throw "The release workflow must run from the main branch."
           }
+
+          . (Join-Path $PWD "build\release-output.ps1")
           [xml]$buildProperties = Get-Content -LiteralPath "Directory.Build.props"
-          $version = [string]($buildProperties.Project.PropertyGroup.Version | Select-Object -First 1)
-          if ($version -notmatch '^\d+\.\d+\.\d+$') {
-            throw "Directory.Build.props does not contain a three-component release version: $version"
+          $baseVersion = [string]($buildProperties.Project.PropertyGroup.Version | Select-Object -First 1)
+          $release = Resolve-PredatorLiteReleaseVersion `
+            -BaseVersion $baseVersion `
+            -Channel $env:RELEASE_CHANNEL `
+            -Iteration $env:RELEASE_ITERATION
+
+          $confirmPublic = $env:CONFIRM_PUBLIC.Equals(
+            "true",
+            [System.StringComparison]::OrdinalIgnoreCase)
+          if ($release.IsPublic -and -not $confirmPublic) {
+            throw "$($release.Channel) releases require confirm_public."
           }
-          $tag = "v$version"
-          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          if ($release.IsDraft -and $confirmPublic) {
+            throw "Beta releases must not request public confirmation."
+          }
+
+          $tag = "v$($release.ReleaseVersion)"
+          "base_version=$baseVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "version=$($release.ReleaseVersion)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "channel=$($release.Channel)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "is_draft=$($release.IsDraft.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "is_prerelease=$($release.IsPrerelease.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
           $response = @(& gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$tag" 2>&1)
@@ -57,7 +98,8 @@ jobs:
             throw "Could not determine whether release $tag exists: $responseText"
           }
           "should_publish=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          Write-Host "Release $tag does not exist and will be created after validation."
+          $visibility = if ($release.IsDraft) { "an internal draft" } elseif ($release.IsPrerelease) { "a public prerelease" } else { "a public stable release" }
+          Write-Host "Release $tag does not exist and will be created as $visibility after validation."
           exit 0
 
       - name: Install pinned Inno Setup
@@ -127,8 +169,15 @@ jobs:
         if: steps.release_state.outputs.should_publish == 'true'
         shell: pwsh
         env:
-          RELEASE_VERSION: ${{ steps.release_state.outputs.version }}
-        run: .\build\prepare-release.ps1 -Configuration Release -Version $env:RELEASE_VERSION
+          BASE_VERSION: ${{ steps.release_state.outputs.base_version }}
+          RELEASE_CHANNEL: ${{ inputs.channel }}
+          RELEASE_ITERATION: ${{ inputs.iteration }}
+        run: |
+          .\build\prepare-release.ps1 `
+            -Configuration Release `
+            -Version $env:BASE_VERSION `
+            -Channel $env:RELEASE_CHANNEL `
+            -Iteration $env:RELEASE_ITERATION
 
       - name: Validate release assets
         if: steps.release_state.outputs.should_publish == 'true'
@@ -175,10 +224,19 @@ jobs:
         shell: pwsh
         env:
           RELEASE_VERSION: ${{ steps.release_state.outputs.version }}
+          RELEASE_CHANNEL: ${{ steps.release_state.outputs.channel }}
           RELEASE_NOTES_PATH: ${{ runner.temp }}\predatorlite-release-notes.md
         run: |
+          $distributionNotice = switch ($env:RELEASE_CHANNEL) {
+            "beta" { "Internal beta draft. Do not redistribute this build outside the PredatorLite maintainer group." }
+            "rc" { "Public release candidate. This build may still contain defects and is not the final release." }
+            "stable" { "Stable public release." }
+            default { throw "Unsupported release channel: $env:RELEASE_CHANNEL" }
+          }
           $notes = @(
             "# PredatorLite v$env:RELEASE_VERSION",
+            "",
+            $distributionNotice,
             "",
             "PredatorLite is an independent, unofficial PredatorSense alternative for supported Acer Predator devices.",
             "",
@@ -221,6 +279,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.release_state.outputs.tag }}
           RELEASE_VERSION: ${{ steps.release_state.outputs.version }}
+          RELEASE_CHANNEL: ${{ steps.release_state.outputs.channel }}
+          RELEASE_IS_DRAFT: ${{ steps.release_state.outputs.is_draft }}
+          RELEASE_IS_PRERELEASE: ${{ steps.release_state.outputs.is_prerelease }}
           RELEASE_NOTES_PATH: ${{ runner.temp }}\predatorlite-release-notes.md
         run: |
           $ErrorActionPreference = "Stop"
@@ -238,11 +299,22 @@ jobs:
           ) + $assetPaths + @(
             "--repo", $env:GITHUB_REPOSITORY,
             "--target", $env:GITHUB_SHA,
-            "--title", "PredatorLite $env:RELEASE_TAG",
+            "--title", $(switch ($env:RELEASE_CHANNEL) {
+              "beta" { "PredatorLite $env:RELEASE_TAG (Internal Beta)" }
+              "rc" { "PredatorLite $env:RELEASE_TAG (Release Candidate)" }
+              "stable" { "PredatorLite $env:RELEASE_TAG" }
+              default { throw "Unsupported release channel: $env:RELEASE_CHANNEL" }
+            }),
             "--notes-file", $env:RELEASE_NOTES_PATH
           )
+          if ($env:RELEASE_IS_DRAFT -eq "true") {
+            $arguments += "--draft"
+          }
+          if ($env:RELEASE_IS_PRERELEASE -eq "true") {
+            $arguments += "--prerelease"
+          }
           & gh @arguments
           if ($LASTEXITCODE -ne 0) {
             throw "GitHub Release creation failed with exit code $LASTEXITCODE."
           }
-          Write-Host "Created GitHub Release $env:RELEASE_TAG."
+          Write-Host "Created GitHub $env:RELEASE_CHANNEL release $env:RELEASE_TAG."

@@ -3,13 +3,16 @@ param(
     [ValidateSet("Debug", "Release")]
     [string]$Configuration = "Release",
     [string]$Version,
+    [ValidateSet("Beta", "RC", "Stable")]
+    [string]$Channel = "Stable",
+    [string]$Iteration,
     [string]$CertificateThumbprint = $env:PREDATORLITE_SIGNING_THUMBPRINT,
     [ValidateSet("CurrentUser", "LocalMachine")]
     [string]$CertificateStore = "CurrentUser",
     [string]$TimestampUrl = "http://timestamp.digicert.com",
     [switch]$SkipSigning,
     [switch]$TestSigning,
-    [switch]$PublicRelease
+    [switch]$ReleaseArtifact
 )
 
 $ErrorActionPreference = "Stop"
@@ -248,27 +251,27 @@ function Get-CodeSigningCertificate {
 if ($SkipSigning -and $TestSigning) {
     throw "SkipSigning and TestSigning cannot be used together."
 }
-if ($PublicRelease -and $TestSigning) {
-    throw "PublicRelease and TestSigning cannot be used together."
+if ($ReleaseArtifact -and $TestSigning) {
+    throw "ReleaseArtifact and TestSigning cannot be used together."
 }
-if ($PublicRelease -and -not $SkipSigning) {
-    throw "PublicRelease requires SkipSigning and cannot use certificate signing."
+if ($ReleaseArtifact -and -not $SkipSigning) {
+    throw "ReleaseArtifact requires SkipSigning and cannot use certificate signing."
 }
-if ($PublicRelease -and -not [string]::IsNullOrWhiteSpace($CertificateThumbprint)) {
-    throw "PublicRelease cannot be combined with CertificateThumbprint or PREDATORLITE_SIGNING_THUMBPRINT."
+if ($ReleaseArtifact -and -not [string]::IsNullOrWhiteSpace($CertificateThumbprint)) {
+    throw "ReleaseArtifact cannot be combined with CertificateThumbprint or PREDATORLITE_SIGNING_THUMBPRINT."
 }
 
 $signingEnabled = -not $SkipSigning
 $signedProductionBuild = $signingEnabled -and -not $TestSigning
-$releaseBuild = $PublicRelease -or $signedProductionBuild
+$releaseBuild = $ReleaseArtifact -or $signedProductionBuild
 if ($signedProductionBuild -and $Configuration -ne "Release") {
     throw "Signed installers must use the Release configuration."
 }
-if ($PublicRelease -and $Configuration -ne "Release") {
-    throw "Public release installers must use the Release configuration."
+if ($ReleaseArtifact -and $Configuration -ne "Release") {
+    throw "Release asset installers must use the Release configuration."
 }
 
-$artifactDirectory = if ($PublicRelease -or $signedProductionBuild) {
+$artifactDirectory = if ($ReleaseArtifact -or $signedProductionBuild) {
     $releaseInstallerDirectory
 }
 elseif ($TestSigning) {
@@ -282,9 +285,10 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
     [xml]$buildProperties = Get-Content -LiteralPath (Join-Path $repositoryRoot "Directory.Build.props")
     $Version = [string]($buildProperties.Project.PropertyGroup.Version | Select-Object -First 1)
 }
-if ($Version -notmatch '^\d+\.\d+\.\d+$') {
-    throw "Installer Version must use three numeric components, for example 1.0.0."
-}
+$releaseVersion = Resolve-PredatorLiteReleaseVersion `
+    -BaseVersion $Version `
+    -Channel $Channel `
+    -Iteration $Iteration
 
 $timestampUri = $null
 if (-not [System.Uri]::TryCreate($TimestampUrl, [System.UriKind]::Absolute, [ref]$timestampUri) -or
@@ -310,8 +314,8 @@ if ($signingEnabled) {
         -RequirePublicTrust:$signedProductionBuild
 }
 
-$outputSuffix = if ($PublicRelease -or $signedProductionBuild) { "" } elseif ($SkipSigning) { "-unsigned" } else { "-test-signed" }
-$setupFileName = "PredatorLite-Setup-$Version-win-x64$outputSuffix.exe"
+$outputSuffix = if ($ReleaseArtifact -or $signedProductionBuild) { "" } elseif ($SkipSigning) { "-unsigned" } else { "-test-signed" }
+$setupFileName = "PredatorLite-Setup-$($releaseVersion.ReleaseVersion)-win-x64$outputSuffix.exe"
 $stagedSetupPath = Join-Path $compilerOutputDirectory $setupFileName
 $stagedHashPath = "$stagedSetupPath.sha256"
 $setupPath = Join-Path $artifactDirectory $setupFileName
@@ -346,6 +350,9 @@ try {
         & $publishScript `
             -Configuration $Configuration `
             -OutputPath $publishOutputPath `
+            -Version $Version `
+            -Channel $Channel `
+            -Iteration $Iteration `
             -AllowArtifactsOutput `
             -OutputLock $outputLock
         if ($LASTEXITCODE -ne 0) {
@@ -419,7 +426,7 @@ try {
             }
         }
 
-        if ($PublicRelease) {
+        if ($ReleaseArtifact) {
             foreach ($relativePath in $ownedBinaries) {
                 Assert-NoAuthenticodeCertificateTable -Path (Join-Path $publishDirectory $relativePath)
             }
@@ -427,7 +434,8 @@ try {
 
         New-Item -ItemType Directory -Path $compilerOutputDirectory -Force | Out-Null
         $compilerArguments = @(
-            "/DAppVersion=$Version",
+            "/DAppVersion=$($releaseVersion.ReleaseVersion)",
+            "/DVersionInfoVersion=$($releaseVersion.FileVersion)",
             "/DOutputSuffix=$outputSuffix",
             "/DPayloadDirectory=$publishDirectory",
             "/O$compilerOutputDirectory"
@@ -466,7 +474,7 @@ try {
                     "verify", "/pa", "/all", "/tw", "/sha1", $certificate.Thumbprint, $stagedSetupPath)
         }
 
-        if ($PublicRelease) {
+        if ($ReleaseArtifact) {
             Assert-NoAuthenticodeCertificateTable -Path $stagedSetupPath
         }
 
@@ -520,7 +528,7 @@ try {
                 -Arguments @(
                     "verify", "/pa", "/all", "/tw", "/sha1", $certificate.Thumbprint, $setupPath)
         }
-        if ($PublicRelease) {
+        if ($ReleaseArtifact) {
             Assert-NoAuthenticodeCertificateTable -Path $setupPath
         }
         $promotionAccepted = $true
@@ -578,7 +586,7 @@ if ($null -ne $operationFailure) {
     throw $operationFailure
 }
 
-if ($SkipSigning -and -not $PublicRelease) {
+if ($SkipSigning -and -not $ReleaseArtifact) {
     Write-Warning "Created an unsigned installer for test use only. Do not attach it to a GitHub Release or present it as a production release."
 }
 elseif ($TestSigning) {

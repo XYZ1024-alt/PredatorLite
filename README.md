@@ -95,20 +95,22 @@ dotnet run --project src\PredatorLite.App\PredatorLite.App.csproj
 - .NET 10 Runtime x64
 - Windows App Runtime 2.3 x64
 
-发布目录必须整体保留，不能只复制 `PredatorLite.exe`。发布脚本分别发布主程序、FanGuard 和 ElevatedHelper，再合并各自拥有的文件；默认采用经过测量验证的平衡型 framework-dependent ReadyToRun：启动关键程序集保留 R2R，延迟遥测和未使用的 AI/ML/Widgets 托管投影保持 IL。脚本拒绝非 AMD64 原生 PE、32 位托管程序集、ARM/x86 子目录、TraceEvent 残留和 framework-dependent 布局中不应本地携带的 Windows ML 原生运行库，并执行 80 MiB 的 R2R 预算。使用 `build/prepare-release.ps1 -Version 1.0.1` 可生成正式发布包。使用 `build/publish.ps1 -ReadyToRun:$false` 可生成 IL 对照布局，预算为 65 MiB；正式发布脚本固定使用经过验证的 ReadyToRun 布局。
+发布目录必须整体保留，不能只复制 `PredatorLite.exe`。发布脚本分别发布主程序、FanGuard 和 ElevatedHelper，再合并各自拥有的文件；默认采用经过测量验证的平衡型 framework-dependent ReadyToRun：启动关键程序集保留 R2R，延迟遥测和未使用的 AI/ML/Widgets 托管投影保持 IL。脚本拒绝非 AMD64 原生 PE、32 位托管程序集、ARM/x86 子目录、TraceEvent 残留和 framework-dependent 布局中不应本地携带的 Windows ML 原生运行库，并执行 80 MiB 的 R2R 预算。`Directory.Build.props` 保存三段数字基础版本；发布脚本用 `Beta`、`RC` 或 `Stable` 通道生成 `1.0.1-beta.1`、`1.0.1-rc.1` 或 `1.0.1`。使用 `build/publish.ps1 -ReadyToRun:$false` 可生成 IL 对照布局，预算为 65 MiB；发布资产固定使用经过验证的 ReadyToRun 布局。
 
-正式 v1.0.1 发布包：
+本地生成 Stable、RC 或 Beta 发布资产：
 
 ```powershell
-.\build\prepare-release.ps1 -Version 1.0.1
+.\build\prepare-release.ps1 -Version 1.0.1 -Channel Stable
+.\build\prepare-release.ps1 -Version 1.0.1 -Channel RC -Iteration 1
+.\build\prepare-release.ps1 -Version 1.0.1 -Channel Beta -Iteration 1
 ```
 
-脚本会生成以下四个资产到 `publish\release`：
+脚本会生成对应版本的四个资产到 `publish\release`。以 RC 1 为例：
 
-- `PredatorLite-1.0.1-win-x64-portable.zip`
-- `PredatorLite-1.0.1-win-x64-portable.zip.sha256`
-- `PredatorLite-Setup-1.0.1-win-x64.exe`
-- `PredatorLite-Setup-1.0.1-win-x64.exe.sha256`
+- `PredatorLite-1.0.1-rc.1-win-x64-portable.zip`
+- `PredatorLite-1.0.1-rc.1-win-x64-portable.zip.sha256`
+- `PredatorLite-Setup-1.0.1-rc.1-win-x64.exe`
+- `PredatorLite-Setup-1.0.1-rc.1-win-x64.exe.sha256`
 
 发布资产使用 framework-dependent ReadyToRun 便携目录和普通用户安装器。目标机器需要 .NET 10 Runtime x64、Windows App Runtime 2.3 x64，以及 Windows 11 24H2（build 26100+）原生 x64。首次运行新发布版本时，Windows 可能显示 SmartScreen 信誉提示；发布前后都应使用对应 `.sha256` 文件校验资产。
 
@@ -118,7 +120,15 @@ Inno Setup 本地安装测试包：
 .\build\build-installer.ps1 -SkipSigning
 ```
 
-输出为 `artifacts\installer\unsigned\PredatorLite-Setup-1.0.1-win-x64-unsigned.exe`。内部测试载荷和测试包位于忽略的 `artifacts`，不会读写 `publish`；该路径只用于 signing-gates，不作为正式发布入口。`main` 推送和手动运行 `build` 工作流会上传 `PredatorLite-win-x64-portable` 与 `PredatorLite-installer` 两个正式命名的 Actions artifact。正式 v1.0.1 发布由 `.github\workflows\release.yml` 在 `main` 推送时处理；同版本 Release 已存在时不会覆盖。
+输出为 `artifacts\installer\unsigned\PredatorLite-Setup-1.0.1-win-x64-unsigned.exe`。内部测试载荷和测试包位于忽略的 `artifacts`，不会读写 `publish`；该路径只用于 signing-gates，不作为发布入口。公开仓库的 Actions artifact 不能作为内部分发渠道，因此 `build` 工作流只验证构建和 RC 安装器，不上传可下载产物。
+
+`.github\workflows\release.yml` 仅支持从 Actions 页面手动运行，并要求选择通道：
+
+- `beta`：必须填写 `iteration`，必须保持 `confirm_public=false`；创建只有仓库 push 权限用户可见的 Draft Pre-release。
+- `rc`：必须填写 `iteration` 并勾选 `confirm_public`；创建所有人可见的 GitHub Pre-release。
+- `stable`：不得填写 `iteration`，必须勾选 `confirm_public`；创建正式 GitHub Release。
+
+工作流只接受 `main`，同一完整版本已存在时不会覆盖。Beta 适合维护者内部测试；如果测试人员不应获得公开仓库 push 权限，应改用独立私有仓库或私有存储分发 Beta。
 
 完整的临时证书签名、安装、卸载与时间戳集成测试不阻塞日常构建。发布前必须在本地运行 `build\test-installer-signing.ps1`；需要检查 GitHub 托管环境时，可从 Actions 页面手动运行 `installer signing gates` 工作流。该手动工作流不上传 artifact，也不能创建或修改 GitHub Release；其 `-test-signed` 产物只存在于临时 runner，并在测试结束时删除。
 

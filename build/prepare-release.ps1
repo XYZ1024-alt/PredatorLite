@@ -2,7 +2,10 @@
 param(
     [ValidateSet("Debug", "Release")]
     [string]$Configuration = "Release",
-    [string]$Version
+    [string]$Version,
+    [ValidateSet("Beta", "RC", "Stable")]
+    [string]$Channel = "Stable",
+    [string]$Iteration
 )
 
 $ErrorActionPreference = "Stop"
@@ -19,20 +22,21 @@ $projectVersion = [string]($buildProperties.Project.PropertyGroup.Version | Sele
 if ([string]::IsNullOrWhiteSpace($Version)) {
     $Version = $projectVersion
 }
-if ($Version -notmatch '^\d+\.\d+\.\d+$') {
-    throw "Release Version must use three numeric components, for example 1.0.0."
-}
 if ($Version -ne $projectVersion) {
     throw "Release Version $Version does not match Directory.Build.props version $projectVersion."
 }
+$releaseVersion = Resolve-PredatorLiteReleaseVersion `
+    -BaseVersion $Version `
+    -Channel $Channel `
+    -Iteration $Iteration
 
 $publishScript = Join-Path $PSScriptRoot "publish.ps1"
 $installerScript = Join-Path $PSScriptRoot "build-installer.ps1"
 $portableDirectory = Join-Path $repositoryRoot "publish\win-x64"
 $installerDirectory = Join-Path $repositoryRoot "publish\installer"
 $releaseDirectory = Join-Path $repositoryRoot "publish\release"
-$portableZipName = "PredatorLite-$Version-win-x64-portable.zip"
-$installerName = "PredatorLite-Setup-$Version-win-x64.exe"
+$portableZipName = "PredatorLite-$($releaseVersion.ReleaseVersion)-win-x64-portable.zip"
+$installerName = "PredatorLite-Setup-$($releaseVersion.ReleaseVersion)-win-x64.exe"
 $expectedAssetNames = @(
     $portableZipName,
     "$portableZipName.sha256",
@@ -101,7 +105,10 @@ try {
     & $publishScript `
         -Configuration $Configuration `
         -OutputPath "publish\win-x64" `
-        -ReadyToRun:$true
+        -ReadyToRun:$true `
+        -Version $Version `
+        -Channel $Channel `
+        -Iteration $Iteration
     if ($LASTEXITCODE -ne 0) {
         throw "PredatorLite portable publish failed with exit code $LASTEXITCODE"
     }
@@ -109,8 +116,10 @@ try {
     & $installerScript `
         -Configuration $Configuration `
         -Version $Version `
+        -Channel $Channel `
+        -Iteration $Iteration `
         -SkipSigning `
-        -PublicRelease
+        -ReleaseArtifact
     if ($LASTEXITCODE -ne 0) {
         throw "PredatorLite installer build failed with exit code $LASTEXITCODE"
     }

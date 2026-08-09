@@ -45,8 +45,11 @@ Run commands from the repository root in PowerShell. Development requires Window
 | Run UI automation | `.\build\ui-tests.ps1 -AppPid <PID>` |
 | Publish ReadyToRun | `.\build\publish.ps1` |
 | Publish IL comparison | `.\build\publish.ps1 -OutputPath publish\win-x64-il -ReadyToRun:$false` |
-| Build formal release package | `.\build\prepare-release.ps1 -Version 1.0.1` |
+| Build Stable release package | `.\build\prepare-release.ps1 -Version 1.0.1 -Channel Stable` |
+| Build RC release package | `.\build\prepare-release.ps1 -Version 1.0.1 -Channel RC -Iteration 1` |
+| Build Beta release package | `.\build\prepare-release.ps1 -Version 1.0.1 -Channel Beta -Iteration 1` |
 | Build installer test package | `.\build\build-installer.ps1 -SkipSigning` |
+| Test release version policy | `.\build\test-release-version.ps1` |
 | Test signing integration | `.\build\test-installer-signing.ps1` |
 | Audit Native AOT | `.\build\aot-audit.ps1` |
 
@@ -99,7 +102,9 @@ Read `docs/hardware-safety.md` and `docs/protocol-provenance.md` before changing
 
 - `build/publish.ps1` produces a validated framework-dependent balanced ReadyToRun layout in `publish\win-x64`: startup-critical assemblies use R2R while deferred telemetry and unused projection assemblies remain IL. Retain the entire directory; target machines need .NET 10 Runtime x64 and Windows App Runtime 2.3 x64.
 - ReadyToRun is the production mode. Native AOT is currently blocked by documented trim/AOT and unpackaged WinUI resource issues; do not suppress diagnostics or promote it without the full regression matrix.
-- `build/prepare-release.ps1` produces the four v1.0.1 formal assets in `publish\release`: a ReadyToRun portable ZIP, the installer, and one SHA-256 sidecar for each. The public `main` CD workflow creates the matching GitHub Release only when its `vX.Y.Z` release does not already exist.
+- `Directory.Build.props` contains the three-component base version. `build/prepare-release.ps1` combines it with `Beta`, `RC`, or `Stable` to produce the four matching assets in `publish\release`: a ReadyToRun portable ZIP, the installer, and one SHA-256 sidecar for each. Beta and RC require an iteration from 1 through 9999.
+- `.github/workflows/release.yml` is manual-only and accepts `channel`, `iteration`, and `confirm_public`. Beta creates an internal Draft Pre-release visible only to repository users with push access; RC creates a public Pre-release; Stable creates a normal public Release. RC and Stable require explicit public confirmation. Existing complete versions are never overwritten.
+- The public `build` workflow uploads no distributable artifact. Do not use public-repository Actions artifacts for internal Beta distribution. If Beta testers should not have push access, use a separate private repository or private storage.
 - `build/build-installer.ps1 -SkipSigning` remains a test-only path under `artifacts\installer\unsigned`; certificate signing and the existing signing gates remain available for future releases.
 - Never commit generated `bin/`, `obj/`, `publish/`, `artifacts/`, `BenchmarkDotNet.Artifacts/`, `TestResults/`, `coverage/`, UI captures, logs, dumps, traces, archives/packages, machine settings, environment files, diagnostics, or signing key/certificate material.
 
