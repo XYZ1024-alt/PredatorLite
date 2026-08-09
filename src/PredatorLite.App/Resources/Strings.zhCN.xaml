@@ -44,6 +44,7 @@
     <sys:String x:Key="Description.AutoRefresh">根据电源状态选择最低或最高刷新率。</sys:String>
     <sys:String x:Key="Description.ShowOsd">在桌面顶部显示紧凑性能浮窗。</sys:String>
     <sys:String x:Key="Description.GlobalHotkeys">允许全局显示窗口与循环切换模式。</sys:String>
+    <sys:String x:Key="Description.CheckForUpdates">检查 GitHub 上最新的正式版本。</sys:String>
     <sys:String x:Key="Section.OperatingMode">运行模式</sys:String>
     <sys:String x:Key="Section.Fan">风扇控制</sys:String>
     <sys:String x:Key="Section.Performance">性能</sys:String>
@@ -137,6 +138,7 @@
     <sys:String x:Key="Label.FanGuard">风扇守护</sys:String>
     <sys:String x:Key="Label.Language">语言</sys:String>
     <sys:String x:Key="Label.Version">当前版本</sys:String>
+    <sys:String x:Key="Label.ApplicationUpdates">软件更新</sys:String>
     <sys:String x:Key="Label.RunAtStartup">开机启动</sys:String>
     <sys:String x:Key="Label.StartMinimized">启动后最小化到托盘</sys:String>
     <sys:String x:Key="Label.AutoEco">电池供电时自动节能</sys:String>
@@ -167,6 +169,8 @@
     <sys:String x:Key="Action.Exit">退出</sys:String>
     <sys:String x:Key="Action.Confirm">确认</sys:String>
     <sys:String x:Key="Action.Cancel">取消</sys:String>
+    <sys:String x:Key="Action.CheckForUpdates">检查更新</sys:String>
+    <sys:String x:Key="Action.DownloadAndInstall">下载并安装</sys:String>
     <sys:String x:Key="Action.Open">打开 PredatorLite</sys:String>
     <sys:String x:Key="Action.Retry">重试</sys:String>
     <sys:String x:Key="FileType.ZipArchive">ZIP 压缩包</sys:String>
@@ -184,6 +188,14 @@
     <sys:String x:Key="Status.NotSupported">当前设备不支持此项控制。</sys:String>
     <sys:String x:Key="Status.ElevationCancelled">已取消管理员授权。</sys:String>
     <sys:String x:Key="Status.DiagnosticsFailed">无法导出诊断包，详细信息已写入日志。</sys:String>
+    <sys:String x:Key="Status.CheckingForUpdates">正在检查最新正式版…</sys:String>
+    <sys:String x:Key="Status.UpdateUpToDate">当前已是最新版本（{0}）。</sys:String>
+    <sys:String x:Key="Status.UpdateAvailable">发现新版本 {0}，等待下载。</sys:String>
+    <sys:String x:Key="Status.UpdateDownloading">正在下载并验证 {0}：{1}%</sys:String>
+    <sys:String x:Key="Status.UpdateCheckFailed">无法检查更新，请稍后重试。详细信息已写入日志。</sys:String>
+    <sys:String x:Key="Status.UpdateDownloadFailed">更新下载或 SHA-256 验证失败，未启动安装程序。</sys:String>
+    <sys:String x:Key="Status.UpdateInstallerStarted">安装程序已启动，将关闭 PredatorLite 以继续更新。</sys:String>
+    <sys:String x:Key="Status.UpdateInstallerLaunchFailed">无法启动更新安装程序，请查看日志。</sys:String>
     <sys:String x:Key="Status.FanCurveValid">自定义风扇曲线有效，可以应用。</sys:String>
     <sys:String x:Key="Status.TelemetryStale">数据已陈旧</sys:String>
     <sys:String x:Key="Status.RebootRequired">显卡连接方式将在重新启动 Windows 后生效。</sys:String>
@@ -194,6 +206,7 @@
     <sys:String x:Key="Status.Standby">待命</sys:String>
     <sys:String x:Key="Confirm.Mux">切换到“{0}”需要重新启动 Windows。是否继续？</sys:String>
     <sys:String x:Key="Confirm.DisableServices">将以管理员身份停用已识别的冲突服务，并备份它们的启动方式。是否继续？</sys:String>
+    <sys:String x:Key="Confirm.UpdateAvailable">发现 PredatorLite {0}，当前版本为 {1}。是否下载该正式版、验证 SHA-256 后启动安装程序？</sys:String>
     <sys:String x:Key="Tip.Minimize">最小化</sys:String>
     <sys:String x:Key="Tip.Close">隐藏到托盘</sys:String>
     <sys:String x:Key="Tip.PickColor">选择颜色</sys:String>

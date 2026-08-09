@@ -28,6 +28,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     private readonly FanGuardClient _fanGuard;
     private readonly LocalizationService _localization;
     private readonly IUserInteraction _interaction;
+    private readonly IApplicationUpdateService _updateService;
+    private readonly Version _applicationVersion;
     private readonly IUiDispatcher _uiDispatcher;
     private readonly SemaphoreSlim _hardwareGate = new(1, 1);
     private readonly CancellationTokenSource _lifetime = new();
@@ -62,6 +64,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         FanGuardClient fanGuard,
         LocalizationService localization,
         IUserInteraction interaction,
+        IApplicationUpdateService updateService,
+        Version applicationVersion,
         IUiDispatcher uiDispatcher)
     {
         _platform = platform;
@@ -71,8 +75,11 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         _fanGuard = fanGuard;
         _localization = localization;
         _interaction = interaction;
+        _updateService = updateService;
+        _applicationVersion = applicationVersion;
         _uiDispatcher = uiDispatcher;
         StatusMessage = "PredatorLite";
+        UpdateStatusText = localization.Get("Description.CheckForUpdates");
     }
 
     public ObservableCollection<FanCurvePointViewModel> CpuFanPoints { get; } = [];
@@ -171,6 +178,14 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     [ObservableProperty]
     public partial string CurrentLanguage { get; set; } = "zh-CN";
+
+    public string ApplicationVersion => _applicationVersion.ToString(3);
+
+    [ObservableProperty]
+    public partial bool IsUpdateOperationRunning { get; set; }
+
+    [ObservableProperty]
+    public partial string UpdateStatusText { get; set; }
 
     [ObservableProperty]
     public partial string DeviceModel { get; set; } = "--";
@@ -1190,6 +1205,91 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     [RelayCommand]
     private void OpenLogs() => _interaction.OpenFolder(_logger.LogDirectory);
 
+    [RelayCommand]
+    private async Task CheckForUpdatesAsync()
+    {
+        IsUpdateOperationRunning = true;
+        bool downloading = false;
+        bool acceptProgress = false;
+        try
+        {
+            UpdateStatusText = _localization.Get("Status.CheckingForUpdates");
+            ApplicationUpdateCheckResult result = await _updateService.CheckAsync(
+                _applicationVersion,
+                _lifetime.Token);
+            if (result.Update is not ApplicationUpdate update)
+            {
+                UpdateStatusText = string.Format(
+                    CultureInfo.CurrentCulture,
+                    _localization.Get("Status.UpdateUpToDate"),
+                    ApplicationVersion);
+                return;
+            }
+
+            string versionText = update.Version.ToString(3);
+            UpdateStatusText = string.Format(
+                CultureInfo.CurrentCulture,
+                _localization.Get("Status.UpdateAvailable"),
+                versionText);
+            string confirmation = string.Format(
+                CultureInfo.CurrentCulture,
+                _localization.Get("Confirm.UpdateAvailable"),
+                versionText,
+                ApplicationVersion);
+            if (!await _interaction.ConfirmAsync(
+                    confirmation,
+                    _localization.Get("Label.ApplicationUpdates"),
+                    ConfirmationKind.Update,
+                    _localization.Get("Action.DownloadAndInstall"),
+                    _lifetime.Token))
+            {
+                return;
+            }
+
+            downloading = true;
+            acceptProgress = true;
+            Progress<int> progress = new(percent =>
+            {
+                if (acceptProgress)
+                {
+                    UpdateStatusText = string.Format(
+                        CultureInfo.CurrentCulture,
+                        _localization.Get("Status.UpdateDownloading"),
+                        versionText,
+                        percent);
+                }
+            });
+            string installerPath = await _updateService.DownloadInstallerAsync(
+                update,
+                progress,
+                _lifetime.Token);
+            acceptProgress = false;
+            downloading = false;
+            if (!_interaction.TryLaunchUpdateInstaller(installerPath))
+            {
+                UpdateStatusText = _localization.Get("Status.UpdateInstallerLaunchFailed");
+                return;
+            }
+
+            UpdateStatusText = _localization.Get("Status.UpdateInstallerStarted");
+            _logger.Info($"Update installer launched for PredatorLite {versionText}.");
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            acceptProgress = false;
+            _logger.LogError(downloading ? "Update download failed" : "Update check failed", exception);
+            UpdateStatusText = _localization.Get(
+                downloading ? "Status.UpdateDownloadFailed" : "Status.UpdateCheckFailed");
+        }
+        finally
+        {
+            IsUpdateOperationRunning = false;
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (_disposed)
@@ -1199,6 +1299,17 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
 
         _disposed = true;
         _lifetime.Cancel();
+        if (CheckForUpdatesCommand.ExecutionTask is Task updateTask)
+        {
+            try
+            {
+                await updateTask.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
         if (_criticalInitializationTask is not null)
         {
             try
@@ -1248,6 +1359,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         await _fanGuard.DisposeAsync().ConfigureAwait(false);
         await _platform.DisposeAsync().ConfigureAwait(false);
         _settingsStore.Dispose();
+        _updateService.Dispose();
         _interaction.Dispose();
         _hardwareGate.Dispose();
         _lifetime.Dispose();
@@ -1704,6 +1816,10 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(GpuLabel));
         OnPropertyChanged(nameof(CpuFanLabel));
         OnPropertyChanged(nameof(TelemetryStateText));
+        if (!IsUpdateOperationRunning)
+        {
+            UpdateStatusText = _localization.Get("Description.CheckForUpdates");
+        }
         NotifyShellNoticeChanged();
     }
 

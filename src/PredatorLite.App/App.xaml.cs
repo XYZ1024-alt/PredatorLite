@@ -57,6 +57,23 @@ public partial class App : Application
                 localization,
                 _logger);
 
+            Version assemblyVersion = typeof(App).Assembly.GetName().Version ?? new Version(0, 0, 0, 0);
+            Version applicationVersion = new(
+                assemblyVersion.Major,
+                assemblyVersion.Minor,
+                Math.Max(assemblyVersion.Build, 0),
+                Math.Max(assemblyVersion.Revision, 0));
+            GitHubApplicationUpdateService updateService = new(
+                new Uri(
+                    "https://api.github.com/repos/XYZ1024-alt/PredatorLite/releases/latest",
+                    UriKind.Absolute),
+                "XYZ1024-alt",
+                "PredatorLite",
+                Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "PredatorLite",
+                    "Updates"),
+                applicationVersion.ToString(3));
             FanGuardClient fanGuard = new(_logger);
             _viewModel = new MainViewModel(
                 new PredatorPlatform(_logger, fanGuard),
@@ -66,6 +83,8 @@ public partial class App : Application
                 fanGuard,
                 localization,
                 interaction,
+                updateService,
+                applicationVersion,
                 new WinUiDispatcher(dispatcher, _logger));
 
             string[] commandLineArguments = Environment.GetCommandLineArgs();

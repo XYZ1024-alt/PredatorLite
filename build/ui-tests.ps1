@@ -512,6 +512,10 @@ Test-Ui "Settings controls are reachable" {
     Assert-WinAppSucceeded "Waiting for language settings"
     winapp ui wait-for "Settings.Version" -a $AppPid --value $expectedApplicationVersion -t 3000
     Assert-WinAppSucceeded "Checking the application version"
+    winapp ui wait-for "Settings.CheckForUpdates" -a $AppPid -t 3000
+    Assert-WinAppSucceeded "Waiting for the update check action"
+    winapp ui wait-for "Settings.CheckForUpdates" -a $AppPid -p IsEnabled --value "True" -t 3000
+    Assert-WinAppSucceeded "Checking that updates can be requested"
     winapp ui wait-for "Settings.Services" -a $AppPid -t 3000
     Assert-WinAppSucceeded "Waiting for service settings"
     winapp ui wait-for "Settings.ExportDiagnostics" -a $AppPid -t 3000

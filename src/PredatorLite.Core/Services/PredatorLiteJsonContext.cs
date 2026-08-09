@@ -8,6 +8,8 @@ namespace PredatorLite.Core.Services;
     UseStringEnumConverter = true,
     WriteIndented = true)]
 [JsonSerializable(typeof(AppSettings))]
+[JsonSerializable(typeof(GitHubReleaseResponse))]
+[JsonSerializable(typeof(GitHubReleaseAssetResponse))]
 internal sealed partial class PredatorLiteJsonContext : JsonSerializerContext
 {
 }

@@ -65,6 +65,10 @@ Run this checklist on Windows 11 24H2 (build 26100+) x64. Hardware-write cases r
 8. Exit PredatorLite from the tray and press the PredatorSense key. PredatorLite must not cold-start. If Acer software still launches PredatorSense through an independent channel while PredatorLite is running, use the explicit Disable conflicts action and repeat the test.
 9. Press the separate physical Mode key and verify it still cycles exactly one operating mode per press.
 10. Export diagnostics and confirm a ZIP is created at the selected path. Open Logs must open `%LocalAppData%\PredatorLite\logs`.
+11. With the current version equal to or newer than the latest Stable GitHub release, select Check for updates. Verify the card reports that PredatorLite is up to date, creates no installer, and shows no UAC prompt.
+12. Run an older Stable build while a newer Stable release exists. Check for updates and verify the dialog names both versions, defaults focus to Cancel, and starts no download when cancelled. A newer Beta or RC alone must not trigger this dialog.
+13. Accept the Stable update. Verify progress is shown, Setup appears under `%LocalAppData%\PredatorLite\Updates` only after its release sidecar and GitHub asset digest agree with the computed SHA-256, and a failed or interrupted download leaves no `.download` file or launched process.
+14. Approve the installer elevation prompt and complete the in-place upgrade. Setup must close PredatorLite, preserve settings, avoid a duplicate installed-app entry, and the next launch must show the new version. Cancelled elevation or an offline/API failure must leave the current app usable and report the failure in the update card and log.
 
 ## Startup and resume mode restoration
 
