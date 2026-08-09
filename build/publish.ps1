@@ -4,6 +4,10 @@ param(
     [string]$Configuration = "Release",
     [string]$OutputPath = "publish\win-x64",
     [bool]$ReadyToRun = $true,
+    [string]$Version,
+    [ValidateSet("Beta", "RC", "Stable")]
+    [string]$Channel = "Stable",
+    [string]$Iteration,
     [switch]$AllowArtifactsOutput,
     [System.IO.FileStream]$OutputLock
 )
@@ -11,6 +15,20 @@ param(
 $ErrorActionPreference = "Stop"
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot "release-output.ps1")
+
+$buildPropertiesPath = Join-Path $repositoryRoot "Directory.Build.props"
+[xml]$buildProperties = Get-Content -LiteralPath $buildPropertiesPath
+$projectVersion = [string]($buildProperties.Project.PropertyGroup.Version | Select-Object -First 1)
+if ([string]::IsNullOrWhiteSpace($Version)) {
+    $Version = $projectVersion
+}
+if ($Version -ne $projectVersion) {
+    throw "Publish Version $Version does not match Directory.Build.props version $projectVersion."
+}
+$releaseVersion = Resolve-PredatorLiteReleaseVersion `
+    -BaseVersion $Version `
+    -Channel $Channel `
+    -Iteration $Iteration
 
 function Invoke-ProjectPublish {
     param(
@@ -36,7 +54,12 @@ function Invoke-ProjectPublish {
         "-p:PublishReadyToRunShowWarnings=true",
         "-p:SkipCompanionBuildCopy=true",
         "-p:DebugType=None",
-        "-p:DebugSymbols=false"
+        "-p:DebugSymbols=false",
+        "-p:Version=$($releaseVersion.ReleaseVersion)",
+        "-p:AssemblyVersion=$($releaseVersion.AssemblyVersion)",
+        "-p:FileVersion=$($releaseVersion.FileVersion)",
+        "-p:InformationalVersion=$($releaseVersion.ReleaseVersion)",
+        "-p:IncludeSourceRevisionInInformationalVersion=false"
     )
 
     & dotnet $arguments
@@ -331,6 +354,21 @@ try {
     })
     if ($missingFiles.Count -gt 0) {
         throw "Published output is incomplete. Missing: $($missingFiles -join ', ')"
+    }
+
+    foreach ($ownedAssembly in @(
+        "PredatorLite.dll",
+        "PredatorLite.Core.dll",
+        "PredatorLite.Platform.Windows.dll",
+        "PredatorLite.FanGuard.dll",
+        "PredatorLite.ElevatedHelper.dll")) {
+        $versionInfo = (Get-Item -LiteralPath (Join-Path $destination $ownedAssembly)).VersionInfo
+        if ($versionInfo.ProductVersion -ne $releaseVersion.ReleaseVersion) {
+            throw "Published $ownedAssembly has product version $($versionInfo.ProductVersion), expected $($releaseVersion.ReleaseVersion)."
+        }
+        if ($versionInfo.FileVersion -ne $releaseVersion.FileVersion) {
+            throw "Published $ownedAssembly has file version $($versionInfo.FileVersion), expected $($releaseVersion.FileVersion)."
+        }
     }
 
     foreach ($bootstrapperFile in @(

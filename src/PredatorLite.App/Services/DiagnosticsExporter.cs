@@ -1,5 +1,6 @@
 using System.IO;
 using System.IO.Compression;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using PredatorLite.Core.Models;
@@ -31,11 +32,15 @@ public static class DiagnosticsExporter
         await WriteJsonAsync(archive, "device-settings.json", deviceSettings, cancellationToken).ConfigureAwait(false);
         await WriteJsonAsync(archive, "services.json", services, cancellationToken).ConfigureAwait(false);
         await WriteJsonAsync(archive, "settings.json", settings, cancellationToken).ConfigureAwait(false);
+        Assembly assembly = typeof(DiagnosticsExporter).Assembly;
+        string? applicationVersion =
+            assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ??
+            assembly.GetName().Version?.ToString();
         await WriteJsonAsync(
             archive,
             "application.json",
             new ApplicationDiagnostics(
-                typeof(DiagnosticsExporter).Assembly.GetName().Version?.ToString(),
+                applicationVersion,
                 Environment.Version.ToString(),
                 System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString(),
                 DateTimeOffset.UtcNow),

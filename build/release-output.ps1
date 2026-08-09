@@ -149,3 +149,72 @@ function Remove-DirectoryWithRetry {
         }
     }
 }
+
+function Resolve-PredatorLiteReleaseVersion {
+    param(
+        [Parameter(Mandatory)]
+        [string]$BaseVersion,
+        [ValidateSet("Beta", "RC", "Stable")]
+        [string]$Channel = "Stable",
+        [string]$Iteration
+    )
+
+    if ($BaseVersion -notmatch '^(?<Major>\d+)\.(?<Minor>\d+)\.(?<Patch>\d+)$') {
+        throw "Base Version must use three numeric components, for example 1.0.0."
+    }
+
+    foreach ($componentName in @("Major", "Minor", "Patch")) {
+        [int]$component = 0
+        if (-not [int]::TryParse($Matches[$componentName], [ref]$component) -or
+            $component -lt 0 -or
+            $component -gt 65535) {
+            throw "Base Version component $componentName must be between 0 and 65535."
+        }
+    }
+
+    $normalizedChannel = $Channel.ToLowerInvariant()
+    $normalizedIteration = $null
+    $revision = 0
+    $isDraft = $false
+    $isPrerelease = $false
+    $releaseVersion = $BaseVersion
+
+    if ($normalizedChannel -eq "stable") {
+        if (-not [string]::IsNullOrWhiteSpace($Iteration)) {
+            throw "Stable releases must not specify an iteration."
+        }
+        $revision = 65535
+    }
+    else {
+        [int]$parsedIteration = 0
+        if (-not [int]::TryParse($Iteration, [ref]$parsedIteration) -or
+            $parsedIteration -lt 1 -or
+            $parsedIteration -gt 9999) {
+            throw "$Channel releases require an iteration between 1 and 9999."
+        }
+
+        $normalizedIteration = $parsedIteration
+        $isPrerelease = $true
+        if ($normalizedChannel -eq "beta") {
+            $releaseVersion = "$BaseVersion-beta.$parsedIteration"
+            $revision = $parsedIteration
+            $isDraft = $true
+        }
+        else {
+            $releaseVersion = "$BaseVersion-rc.$parsedIteration"
+            $revision = 10000 + $parsedIteration
+        }
+    }
+
+    return [pscustomobject]@{
+        BaseVersion = $BaseVersion
+        Channel = $normalizedChannel
+        Iteration = $normalizedIteration
+        ReleaseVersion = $releaseVersion
+        AssemblyVersion = "$BaseVersion.0"
+        FileVersion = "$BaseVersion.$revision"
+        IsDraft = $isDraft
+        IsPrerelease = $isPrerelease
+        IsPublic = -not $isDraft
+    }
+}

@@ -2,6 +2,10 @@
   #define AppVersion "1.0.1"
 #endif
 
+#ifndef VersionInfoVersion
+  #define VersionInfoVersion AppVersion + ".0"
+#endif
+
 #ifndef OutputSuffix
   #define OutputSuffix "-unsigned"
 #endif
@@ -40,7 +44,7 @@ OutputBaseFilename=PredatorLite-Setup-{#AppVersion}-win-x64{#OutputSuffix}
 SetupIconFile=..\..\src\PredatorLite.App\Assets\PredatorLiteFluent.ico
 LicenseFile=..\..\LICENSE
 InfoBeforeFile=prerequisites.txt
-VersionInfoVersion={#AppVersion}.0
+VersionInfoVersion={#VersionInfoVersion}
 VersionInfoCompany=PredatorLite contributors
 VersionInfoDescription=PredatorLite Installer
 VersionInfoCopyright=Copyright (c) 2026 PredatorLite contributors

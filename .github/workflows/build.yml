@@ -26,6 +26,10 @@ jobs:
         with:
           global-json-file: global.json
 
+      - name: Test release version policy
+        shell: pwsh
+        run: .\build\test-release-version.ps1
+
       - name: Install pinned Inno Setup
         if: github.event_name != 'pull_request'
         shell: pwsh
@@ -90,33 +94,34 @@ jobs:
         shell: pwsh
         run: .\build\publish.ps1 -Configuration Release -OutputPath publish\win-x64
 
-      - name: Build formal installer artifact
+      - name: Build RC installer validation artifact
         if: github.event_name != 'pull_request'
         shell: pwsh
-        run: .\build\build-installer.ps1 -SkipSigning -PublicRelease
+        run: .\build\build-installer.ps1 -SkipSigning -ReleaseArtifact -Channel RC -Iteration 1
 
-      - name: Validate formal installer artifact
+      - name: Validate RC installer artifact
         if: github.event_name != 'pull_request'
         shell: pwsh
         run: |
           [xml]$buildProperties = Get-Content -LiteralPath "Directory.Build.props"
-          $version = [string]($buildProperties.Project.PropertyGroup.Version | Select-Object -First 1)
+          $baseVersion = [string]($buildProperties.Project.PropertyGroup.Version | Select-Object -First 1)
+          $version = "$baseVersion-rc.1"
           $outputDirectory = "publish\installer"
           $expectedSetupName = "PredatorLite-Setup-$version-win-x64.exe"
           $entries = @(Get-ChildItem -LiteralPath $outputDirectory -Force)
           $setups = @($entries | Where-Object { -not $_.PSIsContainer -and $_.Name -eq $expectedSetupName })
           if ($setups.Count -ne 1) {
-            throw "Expected exactly one formal Setup executable named $expectedSetupName."
+            throw "Expected exactly one RC Setup executable named $expectedSetupName."
           }
           if (@($entries | Where-Object { $_.PSIsContainer -or $_.Name -match '(?i)unsigned|test-only|test-signed' }).Count -ne 0) {
-            throw "Formal installer output contains a test-only name or directory."
+            throw "RC installer output contains a test-only name or directory."
           }
           $setup = $setups[0]
           $checksumPath = "$($setup.FullName).sha256"
           $expectedNames = @($setup.Name, "$($setup.Name).sha256")
           $unexpectedEntries = @($entries | Where-Object { $_.PSIsContainer -or $_.Name -notin $expectedNames })
           if ($entries.Count -ne 2 -or $unexpectedEntries.Count -ne 0) {
-            throw "Formal installer output must contain only Setup and its checksum."
+            throw "RC installer output must contain only Setup and its checksum."
           }
 
           $checksumLine = [System.IO.File]::ReadAllText(
@@ -124,7 +129,7 @@ jobs:
             [System.Text.Encoding]::ASCII).Trim()
           if ($checksumLine -notmatch '^(?<Hash>[0-9a-f]{64})  (?<Name>[^\\/:*?"<>|]+)$' -or
               $Matches.Name -ne $setup.Name) {
-            throw "Formal installer checksum file has an invalid format."
+            throw "RC installer checksum file has an invalid format."
           }
           $stream = [System.IO.File]::OpenRead($setup.FullName)
           $sha256 = [System.Security.Cryptography.SHA256]::Create()
@@ -135,38 +140,17 @@ jobs:
             $stream.Dispose()
           }
           if ($actualHash -ne $Matches.Hash) {
-            throw "Formal installer checksum mismatch: $actualHash"
+            throw "RC installer checksum mismatch: $actualHash"
           }
 
           $stream = [System.IO.File]::OpenRead($setup.FullName)
           $peReader = [System.Reflection.PortableExecutable.PEReader]::new($stream)
           try {
             if ($peReader.PEHeaders.PEHeader.CertificateTableDirectory.Size -ne 0) {
-              throw "Formal installer unexpectedly contains an Authenticode certificate table."
+              throw "RC installer unexpectedly contains an Authenticode certificate table."
             }
           } finally {
             $peReader.Dispose()
             $stream.Dispose()
           }
-          Write-Host "Validated formal installer: $($setup.Name)"
-
-      - name: Upload portable artifact
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: PredatorLite-win-x64-portable
-          path: publish/win-x64
-          retention-days: 14
-          if-no-files-found: error
-
-      - name: Upload installer artifact
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: PredatorLite-installer
-          path: |
-            publish/installer/PredatorLite-Setup-*.exe
-            publish/installer/PredatorLite-Setup-*.exe.sha256
-          retention-days: 14
-          compression-level: 0
-          if-no-files-found: error
+          Write-Host "Validated RC installer: $($setup.Name)"
