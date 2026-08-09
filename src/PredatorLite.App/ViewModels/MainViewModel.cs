@@ -49,6 +49,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     private int _lastGpuFanTarget = -1;
     private DateTimeOffset _lastFanWrite = DateTimeOffset.MinValue;
     private int _telemetryFailureCount;
+    private int _systemResumePending;
     private bool _modeKeyStarted;
     private bool _settingsLoaded;
     private bool _disposed;
@@ -146,6 +147,19 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     };
 
     public bool CanApplyFanCurve => FanControlAvailable && IsFanCurveValid && !IsBusy;
+
+    public void NotifySystemResume()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (Interlocked.Exchange(ref _systemResumePending, 1) == 0)
+        {
+            _logger.Info("System resume detected; operating mode restore queued.");
+        }
+    }
 
     public string CpuLabel => _localization.Get("Label.Cpu");
 
@@ -434,7 +448,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             }
             else
             {
-                ApplyResult result = await EnsureStartupOperatingModeAsync(
+                ApplyResult result = await EnsureOperatingModeAsync(
                     startupMode.Value,
                     _lifetime.Token);
                 if (result.IsSuccess)
@@ -486,14 +500,14 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
-    private async Task<ApplyResult> EnsureStartupOperatingModeAsync(
+    private async Task<ApplyResult> EnsureOperatingModeAsync(
         OperatingMode mode,
         CancellationToken cancellationToken)
     {
         await _hardwareGate.WaitAsync(cancellationToken);
         try
         {
-            ApplyResult result = await _platform.EnsureStartupOperatingModeAsync(mode, cancellationToken);
+            ApplyResult result = await _platform.EnsureOperatingModeAsync(mode, cancellationToken);
             if (result.IsSuccess)
             {
                 CurrentOperatingMode = mode;
@@ -521,7 +535,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
                     capabilities.CanWriteHardware)
                 {
                     _startupRestoreAwaitingBackend = false;
-                    ApplyResult recovery = await EnsureStartupOperatingModeAsync(
+                    ApplyResult recovery = await EnsureOperatingModeAsync(
                         pendingMode,
                         _lifetime.Token);
                     string outcome = recovery.IsSuccess ? "applied-after-backend-recovery" : "failed";
@@ -557,8 +571,14 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
                 HardwareSnapshot snapshot = await _platform.ReadSnapshotAsync(_lifetime.Token);
                 _snapshot = snapshot;
                 ApplySnapshot(snapshot);
+                bool resumeConsumed = await RestoreOperatingModeAfterResumeAsync(
+                    snapshot,
+                    _lifetime.Token);
                 UpdateTelemetryFreshness(snapshot);
-                await HandlePowerTransitionAsync(snapshot, _lifetime.Token);
+                await HandlePowerTransitionAsync(
+                    snapshot,
+                    _lifetime.Token,
+                    applyOperatingModeAutomation: !resumeConsumed);
                 UpdateInitialRefreshRateSelection(snapshot);
             }
             catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
@@ -1394,7 +1414,13 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
                 HardwareSnapshot snapshot = await _platform.ReadSnapshotAsync(cancellationToken);
                 UpdateTelemetryFreshness(snapshot);
                 ApplySnapshot(snapshot);
-                await HandlePowerTransitionAsync(snapshot, cancellationToken);
+                bool resumeConsumed = await RestoreOperatingModeAfterResumeAsync(
+                    snapshot,
+                    cancellationToken);
+                await HandlePowerTransitionAsync(
+                    snapshot,
+                    cancellationToken,
+                    applyOperatingModeAutomation: !resumeConsumed);
                 if (_customFanActive)
                 {
                     await UpdateCustomFanAsync(snapshot, cancellationToken);
@@ -1433,7 +1459,58 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
-    private async Task HandlePowerTransitionAsync(HardwareSnapshot snapshot, CancellationToken cancellationToken)
+    private async Task<bool> RestoreOperatingModeAfterResumeAsync(
+        HardwareSnapshot snapshot,
+        CancellationToken cancellationToken)
+    {
+        if (Interlocked.Exchange(ref _systemResumePending, 0) == 0)
+        {
+            return false;
+        }
+
+        await _hardwareGate.WaitAsync(cancellationToken);
+        try
+        {
+            OperatingMode? target = StartupOperatingModePolicy.Resolve(
+                _settings.LastAcMode,
+                AutoEcoOnBattery,
+                snapshot.IsOnAcPower);
+            if (!target.HasValue)
+            {
+                _logger.Info("Resume operating mode restore skipped: power state unknown.");
+                return true;
+            }
+
+            ApplyResult result = await EnsureAutomaticOperatingModeCoreAsync(
+                target.Value,
+                cancellationToken);
+            if (result.IsSuccess)
+            {
+                string outcome = result.Message.Contains(
+                    "already active",
+                    StringComparison.OrdinalIgnoreCase)
+                        ? "already-active"
+                        : "applied";
+                _logger.Info($"Resume operating mode restore {outcome}: target={target.Value}.");
+            }
+            else
+            {
+                _logger.Info($"Resume operating mode restore failed: target={target.Value}.");
+                PublishResult(result);
+            }
+
+            return true;
+        }
+        finally
+        {
+            _hardwareGate.Release();
+        }
+    }
+
+    private async Task HandlePowerTransitionAsync(
+        HardwareSnapshot snapshot,
+        CancellationToken cancellationToken,
+        bool applyOperatingModeAutomation = true)
     {
         bool? previous = _lastAcState;
         _lastAcState = snapshot.IsOnAcPower;
@@ -1444,7 +1521,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
 
         if (snapshot.IsOnAcPower == false)
         {
-            if (AutoEcoOnBattery)
+            if (applyOperatingModeAutomation && AutoEcoOnBattery)
             {
                 if (snapshot.OperatingMode is OperatingMode mode &&
                     StartupOperatingModePolicy.ShouldRemember(mode))
@@ -1462,7 +1539,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
         else
         {
-            if (AutoEcoOnBattery)
+            if (applyOperatingModeAutomation && AutoEcoOnBattery)
             {
                 await ApplyAutomaticOperatingModeAsync(_settings.LastAcMode, cancellationToken);
             }
@@ -1477,38 +1554,48 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     private async Task ApplyAutomaticOperatingModeAsync(OperatingMode mode, CancellationToken cancellationToken)
     {
         await _hardwareGate.WaitAsync(cancellationToken);
+        ApplyResult result;
         try
         {
-            if (mode is OperatingMode.Silent or OperatingMode.Eco && _customFanActive)
-            {
-                ApplyResult autoResult = await _platform.SetFanModeAsync(
-                    FanMode.Auto,
-                    cancellationToken: cancellationToken);
-                if (!autoResult.IsSuccess)
-                {
-                    PublishResult(autoResult);
-                    return;
-                }
-
-                await _fanGuard.StopAsync();
-                _customFanActive = false;
-                _activeFanCurve = null;
-                FanGuardActive = false;
-                UpdateExtendedTelemetryState();
-            }
-
-            ApplyResult result = await _platform.SetOperatingModeAsync(mode, cancellationToken);
-            if (result.IsSuccess)
-            {
-                CurrentOperatingMode = mode;
-                CurrentOperatingModeName = LocalizeMode(mode);
-                PublishResult(result);
-            }
+            result = await EnsureAutomaticOperatingModeCoreAsync(mode, cancellationToken);
         }
         finally
         {
             _hardwareGate.Release();
         }
+
+        PublishResult(result);
+    }
+
+    private async Task<ApplyResult> EnsureAutomaticOperatingModeCoreAsync(
+        OperatingMode mode,
+        CancellationToken cancellationToken)
+    {
+        if (mode is OperatingMode.Silent or OperatingMode.Eco && _customFanActive)
+        {
+            ApplyResult autoResult = await _platform.SetFanModeAsync(
+                FanMode.Auto,
+                cancellationToken: cancellationToken);
+            if (!autoResult.IsSuccess)
+            {
+                return autoResult;
+            }
+
+            await _fanGuard.StopAsync();
+            _customFanActive = false;
+            _activeFanCurve = null;
+            FanGuardActive = false;
+            UpdateExtendedTelemetryState();
+        }
+
+        ApplyResult result = await _platform.EnsureOperatingModeAsync(mode, cancellationToken);
+        if (result.IsSuccess)
+        {
+            CurrentOperatingMode = mode;
+            CurrentOperatingModeName = LocalizeMode(mode);
+        }
+
+        return result;
     }
 
     private async Task ApplyAutomaticRefreshRateAsync(int rate, CancellationToken cancellationToken)

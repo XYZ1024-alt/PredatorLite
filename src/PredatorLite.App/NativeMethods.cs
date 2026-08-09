@@ -12,6 +12,9 @@ internal static partial class NativeMethods
     internal const int SwHide = 0;
     internal const int SwShowNoActivate = 4;
     internal const uint WmGetMinMaxInfo = 0x0024;
+    internal const uint WmPowerBroadcast = 0x0218;
+    internal const int PbtApmResumeAutomatic = 0x0012;
+    internal const uint DeviceNotifyWindowHandle = 0x00000000;
     private const uint MonitorDefaultToNearest = 0x00000002;
 
     [LibraryImport("user32.dll", EntryPoint = "MessageBoxW", StringMarshalling = StringMarshalling.Utf16)]
@@ -31,6 +34,13 @@ internal static partial class NativeMethods
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool ShowWindow(IntPtr window, int command);
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    internal static partial IntPtr RegisterSuspendResumeNotification(IntPtr recipient, uint flags);
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool UnregisterSuspendResumeNotification(IntPtr handle);
 
     [LibraryImport("user32.dll")]
     internal static partial uint GetDpiForWindow(IntPtr window);

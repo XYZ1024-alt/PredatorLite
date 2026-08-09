@@ -43,6 +43,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private TrayIconView? _trayIcon;
     private GlobalShortcutManager? _shortcuts;
     private OsdWindow? _osdWindow;
+    private IntPtr _suspendResumeNotification;
     private bool _allowClose;
     private bool _disposed;
     private bool _shellReadyReported;
@@ -69,6 +70,16 @@ public sealed partial class MainWindow : Window, IDisposable
         WindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
         _windowSubclass = new NativeWindowSubclass(WindowHandle);
         _windowSubclass.MessageReceived += OnWindowMessage;
+        _suspendResumeNotification = NativeMethods.RegisterSuspendResumeNotification(
+            WindowHandle,
+            NativeMethods.DeviceNotifyWindowHandle);
+        if (_suspendResumeNotification == IntPtr.Zero)
+        {
+            _logger.LogError(
+                "Suspend/resume notification registration failed.",
+                new Win32Exception(Marshal.GetLastPInvokeError()));
+        }
+
         WindowId windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(WindowHandle);
         _appWindow = AppWindow.GetFromWindowId(windowId);
         _nonClientPointerSource = InputNonClientPointerSource.GetForWindowId(windowId);
@@ -162,6 +173,18 @@ public sealed partial class MainWindow : Window, IDisposable
         TryCleanup(() => _shortcuts?.Dispose(), "global shortcuts");
         _shortcuts = null;
         TryCleanup(ReleaseTitleBarInput, "title-bar input regions");
+        if (_suspendResumeNotification != IntPtr.Zero)
+        {
+            IntPtr notification = _suspendResumeNotification;
+            _suspendResumeNotification = IntPtr.Zero;
+            if (!NativeMethods.UnregisterSuspendResumeNotification(notification))
+            {
+                _logger.LogError(
+                    "Suspend/resume notification unregistration failed.",
+                    new Win32Exception(Marshal.GetLastPInvokeError()));
+            }
+        }
+
         TryCleanup(_windowSubclass.Dispose, "window subclass");
         TryCleanup(() => _osdWindow?.Dispose(), "OSD window");
         _osdWindow = null;
@@ -233,6 +256,15 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private void OnWindowMessage(object? sender, NativeWindowMessageEventArgs e)
     {
+        if (e.Message == NativeMethods.WmPowerBroadcast &&
+            e.WParam.ToInt64() == NativeMethods.PbtApmResumeAutomatic)
+        {
+            _viewModel.NotifySystemResume();
+            e.Handled = true;
+            e.Result = (IntPtr)1;
+            return;
+        }
+
         if (e.Message != NativeMethods.WmGetMinMaxInfo)
         {
             return;

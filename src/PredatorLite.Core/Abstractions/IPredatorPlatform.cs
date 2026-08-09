@@ -15,7 +15,7 @@ public interface IPredatorPlatform : IAsyncDisposable
     Task<IReadOnlyDictionary<DeviceSettingId, DeviceSettingState>> ReadDeviceSettingsAsync(
         CancellationToken cancellationToken = default);
 
-    Task<ApplyResult> EnsureStartupOperatingModeAsync(
+    Task<ApplyResult> EnsureOperatingModeAsync(
         OperatingMode mode,
         CancellationToken cancellationToken = default);
 
