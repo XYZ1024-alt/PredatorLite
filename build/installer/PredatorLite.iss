@@ -24,7 +24,7 @@ AppSupportURL=https://github.com/XYZ1024-alt/PredatorLite/issues
 AppUpdatesURL=https://github.com/XYZ1024-alt/PredatorLite/releases
 AppContact=https://github.com/XYZ1024-alt/PredatorLite/security
 
-DefaultDirName={localappdata}\Programs\{#AppName}
+DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 UninstallDisplayName={#AppName}
@@ -33,7 +33,7 @@ UninstallDisplayIcon={app}\{#AppExe}
 ArchitecturesAllowed=x64os
 ArchitecturesInstallIn64BitMode=x64os
 MinVersion=10.0.26100
-PrivilegesRequired=lowest
+PrivilegesRequired=admin
 
 OutputDir=..\..\artifacts\installer\unsigned
 OutputBaseFilename=PredatorLite-Setup-{#AppVersion}-win-x64{#OutputSuffix}
