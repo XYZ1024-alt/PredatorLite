@@ -1,5 +1,9 @@
+<p align="right">
+  <b>English</b> | <a href="README.zh-CN.md">简体中文</a>
+</p>
+
 <p align="center">
-  <img src="image.png" alt="alt text">
+  <img src="docs/images/readme-en.png" alt="PredatorLite screenshot (English UI)">
 </p>
 
 # PredatorLite
@@ -7,63 +11,63 @@
 [![build](https://github.com/XYZ1024-alt/PredatorLite/actions/workflows/build.yml/badge.svg)](https://github.com/XYZ1024-alt/PredatorLite/actions/workflows/build.yml)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-PredatorLite 是面向 Acer Predator 设备的独立、非官方 PredatorSense 替代方案。它使用普通用户权限提供性能、散热、灯光、显卡路由、电池与遥测控制，并通过显式硬件 profile 管理写入能力。
+PredatorLite is an independent, unofficial PredatorSense alternative for Acer Predator devices. It provides performance, thermals, lighting, GPU routing, battery, and telemetry control with standard user privileges, and gates hardware writes behind explicit hardware profiles.
 
-当前硬件写入 profile 仅验证到：
+The current hardware-write profile is validated only on:
 
 - Acer Predator PHN16-71
 - BIOS V1.20
-- Windows 11 24H2（build 26100+）x64
+- Windows 11 24H2 (build 26100+) x64
 
-其他机型或 BIOS 版本仍可查看诊断信息和只读遥测，但没有已验证 profile 时所有硬件写入都会被禁用。新增写入支持必须逐机型、逐 BIOS 提供独立协议证据和人工验证。
+Other models or BIOS versions can still view diagnostics and read-only telemetry, but all hardware writes are disabled without a validated profile. New write support requires per-model, per-BIOS independent protocol evidence and manual validation.
 
-如果你的机型或 BIOS 版本尚未得到支持，欢迎自行完成验证和测试后提交 Pull Request 添加新的硬件 profile。新增写入支持必须附上对应机型/BIOS 的独立协议证据、失败与恢复测试及人工验证记录，未经完整验证的 profile 不会被合并。
+If your model or BIOS version is not yet supported, you are welcome to complete the validation and testing yourself and submit a Pull Request adding a new hardware profile. New write support must include independent protocol evidence for the corresponding model/BIOS, failure and recovery tests, and manual validation records; profiles without full validation will not be merged.
 
-PredatorLite 是独立、非官方的 PredatorSense 替代方案，不代表 Acer 官方产品或授权。硬件控制存在固有风险；请确认当前设备存在匹配的已验证 profile，并阅读[硬件安全边界](docs/hardware-safety.md)。首次运行新发布版本时，Windows 可能显示 SmartScreen 信誉提示。
+PredatorLite is an independent, unofficial PredatorSense alternative and does not represent an official Acer product or endorsement. Hardware control carries inherent risk; confirm that a matching validated profile exists for your device and read the [hardware safety boundaries](docs/hardware-safety.md). On first run of a new release, Windows may show a SmartScreen reputation prompt.
 
-## 功能
+## Features
 
-- 安静、均衡、性能、极速和节能运行模式
-- 自动、全速和带温度曲线的自定义风扇控制
-- 混合显卡与独显直连切换，切换后明确提示重启
-- 屏幕刷新率、LCD 响应加速和 80% 充电上限
-- 四区静态键盘灯、动态灯效和机身标志灯
-- Windows 键、粘滞键快捷触发、开机音效和键盘灯超时等设备开关
-- CPU/GPU、风扇、内存、显存、电池与性能浮窗监控
-- 系统托盘、单实例、中英文界面、可选 OSD 与全局快捷操作
-- 每次唤出自动停靠鼠标所在显示器右下角，并在运行期接管 PredatorSense 专用键
-- Acer 服务状态、冲突服务备份/停用/恢复和脱敏诊断包
+- Quiet, Balanced, Performance, Turbo, and Eco operating modes
+- Automatic, Full Speed, and custom fan control with temperature curves
+- Hybrid graphics / Discrete GPU switching with an explicit restart prompt
+- Display refresh rate, LCD response-time acceleration, and 80% charge limit
+- Four-zone static keyboard backlight, dynamic lighting effects, and chassis logo light
+- Device toggles: Windows key, sticky-key shortcuts, startup sound, and keyboard backlight timeout
+- CPU/GPU, fan, memory, VRAM, battery, and performance floating-window monitoring
+- System tray, single instance, bilingual UI (Simplified Chinese/English), optional OSD, and global hotkeys
+- Auto-docks to the bottom-right corner of the monitor containing the cursor whenever summoned, and takes over dedicated PredatorSense keys while running
+- Acer service status, conflicting-service backup/disable/restore, and redacted diagnostics bundles
 
-PredatorLite 不提供用户超频、电压调节、功耗墙修改、MSR/NVAPI 写入、BIOS 写入或 vBIOS 工具。
+PredatorLite does not provide user overclocking, voltage adjustment, power-limit modification, MSR/NVAPI writes, BIOS writes, or vBIOS tooling.
 
-## 安全模型
+## Safety Model
 
-- 每次主实例启动只自动恢复最后保存的运行模式；风扇、灯光、显卡路由及其他硬件设置不会重放。
-- 每次写入都来自明确的用户操作、用户主动启用的供电状态自动化，或上述运行模式启动恢复。
-- 写入仅在匹配显式硬件 profile、对应控制项已授权且后端能力探测成功后开放；未知机型或 BIOS 保持只读。
-- 端点支持查询时执行结果回读；多步操作失败时不会把部分成功伪报为完整成功。
-- GPU 路由只有 `Hybrid = 2` 和 `Discrete = 1`，没有 iGPU-only 或禁用 Windows 显卡设备的路径。
-- 全速或自定义风扇启用前必须启动独立 FanGuard。主程序失联 5 秒或异常退出时，FanGuard 会恢复 EC 自动风扇。
-- 主程序以普通用户权限运行。只有停用或恢复冲突服务时启动固定命令白名单的管理员辅助程序。
+- Only the last saved operating mode is automatically restored at each main-instance startup; fan, lighting, GPU routing, and other hardware settings are never replayed.
+- Every write originates from an explicit user action, power-state automation the user explicitly enabled, or the operating-mode startup restore above.
+- Writes open only after a matching explicit hardware profile, authorization for the corresponding control, and a successful backend capability probe; unknown models or BIOS versions stay read-only.
+- Result read-back is performed where endpoints support querying; a failed multi-step operation is never misreported as fully successful when only partially so.
+- GPU routing supports only `Hybrid = 2` and `Discrete = 1`; there is no iGPU-only path and no path that disables Windows display adapters.
+- Enabling Full Speed or custom fan mode requires launching the independent FanGuard first. If the main app loses contact for 5 seconds or exits abnormally, FanGuard restores EC automatic fan control.
+- The main app runs with standard user privileges. An elevated helper with a fixed command allowlist runs only to disable or restore conflicting services.
 
-详见 [架构说明](docs/architecture.md) 与 [硬件安全边界](docs/hardware-safety.md)。
+See [architecture](docs/architecture.md) and [hardware safety boundaries](docs/hardware-safety.md) for details.
 
-## 依赖
+## Dependencies
 
-PredatorLite 复用 Acer 官方驱动和服务提供的接口，不附带或替换固件：
+PredatorLite reuses interfaces provided by Acer's official drivers and services; it does not bundle or replace firmware:
 
-- `AcerServiceSvc`：运行模式、风扇、显卡路由和部分设备设置
-- `AcerLightingService`：键盘和标志灯光
-- `AcerApplicationBaseDriver_Device`：Acer WMI/硬件桥接驱动
-- `AcerQAAgentSvis`：可选，仅用于物理性能模式键通知；PredatorSense 启动键使用独立键盘监听
+- `AcerServiceSvc`: operating modes, fans, GPU routing, and some device settings
+- `AcerLightingService`: keyboard and logo lighting
+- `AcerApplicationBaseDriver_Device`: Acer WMI/hardware bridge driver
+- `AcerQAAgentSvis`: optional; used only for the physical performance-mode key notification. The PredatorSense launcher key uses a dedicated keyboard listener
 
-应用不会停用上述必需组件。设置页只允许管理经过固定白名单识别的 PredatorSense 冲突服务，并在 `%ProgramData%\PredatorLite\service-backup.json` 保存启动方式备份。
+The app never disables the required components above. The settings page can only manage PredatorSense conflicting services identified by a fixed allowlist, and stores startup-mode backups in `%ProgramData%\PredatorLite\service-backup.json`.
 
-部分 Acer WMI 方法可能被当前驱动 ACL 拒绝。此时 PredatorLite 保持普通用户权限，不会为轮询遥测请求管理员权限；WMI 专属的 CPU 温度、风扇转速、充电上限或键盘灯超时会显示为不可用。自定义风扇遇到缺失温度时按 95°C 处理并使用 100% 转速，不会静默使用低转速。
+Some Acer WMI methods may be rejected by the current driver ACL. PredatorLite then keeps standard user privileges and never requests elevation for telemetry polling; WMI-only CPU temperature, fan speed, charge limit, or keyboard backlight timeout are shown as unavailable. When a custom fan curve encounters missing temperatures, it treats them as 95°C and uses 100% speed rather than silently falling back to a low speed.
 
-## 构建
+## Building
 
-需要 Windows 11 24H2（build 26100+）原生 x64 和 `global.json` 固定的 .NET SDK 10.0.302。所有 Windows 项目统一面向 `net10.0-windows10.0.26100.0`，界面使用稳定版 Microsoft Windows App SDK 2.3.1：
+Requires native x64 Windows 11 24H2 (build 26100+) and the .NET SDK 10.0.302 pinned by `global.json`. All Windows projects target `net10.0-windows10.0.26100.0`, and the UI uses stable Microsoft Windows App SDK 2.3.1:
 
 ```powershell
 dotnet restore PredatorLite.slnx
@@ -73,26 +77,26 @@ $env:Configuration = "Release"
 dotnet format PredatorLite.slnx --verify-no-changes --no-restore
 ```
 
-从源码启动本地界面：
+Run the UI from source:
 
 ```powershell
 dotnet run --project src\PredatorLite.App\PredatorLite.App.csproj
 ```
 
-框架依赖 ReadyToRun 发布：
+Framework-dependent ReadyToRun publish:
 
 ```powershell
 .\build\publish.ps1
 ```
 
-输出位于 `publish\win-x64`，其中包含主程序、FanGuard 和管理员辅助程序。这是免安装、框架依赖的 x64 目录发布，不使用 MSIX。目标机器需要同时安装：
+Output goes to `publish\win-x64`, containing the main app, FanGuard, and the elevated helper. This is a portable, framework-dependent, x64 directory publish; it does not use MSIX. Target machines need both:
 
 - .NET 10 Runtime x64
 - Windows App Runtime 2.3 x64
 
-发布目录必须整体保留，不能只复制 `PredatorLite.exe`。发布脚本分别发布主程序、FanGuard 和 ElevatedHelper，再合并各自拥有的文件；默认采用经过测量验证的平衡型 framework-dependent ReadyToRun：启动关键程序集保留 R2R，延迟遥测和未使用的 AI/ML/Widgets 托管投影保持 IL。脚本拒绝非 AMD64 原生 PE、32 位托管程序集、ARM/x86 子目录、TraceEvent 残留和 framework-dependent 布局中不应本地携带的 Windows ML 原生运行库，并执行 80 MiB 的 R2R 预算。`Directory.Build.props` 保存三段数字基础版本；发布脚本用 `Beta`、`RC` 或 `Stable` 通道生成 `1.0.1-beta.1`、`1.0.1-rc.1` 或 `1.0.1`。使用 `build/publish.ps1 -ReadyToRun:$false` 可生成 IL 对照布局，预算为 65 MiB；发布资产固定使用经过验证的 ReadyToRun 布局。
+The publish directory must be kept intact — copying only `PredatorLite.exe` is not enough. The publish script publishes the main app, FanGuard, and ElevatedHelper separately, then merges the files each owns; by default it produces the measured, validated balanced framework-dependent ReadyToRun layout: startup-critical assemblies stay R2R while deferred telemetry and unused AI/ML/Widgets managed projections remain IL. The script rejects non-AMD64 native PEs, 32-bit managed assemblies, ARM/x86 subdirectories, TraceEvent leftovers, and Windows ML native runtimes that must not be carried locally in a framework-dependent layout, and enforces an 80 MiB R2R budget. `Directory.Build.props` holds the three-part base version; the publish script generates `1.0.1-beta.1`, `1.0.1-rc.1`, or `1.0.1` from the `Beta`, `RC`, or `Stable` channel. Use `build/publish.ps1 -ReadyToRun:$false` for an IL comparison layout with a 65 MiB budget; release assets always use the validated ReadyToRun layout.
 
-本地生成 Stable、RC 或 Beta 发布资产：
+Build Stable, RC, or Beta release assets locally:
 
 ```powershell
 .\build\prepare-release.ps1 -Version 1.0.2 -Channel Stable
@@ -100,66 +104,66 @@ dotnet run --project src\PredatorLite.App\PredatorLite.App.csproj
 .\build\prepare-release.ps1 -Version 1.0.2 -Channel Beta -Iteration 1
 ```
 
-脚本会生成对应版本的四个资产到 `publish\release`。以 RC 1 为例：
+The script produces four assets for the given version in `publish\release`. For RC 1:
 
 - `PredatorLite-1.0.2-rc.1-win-x64-portable.zip`
 - `PredatorLite-1.0.2-rc.1-win-x64-portable.zip.sha256`
 - `PredatorLite-Setup-1.0.2-rc.1-win-x64.exe`
 - `PredatorLite-Setup-1.0.2-rc.1-win-x64.exe.sha256`
 
-发布资产使用 framework-dependent ReadyToRun 便携目录和普通用户安装器。目标机器需要 .NET 10 Runtime x64、Windows App Runtime 2.3 x64，以及 Windows 11 24H2（build 26100+）原生 x64。首次运行新发布版本时，Windows 可能显示 SmartScreen 信誉提示；发布前后都应使用对应 `.sha256` 文件校验资产。
+Release assets use the framework-dependent ReadyToRun portable directory and a standard-user installer. Target machines need .NET 10 Runtime x64, Windows App Runtime 2.3 x64, and native x64 Windows 11 24H2 (build 26100+). Windows may show a SmartScreen reputation prompt on first run of a new release; verify assets with the corresponding `.sha256` file both before and after release.
 
-Inno Setup 本地安装测试包：
+Inno Setup local installer test package:
 
 ```powershell
 .\build\build-installer.ps1 -SkipSigning
 ```
 
-输出为 `artifacts\installer\unsigned\PredatorLite-Setup-1.0.2-win-x64-unsigned.exe`。内部测试载荷和测试包位于忽略的 `artifacts`，不会读写 `publish`；该路径只用于 signing-gates，不作为发布入口。公开仓库的 Actions artifact 不能作为内部分发渠道，因此 `build` 工作流只验证构建和 RC 安装器，不上传可下载产物。
+Output: `artifacts\installer\unsigned\PredatorLite-Setup-1.0.2-win-x64-unsigned.exe`. Internal test payloads and packages live in the ignored `artifacts` directory and never read or write `publish`; that path is used only by signing gates and is not a release entry point. Public-repository Actions artifacts cannot serve as an internal distribution channel, so the `build` workflow only verifies the build and the RC installer without uploading downloadable artifacts.
 
-`.github\workflows\release.yml` 仅支持从 Actions 页面手动运行，并要求选择通道：
+`.github\workflows\release.yml` runs only manually from the Actions page and requires choosing a channel:
 
-- `beta`：必须填写 `iteration`，必须保持 `confirm_public=false`；创建只有仓库 push 权限用户可见的 Draft Pre-release。
-- `rc`：必须填写 `iteration` 并勾选 `confirm_public`；创建所有人可见的 GitHub Pre-release。
-- `stable`：不得填写 `iteration`，必须勾选 `confirm_public`；创建正式 GitHub Release。
+- `beta`: `iteration` is required and `confirm_public` must stay `false`; creates a Draft Pre-release visible only to users with push access to the repository.
+- `rc`: `iteration` is required and `confirm_public` must be checked; creates a public GitHub Pre-release.
+- `stable`: `iteration` must be empty and `confirm_public` must be checked; creates a regular GitHub Release.
 
-工作流只接受 `main`，同一完整版本已存在时不会覆盖。Beta 适合维护者内部测试；如果测试人员不应获得公开仓库 push 权限，应改用独立私有仓库或私有存储分发 Beta。
+The workflow only accepts `main` and never overwrites an existing complete version. Beta is for maintainer-internal testing; if testers should not get push access to the public repository, distribute Beta through a separate private repository or private storage.
 
-完整的临时证书签名、安装、卸载与时间戳集成测试不阻塞日常构建。发布前必须在本地运行 `build\test-installer-signing.ps1`；需要检查 GitHub 托管环境时，可从 Actions 页面手动运行 `installer signing gates` 工作流。该手动工作流不上传 artifact，也不能创建或修改 GitHub Release；其 `-test-signed` 产物只存在于临时 runner，并在测试结束时删除。
+Full temporary-certificate signing, install, uninstall, and timestamp integration tests do not block everyday builds. Run `build\test-installer-signing.ps1` locally before release; to check on a GitHub-hosted environment, run the `installer signing gates` workflow manually from the Actions page. That manual workflow uploads no artifacts and cannot create or modify GitHub Releases; its `-test-signed` output exists only on the temporary runner and is deleted when the test finishes.
 
-可选的证书签名构建要求把带私钥、Code Signing EKU 且由公共信任 CA 签发的 Authenticode 证书导入 `CurrentUser\My`，且证书链根必须存在于 Windows `LocalMachine\AuthRoot`，然后执行：
+Optional certificate-signed builds require an Authenticode certificate with a private key and Code Signing EKU, issued by a publicly trusted CA, imported into `CurrentUser\My`, with its chain root present in the Windows `LocalMachine\AuthRoot` store; then run:
 
 ```powershell
 $env:PREDATORLITE_SIGNING_THUMBPRINT = "<certificate SHA-1 thumbprint>"
 .\build\build-installer.ps1
 ```
 
-证书签名构建不会修改 `publish\win-x64`。它在每次调用的独立 `artifacts` 工作目录中签署 8 个 PredatorLite 自有 EXE/DLL，并用 SignTool 固定到预期证书验证 SHA-256 签名和 RFC 3161 时间戳；Inno Setup 同样签署 Setup 与内嵌卸载器，测试脚本会安装后验证卸载器。Setup 验证和 `.sha256` 生成全部成功后，脚本才通过同父目录移动将两个文件提升到 `publish\installer`。提升前失败会保留已有正式安装包；提升开始后失败会删除候选和不完整目标。证书自签名、仅受本机私有根信任、已吊销、缺少私钥、用途错误或已过期时构建会失败。第三方 DLL 保留其原始发布者签名，不会被 PredatorLite 重新签署。
+Certificate-signed builds never modify `publish\win-x64`. Each invocation signs the 8 PredatorLite-owned EXE/DLLs in its own `artifacts` working directory, then verifies SHA-256 signatures and RFC 3161 timestamps with SignTool pinned to the expected certificate; Inno Setup signs both Setup and the embedded uninstaller, and the test script verifies the uninstaller after installation. Only after Setup verification and `.sha256` generation all succeed does the script promote both files into `publish\installer` via same-parent-directory moves. A failure before promotion preserves existing release installers; a failure after promotion starts deletes the candidates and incomplete targets. The build fails on self-signed certificates, certificates trusted only by a private local root, revoked certificates, missing private keys, wrong EKU, or expired certificates. Third-party DLLs keep their original publisher signatures and are never re-signed by PredatorLite.
 
-## 项目结构
+## Project Structure
 
 ```text
-src/PredatorLite.App              WinUI 3 UI、托盘、OSD 与应用编排
-src/PredatorLite.Core             模型、接口、设置与风扇曲线安全逻辑
-src/PredatorLite.Platform.Windows AcerService、WMI 与 Windows 只读监控
-src/PredatorLite.FanGuard         风扇故障恢复看门狗
-src/PredatorLite.ElevatedHelper   固定白名单的服务管理辅助程序
-tests/PredatorLite.Tests          协议、曲线、设置与能力边界测试
-benchmarks/PredatorLite.Benchmarks 包编解码、曲线与遥测微基准
+src/PredatorLite.App              WinUI 3 UI, tray, OSD, and app orchestration
+src/PredatorLite.Core             Models, interfaces, settings, and fan-curve safety logic
+src/PredatorLite.Platform.Windows AcerService, WMI, and Windows read-only monitoring
+src/PredatorLite.FanGuard         Fan failure-recovery watchdog
+src/PredatorLite.ElevatedHelper   Fixed-allowlist service management helper
+tests/PredatorLite.Tests          Protocol, curve, settings, and capability-boundary tests
+benchmarks/PredatorLite.Benchmarks Packet codec, curve, and telemetry microbenchmarks
 ```
 
-## 来源边界
+## Provenance Boundaries
 
-PredatorLite 是独立实现的互操作项目，不分发 Acer 源码、反编译代码、驱动、固件、ROM 或厂商素材。固定协议值、验证方法和贡献要求见[协议来源说明](docs/protocol-provenance.md)。本地忽略的研究目录不属于项目或 Git 历史，也不能作为贡献代码与素材的来源。
+PredatorLite is an independently implemented interoperability project and does not distribute Acer source code, decompiled code, drivers, firmware, ROMs, or vendor assets. Fixed protocol values, validation methodology, and contribution requirements are documented in the [protocol provenance](docs/protocol-provenance.md). Locally ignored research directories are not part of the project or Git history and cannot serve as a source for contributed code or assets.
 
-PredatorLite 不是 Acer 官方产品，也不隶属于 Acer。Acer、Predator 和 PredatorSense 名称仅用于说明兼容性。
+PredatorLite is not an official Acer product and is not affiliated with Acer. The Acer, Predator, and PredatorSense names are used only to describe compatibility.
 
-完整的发布前检查见[手动测试清单](docs/manual-testing.md)。
+The full pre-release checklist lives in the [manual testing](docs/manual-testing.md) document.
 
-## 贡献与安全
+## Contributing & Security
 
-提交代码前请阅读[贡献指南](CONTRIBUTING.md)。安全问题请按[安全策略](SECURITY.md)私下报告，不要在公开 Issue 中披露漏洞、机器密钥或未经脱敏的诊断信息。
+Please read the [contribution guide](CONTRIBUTING.md) before submitting code. Report security issues privately per the [security policy](SECURITY.md); do not disclose vulnerabilities, machine keys, or unredacted diagnostics in public issues.
 
 ## License
 
-PredatorLite 源码和原创项目素材采用 [MIT License](LICENSE)。素材范围见 [ASSET-LICENSE.md](ASSET-LICENSE.md)，依赖组件及其许可证见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
+PredatorLite source code and original project assets are licensed under the [MIT License](LICENSE). Asset scope is described in [ASSET-LICENSE.md](ASSET-LICENSE.md); dependent components and their licenses are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
