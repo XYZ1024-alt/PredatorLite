@@ -20,6 +20,7 @@ public sealed class GitHubApplicationUpdateService : IApplicationUpdateService
     private readonly string _repositoryOwner;
     private readonly string _repositoryName;
     private readonly string _repositoryDownloadPrefix;
+    private readonly string _repositoryReleasePrefix;
     private readonly string _downloadDirectory;
     private readonly string _userAgent;
     private bool _disposed;
@@ -58,6 +59,7 @@ public sealed class GitHubApplicationUpdateService : IApplicationUpdateService
         _repositoryOwner = repositoryOwner;
         _repositoryName = repositoryName;
         _repositoryDownloadPrefix = $"/{repositoryOwner}/{repositoryName}/releases/download/";
+        _repositoryReleasePrefix = $"/{repositoryOwner}/{repositoryName}/releases/tag/";
         _latestReleaseUri = latestReleaseUri;
         ValidateLatestReleaseUri(_latestReleaseUri);
         _downloadDirectory = Path.GetFullPath(downloadDirectory);
@@ -104,6 +106,7 @@ public sealed class GitHubApplicationUpdateService : IApplicationUpdateService
         }
 
         string versionText = latestVersion.ToString(3);
+        Uri releasePageUri = ParseReleasePageUri(release.HtmlUrl, latestVersion);
         string installerFileName = $"PredatorLite-Setup-{versionText}-win-x64.exe";
         string checksumFileName = $"{installerFileName}.sha256";
         GitHubReleaseAssetResponse installerAsset = GetSingleAsset(release.Assets, installerFileName);
@@ -125,6 +128,7 @@ public sealed class GitHubApplicationUpdateService : IApplicationUpdateService
             latestVersion,
             new ApplicationUpdate(
                 latestVersion,
+                releasePageUri,
                 installerFileName,
                 installerUri,
                 checksumUri,
@@ -296,6 +300,7 @@ public sealed class GitHubApplicationUpdateService : IApplicationUpdateService
             throw new InvalidDataException("The update installer size is outside the accepted range.");
         }
 
+        ValidateReleasePageUri(update.ReleasePageUri, update.Version);
         ValidateAssetUri(update.InstallerDownloadUri, update.InstallerFileName);
         ValidateAssetUri(update.ChecksumDownloadUri, $"{update.InstallerFileName}.sha256");
         if (update.InstallerDigest is not null && !IsSha256Hex(update.InstallerDigest))
@@ -327,6 +332,17 @@ public sealed class GitHubApplicationUpdateService : IApplicationUpdateService
         return uri;
     }
 
+    private Uri ParseReleasePageUri(string? value, Version expectedVersion)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out Uri? uri))
+        {
+            throw new InvalidDataException("The stable release page URL is invalid.");
+        }
+
+        ValidateReleasePageUri(uri, expectedVersion);
+        return uri;
+    }
+
     private void ValidateLatestReleaseUri(Uri uri)
     {
         string expectedPath = $"/repos/{_repositoryOwner}/{_repositoryName}/releases/latest";
@@ -351,6 +367,28 @@ public sealed class GitHubApplicationUpdateService : IApplicationUpdateService
             !string.IsNullOrEmpty(uri.Fragment))
         {
             throw new InvalidDataException($"The {expectedName} asset URL is outside the configured GitHub repository.");
+        }
+    }
+
+    private void ValidateReleasePageUri(Uri uri, Version expectedVersion)
+    {
+        bool validRepositoryPath = uri.AbsolutePath.StartsWith(
+            _repositoryReleasePrefix,
+            StringComparison.OrdinalIgnoreCase);
+        string tagName = validRepositoryPath
+            ? Uri.UnescapeDataString(uri.AbsolutePath[_repositoryReleasePrefix.Length..])
+            : string.Empty;
+        if (!uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+            !uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase) ||
+            !validRepositoryPath ||
+            string.IsNullOrWhiteSpace(tagName) ||
+            tagName.Contains('/') ||
+            !string.IsNullOrEmpty(uri.Query) ||
+            !string.IsNullOrEmpty(uri.Fragment) ||
+            !ParseStableVersion(tagName).Equals(expectedVersion))
+        {
+            throw new InvalidDataException(
+                "The stable release page URL is outside the configured GitHub repository.");
         }
     }
 
@@ -473,6 +511,9 @@ internal sealed class GitHubReleaseResponse
 {
     [JsonPropertyName("tag_name")]
     public string? TagName { get; init; }
+
+    [JsonPropertyName("html_url")]
+    public string? HtmlUrl { get; init; }
 
     [JsonPropertyName("draft")]
     public bool Draft { get; init; }

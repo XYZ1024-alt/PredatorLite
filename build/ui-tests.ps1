@@ -516,6 +516,10 @@ Test-Ui "Settings controls are reachable" {
     Assert-WinAppSucceeded "Waiting for the update check action"
     winapp ui wait-for "Settings.CheckForUpdates" -a $AppPid -p IsEnabled --value "True" -t 3000
     Assert-WinAppSucceeded "Checking that updates can be requested"
+    winapp ui wait-for "Settings.ViewReleaseNotes" -a $AppPid --gone -t 1000
+    Assert-WinAppSucceeded "Checking that release notes stay hidden before an update is found"
+    winapp ui wait-for "Settings.OpenGitHub" -a $AppPid -t 3000
+    Assert-WinAppSucceeded "Waiting for the GitHub project action"
     winapp ui wait-for "Settings.Services" -a $AppPid -t 3000
     Assert-WinAppSucceeded "Waiting for service settings"
     winapp ui wait-for "Settings.ExportDiagnostics" -a $AppPid -t 3000

@@ -45,6 +45,7 @@
     <sys:String x:Key="Description.ShowOsd">Show a compact performance overlay near the top of the desktop.</sys:String>
     <sys:String x:Key="Description.GlobalHotkeys">Allow global window access and operating mode cycling.</sys:String>
     <sys:String x:Key="Description.CheckForUpdates">Check the latest stable release on GitHub.</sys:String>
+    <sys:String x:Key="Description.GitHub">View the source code, issues, and releases on GitHub.</sys:String>
     <sys:String x:Key="Section.OperatingMode">Operating mode</sys:String>
     <sys:String x:Key="Section.Fan">Fan control</sys:String>
     <sys:String x:Key="Section.Performance">Performance</sys:String>
@@ -139,6 +140,7 @@
     <sys:String x:Key="Label.Language">Language</sys:String>
     <sys:String x:Key="Label.Version">Current version</sys:String>
     <sys:String x:Key="Label.ApplicationUpdates">Software updates</sys:String>
+    <sys:String x:Key="Label.GitHub">GitHub project</sys:String>
     <sys:String x:Key="Label.RunAtStartup">Run at startup</sys:String>
     <sys:String x:Key="Label.StartMinimized">Start minimized to tray</sys:String>
     <sys:String x:Key="Label.AutoEco">Use Eco mode on battery</sys:String>
@@ -170,6 +172,8 @@
     <sys:String x:Key="Action.Confirm">Confirm</sys:String>
     <sys:String x:Key="Action.Cancel">Cancel</sys:String>
     <sys:String x:Key="Action.CheckForUpdates">Check for updates</sys:String>
+    <sys:String x:Key="Action.ViewReleaseNotes">View release notes</sys:String>
+    <sys:String x:Key="Action.OpenGitHub">Open GitHub</sys:String>
     <sys:String x:Key="Action.DownloadAndInstall">Download and install</sys:String>
     <sys:String x:Key="Action.Open">Open PredatorLite</sys:String>
     <sys:String x:Key="Action.Retry">Retry</sys:String>

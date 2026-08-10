@@ -133,7 +133,22 @@
                             Content="{StaticResource Action.CheckForUpdates}"
                             IsEnabled="{x:Bind ViewModel.IsUpdateOperationRunning, Mode=OneWay, Converter={StaticResource InverseBooleanConverter}}"
                             Style="{StaticResource SecondaryButtonStyle}" />
+                        <HyperlinkButton
+                            VerticalAlignment="Center"
+                            AutomationProperties.AutomationId="Settings.ViewReleaseNotes"
+                            Content="{StaticResource Action.ViewReleaseNotes}"
+                            NavigateUri="{x:Bind ViewModel.UpdateReleaseNotesUri, Mode=OneWay}"
+                            Visibility="{x:Bind ViewModel.IsUpdateReleaseNotesAvailable, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" />
                     </StackPanel>
+                </controls:SettingsCard>
+                <controls:SettingsCard
+                    MinHeight="48"
+                    Description="{StaticResource Description.GitHub}"
+                    Header="{StaticResource Label.GitHub}">
+                    <HyperlinkButton
+                        AutomationProperties.AutomationId="Settings.OpenGitHub"
+                        Content="{StaticResource Action.OpenGitHub}"
+                        NavigateUri="https://github.com/XYZ1024-alt/PredatorLite" />
                 </controls:SettingsCard>
             </StackPanel>
 
