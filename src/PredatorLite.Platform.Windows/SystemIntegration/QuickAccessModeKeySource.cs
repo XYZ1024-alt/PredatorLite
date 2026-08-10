@@ -54,6 +54,7 @@ public sealed class QuickAccessModeKeySource : IModeKeySource
 
     private async Task RunAsync(CancellationToken cancellationToken)
     {
+        RetryBackoffState retryBackoff = new();
         while (!cancellationToken.IsCancellationRequested)
         {
             try
@@ -78,10 +79,20 @@ public sealed class QuickAccessModeKeySource : IModeKeySource
                     QuickAccessJsonContext.Default.QuickAccessFunctionQueryPacket,
                     cancellationToken).ConfigureAwait(false);
 
+                if (retryBackoff.Reset())
+                {
+                    _logger.Info("Quick Access mode-key connection recovered.");
+                }
+
                 while (socket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
                 {
                     string message = await ReceiveAsync(socket, cancellationToken).ConfigureAwait(false);
                     HandleMessage(message);
+                }
+
+                if (!cancellationToken.IsCancellationRequested)
+                {
+                    throw new EndOfStreamException("Quick Access websocket disconnected.");
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -90,10 +101,16 @@ public sealed class QuickAccessModeKeySource : IModeKeySource
             }
             catch (Exception exception)
             {
-                _logger.LogError("Quick Access mode-key connection failed", exception);
-            }
+                RetryBackoffDecision retry = retryBackoff.RegisterFailure();
+                if (retry.ShouldLog)
+                {
+                    _logger.LogError(
+                        "Quick Access mode-key connection failed; retries are backed off",
+                        exception);
+                }
 
-            await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
+                await Task.Delay(retry.Delay, cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 

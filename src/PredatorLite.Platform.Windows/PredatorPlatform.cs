@@ -39,8 +39,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
     private bool _fanWriteOwned;
     private DateTimeOffset _nextServiceStateRefresh = DateTimeOffset.MinValue;
     private Task? _serviceStateRefreshTask;
-    private int _serviceStateRefreshFailureCount;
-    private bool _serviceStateRefreshFailureLogged;
+    private readonly RetryBackoffState _serviceStateRefreshFailures = new();
     private HardwareMonitorSession? _hardwareMonitor;
     private bool _extendedTelemetryEnabled;
     private bool _fullProbeCompleted;
@@ -1215,9 +1214,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
             bool logRecovery;
             lock (_serviceStateRefreshSync)
             {
-                logRecovery = _serviceStateRefreshFailureLogged;
-                _serviceStateRefreshFailureCount = 0;
-                _serviceStateRefreshFailureLogged = false;
+                logRecovery = _serviceStateRefreshFailures.Reset();
                 _nextServiceStateRefresh = DateTimeOffset.UtcNow.Add(ServiceStateRefreshInterval);
             }
 
@@ -1231,18 +1228,15 @@ public sealed class PredatorPlatform : IPredatorPlatform
         }
         catch (Exception exception)
         {
-            bool logFailure;
-            int failureCount;
+            RetryBackoffDecision retry;
             lock (_serviceStateRefreshSync)
             {
-                failureCount = ++_serviceStateRefreshFailureCount;
-                logFailure = !_serviceStateRefreshFailureLogged;
-                _serviceStateRefreshFailureLogged = true;
+                retry = _serviceStateRefreshFailures.RegisterFailure();
                 _nextServiceStateRefresh = DateTimeOffset.UtcNow.Add(
-                    GetServiceStateRefreshBackoff(failureCount));
+                    retry.Delay);
             }
 
-            if (logFailure)
+            if (retry.ShouldLog)
             {
                 _logger.LogError("AcerService state refresh failed; retries are backed off", exception);
             }
@@ -1253,20 +1247,10 @@ public sealed class PredatorPlatform : IPredatorPlatform
     {
         lock (_serviceStateRefreshSync)
         {
-            _serviceStateRefreshFailureCount = 0;
-            _serviceStateRefreshFailureLogged = false;
+            _serviceStateRefreshFailures.Reset();
             _nextServiceStateRefresh = DateTimeOffset.UtcNow.Add(ServiceStateRefreshInterval);
         }
     }
-
-    internal static TimeSpan GetServiceStateRefreshBackoff(int consecutiveFailures) =>
-        consecutiveFailures switch
-        {
-            <= 1 => TimeSpan.FromSeconds(10),
-            2 => TimeSpan.FromSeconds(30),
-            3 => TimeSpan.FromMinutes(2),
-            _ => TimeSpan.FromMinutes(5)
-        };
 
     private async Task<Dictionary<DeviceSettingId, DeviceSettingState>> QueryDeviceSettingsCoreAsync(
         bool serviceAvailable,
