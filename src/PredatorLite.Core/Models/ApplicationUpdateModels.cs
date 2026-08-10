@@ -9,6 +9,7 @@ public sealed record ApplicationUpdateCheckResult(
 
 public sealed record ApplicationUpdate(
     Version Version,
+    Uri ReleasePageUri,
     string InstallerFileName,
     Uri InstallerDownloadUri,
     Uri ChecksumDownloadUri,

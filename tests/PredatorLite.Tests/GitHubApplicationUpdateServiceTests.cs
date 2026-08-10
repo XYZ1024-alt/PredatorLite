@@ -40,6 +40,9 @@ public sealed class GitHubApplicationUpdateServiceTests
             Assert.Equal(installer.Length, update.InstallerSize);
             Assert.Equal(hash, update.InstallerDigest);
             Assert.Equal(
+                "https://github.com/XYZ1024-alt/PredatorLite/releases/tag/v1.1.0",
+                update.ReleasePageUri.AbsoluteUri);
+            Assert.Equal(
                 "https://github.com/XYZ1024-alt/PredatorLite/releases/download/v1.1.0/PredatorLite-Setup-1.1.0-win-x64.exe",
                 update.InstallerDownloadUri.AbsoluteUri);
         }
@@ -170,6 +173,7 @@ public sealed class GitHubApplicationUpdateServiceTests
                 $"https://github.com/XYZ1024-alt/PredatorLite/releases/download/v1.1.0/{installerName}");
             ApplicationUpdate update = new(
                 new Version(1, 1, 0, 0),
+                new Uri("https://github.com/XYZ1024-alt/PredatorLite/releases/tag/v1.1.0"),
                 installerName,
                 installerUri,
                 checksumUri,
@@ -242,6 +246,29 @@ public sealed class GitHubApplicationUpdateServiceTests
         }
     }
 
+    [Fact]
+    public async Task ReleasePageOutsideConfiguredRepositoryIsRejected()
+    {
+        string directory = CreateTempDirectory();
+        try
+        {
+            using GitHubApplicationUpdateService service = CreateService(
+                new StubHttpMessageHandler(_ => CreateReleaseResponse(
+                    "v1.1.0",
+                    installerSize: 1,
+                    installerHash: new string('0', 64),
+                    releasePageUrl: "https://example.com/XYZ1024-alt/PredatorLite/releases/tag/v1.1.0")),
+                directory);
+
+            await Assert.ThrowsAsync<InvalidDataException>(
+                () => service.CheckAsync(new Version(1, 0, 2, 0)));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
     private static GitHubApplicationUpdateService CreateService(
         HttpMessageHandler handler,
         string downloadDirectory) => new(
@@ -257,7 +284,8 @@ public sealed class GitHubApplicationUpdateServiceTests
         long installerSize,
         string? installerHash,
         bool includeAssets = true,
-        bool prerelease = false)
+        bool prerelease = false,
+        string? releasePageUrl = null)
     {
         string version = tagName.TrimStart('v');
         string installerName = $"PredatorLite-Setup-{version}-win-x64.exe";
@@ -287,6 +315,8 @@ public sealed class GitHubApplicationUpdateServiceTests
         string json = JsonSerializer.Serialize(new
         {
             tag_name = tagName,
+            html_url = releasePageUrl ??
+                $"https://github.com/XYZ1024-alt/PredatorLite/releases/tag/{tagName}",
             draft = false,
             prerelease,
             assets

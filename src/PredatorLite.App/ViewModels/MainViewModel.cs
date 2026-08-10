@@ -201,6 +201,11 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     public partial string UpdateStatusText { get; set; }
 
     [ObservableProperty]
+    public partial Uri? UpdateReleaseNotesUri { get; set; }
+
+    public bool IsUpdateReleaseNotesAvailable => UpdateReleaseNotesUri is not null;
+
+    [ObservableProperty]
     public partial string DeviceModel { get; set; } = "--";
 
     [ObservableProperty]
@@ -1222,6 +1227,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     private async Task CheckForUpdatesAsync()
     {
         IsUpdateOperationRunning = true;
+        UpdateReleaseNotesUri = null;
         bool downloading = false;
         bool acceptProgress = false;
         try
@@ -1240,6 +1246,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             }
 
             string versionText = update.Version.ToString(3);
+            UpdateReleaseNotesUri = update.ReleasePageUri;
             UpdateStatusText = string.Format(
                 CultureInfo.CurrentCulture,
                 _localization.Get("Status.UpdateAvailable"),
@@ -1302,6 +1309,9 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             IsUpdateOperationRunning = false;
         }
     }
+
+    partial void OnUpdateReleaseNotesUriChanged(Uri? value) =>
+        OnPropertyChanged(nameof(IsUpdateReleaseNotesAvailable));
 
     public async ValueTask DisposeAsync()
     {
