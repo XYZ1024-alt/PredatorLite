@@ -33,9 +33,7 @@ public static class AcerPacketCodec
             throw new InvalidDataException("AcerService returned an empty response.");
         }
 
-        ReadOnlySpan<byte> payload = packet.Length >= 8 && packet[..4].SequenceEqual(Magic)
-            ? packet[8..]
-            : packet;
+        ReadOnlySpan<byte> payload = packet[GetPayloadOffset(packet)..];
 
         byte[]? decrypted = aesKey is null
             ? null
@@ -48,6 +46,9 @@ public static class AcerPacketCodec
 
         return Encoding.UTF8.GetString(plain);
     }
+
+    internal static int GetPayloadOffset(ReadOnlySpan<byte> packet) =>
+        packet.Length >= 8 && packet[..4].SequenceEqual(Magic) ? 8 : 0;
 
     private static void WriteHeader(Span<byte> packet, uint packetId)
     {

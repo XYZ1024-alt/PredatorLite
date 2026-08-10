@@ -12,6 +12,9 @@ public sealed class PredatorPlatform : IPredatorPlatform
     private static readonly TimeSpan BackendRetryTimeout = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan BackendInitialDelay = TimeSpan.FromMilliseconds(250);
     private static readonly TimeSpan BackendMaximumDelay = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan ServiceStateRefreshInterval = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan HardwareMonitorReadTimeout = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan HardwareMonitorShutdownTimeout = TimeSpan.FromSeconds(2);
 
     private readonly AcerServiceClient _service;
     private readonly AcerSystemMonitorClient _systemMonitor;
@@ -21,6 +24,9 @@ public sealed class PredatorPlatform : IPredatorPlatform
     private readonly SemaphoreSlim _operationGate = new(1, 1);
     private readonly SemaphoreSlim _probeGate = new(1, 1);
     private readonly WindowsCpuTelemetryReader _windowsCpuTelemetry;
+    private readonly object _serviceStateRefreshSync = new();
+    private readonly object _hardwareMonitorSync = new();
+    private readonly List<Task> _hardwareMonitorCleanupTasks = [];
 
     private DeviceCapabilities? _capabilities;
     private PlatformStartupState? _startupState;
@@ -31,10 +37,13 @@ public sealed class PredatorPlatform : IPredatorPlatform
     private GpuMuxMode? _gpuMuxMode;
     private FanMode? _fanMode;
     private bool _fanWriteOwned;
-    private DateTimeOffset _lastServiceStateRead = DateTimeOffset.MinValue;
-    private HardwareMonitorReader? _hardwareMonitor;
+    private DateTimeOffset _nextServiceStateRefresh = DateTimeOffset.MinValue;
+    private Task? _serviceStateRefreshTask;
+    private readonly RetryBackoffState _serviceStateRefreshFailures = new();
+    private HardwareMonitorSession? _hardwareMonitor;
     private bool _extendedTelemetryEnabled;
     private bool _fullProbeCompleted;
+    private volatile bool _disposed;
 
     public PredatorPlatform(
         IAppLogger logger,
@@ -199,39 +208,29 @@ public sealed class PredatorPlatform : IPredatorPlatform
         Task<AcerMonitorTelemetry?> acerMonitorTask = initialTelemetry is not null
             ? Task.FromResult<AcerMonitorTelemetry?>(initialTelemetry)
             : _systemMonitor.ReadAsync(cancellationToken);
-        bool useWmiSensors = _capabilities?.AcerWmiAvailable == true;
-        Task<int?> cpuTemperatureTask = useWmiSensors
-            ? _wmi.ReadSensorAsync(AcerProtocol.CpuTemperatureSensor, cancellationToken)
-            : Task.FromResult<int?>(null);
-        Task<int?> gpuTemperatureTask = useWmiSensors
-            ? _wmi.ReadSensorAsync(AcerProtocol.GpuTemperatureSensor, cancellationToken)
-            : Task.FromResult<int?>(null);
-        Task<int?> cpuFanTask = useWmiSensors
-            ? _wmi.ReadSensorAsync(AcerProtocol.CpuFanRpmSensor, cancellationToken)
-            : Task.FromResult<int?>(null);
-        Task<int?> gpuFanTask = useWmiSensors
-            ? _wmi.ReadSensorAsync(AcerProtocol.GpuFanRpmSensor, cancellationToken)
-            : Task.FromResult<int?>(null);
-        Task<ExtraTelemetry> extraTask = _extendedTelemetryEnabled && _hardwareMonitor is not null
-            ? Task.Run(_hardwareMonitor.Read, cancellationToken)
-            : Task.FromResult(new ExtraTelemetry());
+        Task<ExtraTelemetry> extraTask = ReadExtendedTelemetryAsync(cancellationToken);
 
-        if (DateTimeOffset.UtcNow - _lastServiceStateRead > TimeSpan.FromSeconds(10))
-        {
-            await RefreshServiceStateAsync(cancellationToken).ConfigureAwait(false);
-        }
+        ScheduleServiceStateRefresh(cancellationToken);
 
         AcerMonitorTelemetry? acerMonitor = await acerMonitorTask.ConfigureAwait(false);
+        AcerWmiSensorRequirements wmiRequirements =
+            _capabilities?.AcerWmiAvailable == true
+                ? GetRequiredWmiSensors(acerMonitor)
+                : AcerWmiSensorRequirements.None;
+        Task<AcerWmiSensorReadings> wmiTask = _wmi.ReadSensorsAsync(
+            wmiRequirements,
+            cancellationToken);
         Task<WindowsCpuTelemetry> windowsCpuTask =
             acerMonitor?.CpuLoadPercent is null || acerMonitor.CpuClockMhz is null
                 ? Task.Run(_windowsCpuTelemetry.Read, cancellationToken)
                 : Task.FromResult(new WindowsCpuTelemetry());
         ExtraTelemetry extra = await extraTask.ConfigureAwait(false);
+        AcerWmiSensorReadings wmi = await wmiTask.ConfigureAwait(false);
         AcerWmiTelemetry wmiTelemetry = new(
-            CpuTemperatureC: NormalizeTemperature(await cpuTemperatureTask.ConfigureAwait(false)),
-            GpuTemperatureC: NormalizeTemperature(await gpuTemperatureTask.ConfigureAwait(false)),
-            CpuFanRpm: NormalizeRpm(await cpuFanTask.ConfigureAwait(false)),
-            GpuFanRpm: NormalizeRpm(await gpuFanTask.ConfigureAwait(false)));
+            CpuTemperatureC: NormalizeTemperature(wmi.CpuTemperatureC),
+            GpuTemperatureC: NormalizeTemperature(wmi.GpuTemperatureC),
+            CpuFanRpm: NormalizeRpm(wmi.CpuFanRpm),
+            GpuFanRpm: NormalizeRpm(wmi.GpuFanRpm));
         HardwareSnapshot telemetry = TelemetryMerger.Merge(
             acerMonitor,
             wmiTelemetry,
@@ -252,20 +251,55 @@ public sealed class PredatorPlatform : IPredatorPlatform
 
     public void SetExtendedTelemetryEnabled(bool enabled)
     {
-        if (_extendedTelemetryEnabled == enabled)
+        HardwareMonitorSession? staleSession = null;
+        lock (_hardwareMonitorSync)
         {
-            return;
+            if (_disposed || _extendedTelemetryEnabled == enabled)
+            {
+                return;
+            }
+
+            _extendedTelemetryEnabled = enabled;
+            if (enabled)
+            {
+                _hardwareMonitor = new HardwareMonitorSession(
+                    new HardwareMonitorReader(_logger),
+                    _logger,
+                    HardwareMonitorReadTimeout);
+            }
+            else
+            {
+                staleSession = _hardwareMonitor;
+                _hardwareMonitor = null;
+            }
         }
 
-        _extendedTelemetryEnabled = enabled;
-        if (enabled)
+        if (staleSession is not null)
         {
-            _hardwareMonitor = new HardwareMonitorReader(_logger);
+            QueueHardwareMonitorCleanup(staleSession);
         }
-        else
+    }
+
+    private Task<ExtraTelemetry> ReadExtendedTelemetryAsync(
+        CancellationToken cancellationToken)
+    {
+        HardwareMonitorSession? session;
+        lock (_hardwareMonitorSync)
         {
-            _hardwareMonitor?.Dispose();
-            _hardwareMonitor = null;
+            session = _hardwareMonitor;
+        }
+
+        return session?.ReadAsync(cancellationToken) ??
+            Task.FromResult(new ExtraTelemetry());
+    }
+
+    private void QueueHardwareMonitorCleanup(HardwareMonitorSession session)
+    {
+        Task cleanupTask = session.DisposeAsync();
+        lock (_hardwareMonitorSync)
+        {
+            _hardwareMonitorCleanupTasks.RemoveAll(task => task.IsCompleted);
+            _hardwareMonitorCleanupTasks.Add(cleanupTask);
         }
     }
 
@@ -821,6 +855,58 @@ public sealed class PredatorPlatform : IPredatorPlatform
 
     public async ValueTask DisposeAsync()
     {
+        Task? serviceStateRefreshTask;
+        lock (_serviceStateRefreshSync)
+        {
+            _disposed = true;
+            serviceStateRefreshTask = _serviceStateRefreshTask;
+        }
+
+        if (serviceStateRefreshTask is not null)
+        {
+            try
+            {
+                await serviceStateRefreshTask.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
+        HardwareMonitorSession? staleSession;
+        lock (_hardwareMonitorSync)
+        {
+            _extendedTelemetryEnabled = false;
+            staleSession = _hardwareMonitor;
+            _hardwareMonitor = null;
+        }
+
+        if (staleSession is not null)
+        {
+            QueueHardwareMonitorCleanup(staleSession);
+        }
+
+        Task[] hardwareMonitorCleanupTasks;
+        lock (_hardwareMonitorSync)
+        {
+            hardwareMonitorCleanupTasks = _hardwareMonitorCleanupTasks.ToArray();
+        }
+
+        if (hardwareMonitorCleanupTasks.Length > 0)
+        {
+            try
+            {
+                await Task.WhenAll(hardwareMonitorCleanupTasks)
+                    .WaitAsync(HardwareMonitorShutdownTimeout)
+                    .ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+                _logger.LogError(
+                    "LibreHardwareMonitor cleanup exceeded the shutdown timeout.");
+            }
+        }
+
         try
         {
             if (_fanWriteOwned && _fanMode is FanMode.Max or FanMode.Custom)
@@ -832,7 +918,6 @@ public sealed class PredatorPlatform : IPredatorPlatform
         {
         }
 
-        _hardwareMonitor?.Dispose();
         await _systemMonitor.DisposeAsync().ConfigureAwait(false);
         await _service.DisposeAsync().ConfigureAwait(false);
         _probeGate.Dispose();
@@ -995,7 +1080,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
             }
         }
 
-        _lastServiceStateRead = DateTimeOffset.UtcNow;
+        ResetServiceStateRefreshSchedule();
         return new ServiceProbeResult(serviceAvailable, fan, lighting, gpu, settings);
     }
 
@@ -1077,34 +1162,93 @@ public sealed class PredatorPlatform : IPredatorPlatform
         }
     }
 
+    private void ScheduleServiceStateRefresh(CancellationToken cancellationToken)
+    {
+        if (_capabilities?.AcerServiceAvailable != true)
+        {
+            return;
+        }
+
+        lock (_serviceStateRefreshSync)
+        {
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            if (_disposed ||
+                now < _nextServiceStateRefresh ||
+                _serviceStateRefreshTask is { IsCompleted: false })
+            {
+                return;
+            }
+
+            _nextServiceStateRefresh = now.Add(ServiceStateRefreshInterval);
+            _serviceStateRefreshTask = RefreshServiceStateAsync(cancellationToken);
+        }
+    }
+
     private async Task RefreshServiceStateAsync(CancellationToken cancellationToken)
     {
         try
         {
-            AcerResponse operating = await _service.QueryAsync(AcerProtocol.OperatingMode, cancellationToken)
+            AcerResponse operating = await _service.QueryQuietlyAsync(
+                    AcerProtocol.OperatingMode,
+                    cancellationToken)
                 .ConfigureAwait(false);
             if (AcerControlStateParser.TryReadOperatingMode(operating, out OperatingMode operatingMode))
             {
                 SetVerifiedOperatingMode(operatingMode);
             }
 
-            AcerResponse fan = await _service.QueryAsync(AcerProtocol.FanControl, cancellationToken).ConfigureAwait(false);
+            AcerResponse fan = await _service.QueryQuietlyAsync(AcerProtocol.FanControl, cancellationToken)
+                .ConfigureAwait(false);
             if (AcerControlStateParser.TryReadFanMode(fan, out FanMode fanMode))
             {
                 _fanMode = fanMode;
             }
 
-            AcerResponse gpu = await _service.QueryAsync(AcerProtocol.GpuMode, cancellationToken).ConfigureAwait(false);
+            AcerResponse gpu = await _service.QueryQuietlyAsync(AcerProtocol.GpuMode, cancellationToken)
+                .ConfigureAwait(false);
             if (AcerControlStateParser.TryReadGpuMuxMode(gpu, out GpuMuxMode gpuMode))
             {
                 _gpuMuxMode = gpuMode;
             }
 
-            _lastServiceStateRead = DateTimeOffset.UtcNow;
+            bool logRecovery;
+            lock (_serviceStateRefreshSync)
+            {
+                logRecovery = _serviceStateRefreshFailures.Reset();
+                _nextServiceStateRefresh = DateTimeOffset.UtcNow.Add(ServiceStateRefreshInterval);
+            }
+
+            if (logRecovery)
+            {
+                _logger.Info("AcerService state refresh recovered.");
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
         }
         catch (Exception exception)
         {
-            _logger.LogError("AcerService state refresh failed", exception);
+            RetryBackoffDecision retry;
+            lock (_serviceStateRefreshSync)
+            {
+                retry = _serviceStateRefreshFailures.RegisterFailure();
+                _nextServiceStateRefresh = DateTimeOffset.UtcNow.Add(
+                    retry.Delay);
+            }
+
+            if (retry.ShouldLog)
+            {
+                _logger.LogError("AcerService state refresh failed; retries are backed off", exception);
+            }
+        }
+    }
+
+    private void ResetServiceStateRefreshSchedule()
+    {
+        lock (_serviceStateRefreshSync)
+        {
+            _serviceStateRefreshFailures.Reset();
+            _nextServiceStateRefresh = DateTimeOffset.UtcNow.Add(ServiceStateRefreshInterval);
         }
     }
 
@@ -1326,6 +1470,32 @@ public sealed class PredatorPlatform : IPredatorPlatform
         AcerResponse? Lighting,
         AcerResponse? Gpu,
         IReadOnlyDictionary<DeviceSettingId, DeviceSettingState> DeviceSettings);
+
+    internal static AcerWmiSensorRequirements GetRequiredWmiSensors(AcerMonitorTelemetry? telemetry)
+    {
+        AcerWmiSensorRequirements requirements = AcerWmiSensorRequirements.None;
+        if (telemetry?.CpuTemperatureC is null)
+        {
+            requirements |= AcerWmiSensorRequirements.CpuTemperature;
+        }
+
+        if (telemetry?.GpuTemperatureC is null)
+        {
+            requirements |= AcerWmiSensorRequirements.GpuTemperature;
+        }
+
+        if (telemetry?.CpuFanRpm is null)
+        {
+            requirements |= AcerWmiSensorRequirements.CpuFan;
+        }
+
+        if (telemetry?.GpuFanRpm is null)
+        {
+            requirements |= AcerWmiSensorRequirements.GpuFan;
+        }
+
+        return requirements;
+    }
 
     private static int? NormalizeTemperature(int? value) => value is > 0 and < 130 ? value : null;
 

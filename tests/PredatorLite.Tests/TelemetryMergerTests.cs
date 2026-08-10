@@ -1,4 +1,5 @@
 using PredatorLite.Core.Models;
+using PredatorLite.Platform.Windows;
 using PredatorLite.Platform.Windows.Acer;
 using PredatorLite.Platform.Windows.SystemIntegration;
 
@@ -119,5 +120,41 @@ public sealed class TelemetryMergerTests
         };
 
         Assert.False(snapshot.HasLivePrimaryTelemetry);
+    }
+
+    [Fact]
+    public void CompleteAcerSensorTelemetryRequiresNoWmiFallback()
+    {
+        AcerMonitorTelemetry acer = new(
+            CpuTemperatureC: 70,
+            GpuTemperatureC: 60,
+            CpuFanRpm: 3800,
+            GpuFanRpm: 3900);
+
+        AcerWmiSensorRequirements requirements = PredatorPlatform.GetRequiredWmiSensors(acer);
+
+        Assert.Equal(AcerWmiSensorRequirements.None, requirements);
+    }
+
+    [Fact]
+    public void MissingAcerSensorTelemetryRequestsOnlyMissingWmiFallbacks()
+    {
+        AcerMonitorTelemetry acer = new(
+            CpuTemperatureC: 70,
+            CpuFanRpm: 3800);
+
+        AcerWmiSensorRequirements requirements = PredatorPlatform.GetRequiredWmiSensors(acer);
+
+        Assert.Equal(
+            AcerWmiSensorRequirements.GpuTemperature | AcerWmiSensorRequirements.GpuFan,
+            requirements);
+    }
+
+    [Fact]
+    public void MissingAcerResponseRequestsAllWmiFallbacks()
+    {
+        AcerWmiSensorRequirements requirements = PredatorPlatform.GetRequiredWmiSensors(null);
+
+        Assert.Equal(AcerWmiSensorRequirements.All, requirements);
     }
 }

@@ -11,6 +11,7 @@ Do not change hardware-write ordering, FanGuard coverage, process priority, GC m
 The separate `benchmarks/PredatorLite.Benchmarks` console project measures:
 
 - plain and encrypted Acer packet encoding plus plain decoding;
+- direct UTF-8 parsing of plain and encrypted Acer System Monitor responses;
 - allocation-free evaluation of an already validated, ordered fan curve;
 - primary and fallback telemetry merging.
 

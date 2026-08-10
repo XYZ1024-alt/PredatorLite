@@ -24,6 +24,7 @@ internal sealed class WindowsCpuTelemetryReader
                     "SELECT PercentProcessorTime, ProcessorFrequency " +
                     "FROM Win32_PerfFormattedData_Counters_ProcessorInformation " +
                     "WHERE Name = '_Total'");
+                WmiOperationOptions.Configure(searcher);
                 using ManagementObjectCollection collection = searcher.Get();
                 foreach (ManagementObject item in collection)
                 {

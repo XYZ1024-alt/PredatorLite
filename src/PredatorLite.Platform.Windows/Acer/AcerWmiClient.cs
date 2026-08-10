@@ -4,6 +4,7 @@ using System.Management;
 using System.Runtime.InteropServices;
 using PredatorLite.Core.Abstractions;
 using PredatorLite.Core.Models;
+using PredatorLite.Platform.Windows.SystemIntegration;
 
 namespace PredatorLite.Platform.Windows.Acer;
 
@@ -23,14 +24,57 @@ public sealed class AcerWmiClient
     public static Task<bool> IsBatteryInterfaceAvailableAsync(CancellationToken cancellationToken = default) =>
         Task.Run(() => HasInstance(AcerProtocol.BatteryClass), cancellationToken);
 
-    public Task<int?> ReadSensorAsync(ulong sensorId, CancellationToken cancellationToken = default) =>
-        Task.Run(() =>
+    internal Task<AcerWmiSensorReadings> ReadSensorsAsync(
+        AcerWmiSensorRequirements requirements,
+        CancellationToken cancellationToken = default)
+    {
+        if (requirements == AcerWmiSensorRequirements.None)
         {
-            (bool success, ulong output) = InvokeGaming(
-                AcerProtocol.GetSystemInfo,
-                0x0001ul | (sensorId << 8));
-            return success ? (int?)((output >> 8) & 0xFFFF) : null;
+            return Task.FromResult(new AcerWmiSensorReadings());
+        }
+
+        return Task.Run(() =>
+        {
+            lock (_sync)
+            {
+                try
+                {
+                    using ManagementObject? gaming = FindFirst(AcerProtocol.GamingClass);
+                    if (gaming is null)
+                    {
+                        return new AcerWmiSensorReadings();
+                    }
+
+                    return new AcerWmiSensorReadings(
+                        CpuTemperatureC: ReadSensor(
+                            gaming,
+                            requirements,
+                            AcerWmiSensorRequirements.CpuTemperature,
+                            AcerProtocol.CpuTemperatureSensor),
+                        GpuTemperatureC: ReadSensor(
+                            gaming,
+                            requirements,
+                            AcerWmiSensorRequirements.GpuTemperature,
+                            AcerProtocol.GpuTemperatureSensor),
+                        CpuFanRpm: ReadSensor(
+                            gaming,
+                            requirements,
+                            AcerWmiSensorRequirements.CpuFan,
+                            AcerProtocol.CpuFanRpmSensor),
+                        GpuFanRpm: ReadSensor(
+                            gaming,
+                            requirements,
+                            AcerWmiSensorRequirements.GpuFan,
+                            AcerProtocol.GpuFanRpmSensor));
+                }
+                catch (Exception exception)
+                {
+                    _logger.LogError("Acer WMI sensor batch failed", exception);
+                    return new AcerWmiSensorReadings();
+                }
+            }
         }, cancellationToken);
+    }
 
     public Task<OperatingMode?> ReadOperatingModeAsync(CancellationToken cancellationToken = default) =>
         Task.Run<OperatingMode?>(() =>
@@ -112,7 +156,10 @@ public sealed class AcerWmiClient
                     input["uFunctionMask"] = (byte)1;
                     input["uFunctionStatus"] = (byte)(limitTo80Percent ? 1 : 0);
                     input["uReservedIn"] = new byte[] { 0, 0, 0, 0, 0 };
-                    using ManagementBaseObject? _ = battery.InvokeMethod(AcerProtocol.SetBatteryHealth, input, null);
+                    using ManagementBaseObject? _ = battery.InvokeMethod(
+                        AcerProtocol.SetBatteryHealth,
+                        input,
+                        WmiOperationOptions.CreateInvokeMethodOptions());
                     return true;
                 }
                 catch (Exception exception)
@@ -140,7 +187,10 @@ public sealed class AcerWmiClient
                     input["uBatteryNo"] = (byte)1;
                     input["uFunctionQuery"] = (byte)1;
                     input["uReserved"] = new byte[] { 0, 0 };
-                    using ManagementBaseObject? output = battery.InvokeMethod(AcerProtocol.GetBatteryHealth, input, null);
+                    using ManagementBaseObject? output = battery.InvokeMethod(
+                        AcerProtocol.GetBatteryHealth,
+                        input,
+                        WmiOperationOptions.CreateInvokeMethodOptions());
                     if (output?["uFunctionStatus"] is byte[] bytes && bytes.Length > 0)
                     {
                         return bytes[0] == 1;
@@ -220,6 +270,7 @@ public sealed class AcerWmiClient
         using ManagementObjectSearcher searcher = new(
             AcerProtocol.WmiNamespace,
             $"SELECT * FROM {className}");
+        WmiOperationOptions.Configure(searcher);
         using ManagementObjectCollection collection = searcher.Get();
         return collection.Cast<ManagementObject>().FirstOrDefault();
     }
@@ -236,27 +287,7 @@ public sealed class AcerWmiClient
                     return (false, 0);
                 }
 
-                using ManagementBaseObject input = gaming.GetMethodParameters(method);
-                PropertyData? inputProperty = input.Properties.Cast<PropertyData>()
-                    .FirstOrDefault(property => !property.Name.StartsWith("__", StringComparison.Ordinal));
-                if (inputProperty is null)
-                {
-                    return (false, 0);
-                }
-
-                input[inputProperty.Name] = ConvertForCimType(inputValue, inputProperty.Type);
-                using ManagementBaseObject? output = gaming.InvokeMethod(method, input, null);
-                PropertyData? outputProperty = output?.Properties.Cast<PropertyData>()
-                    .FirstOrDefault(property =>
-                        property.Name != "ReturnValue" &&
-                        !property.Name.StartsWith("__", StringComparison.Ordinal));
-                if (outputProperty?.Value is null)
-                {
-                    return (false, 0);
-                }
-
-                ulong result = Convert.ToUInt64(outputProperty.Value, CultureInfo.InvariantCulture);
-                return ((result & 0xFF) == 0, result);
+                return InvokeGaming(gaming, method, inputValue);
             }
             catch (Exception exception)
             {
@@ -264,6 +295,55 @@ public sealed class AcerWmiClient
                 return (false, 0);
             }
         }
+    }
+
+    private static (bool success, ulong output) InvokeGaming(
+        ManagementObject gaming,
+        string method,
+        ulong inputValue)
+    {
+        using ManagementBaseObject input = gaming.GetMethodParameters(method);
+        PropertyData? inputProperty = input.Properties.Cast<PropertyData>()
+            .FirstOrDefault(property => !property.Name.StartsWith("__", StringComparison.Ordinal));
+        if (inputProperty is null)
+        {
+            return (false, 0);
+        }
+
+        input[inputProperty.Name] = ConvertForCimType(inputValue, inputProperty.Type);
+        using ManagementBaseObject? output = gaming.InvokeMethod(
+            method,
+            input,
+            WmiOperationOptions.CreateInvokeMethodOptions());
+        PropertyData? outputProperty = output?.Properties.Cast<PropertyData>()
+            .FirstOrDefault(property =>
+                property.Name != "ReturnValue" &&
+                !property.Name.StartsWith("__", StringComparison.Ordinal));
+        if (outputProperty?.Value is null)
+        {
+            return (false, 0);
+        }
+
+        ulong result = Convert.ToUInt64(outputProperty.Value, CultureInfo.InvariantCulture);
+        return ((result & 0xFF) == 0, result);
+    }
+
+    private static int? ReadSensor(
+        ManagementObject gaming,
+        AcerWmiSensorRequirements requirements,
+        AcerWmiSensorRequirements requiredSensor,
+        ulong sensorId)
+    {
+        if (!requirements.HasFlag(requiredSensor))
+        {
+            return null;
+        }
+
+        (bool success, ulong output) = InvokeGaming(
+            gaming,
+            AcerProtocol.GetSystemInfo,
+            0x0001ul | (sensorId << 8));
+        return success ? (int?)((output >> 8) & 0xFFFF) : null;
     }
 
     private ulong InvokeApge(string method, ulong inputValue)
@@ -286,7 +366,10 @@ public sealed class AcerWmiClient
                 }
 
                 input[inputProperty.Name] = ConvertForCimType(inputValue, inputProperty.Type);
-                using ManagementBaseObject? output = apge.InvokeMethod(method, input, null);
+                using ManagementBaseObject? output = apge.InvokeMethod(
+                    method,
+                    input,
+                    WmiOperationOptions.CreateInvokeMethodOptions());
                 PropertyData? outputProperty = output?.Properties.Cast<PropertyData>()
                     .FirstOrDefault(property => property.Name != "ReturnValue");
                 return outputProperty?.Value is null
@@ -320,3 +403,20 @@ public sealed class AcerWmiClient
     [DllImport("powrprof.dll")]
     private static extern uint PowerSetActiveOverlayScheme(Guid overlaySchemeGuid);
 }
+
+[Flags]
+internal enum AcerWmiSensorRequirements
+{
+    None = 0,
+    CpuTemperature = 1 << 0,
+    GpuTemperature = 1 << 1,
+    CpuFan = 1 << 2,
+    GpuFan = 1 << 3,
+    All = CpuTemperature | GpuTemperature | CpuFan | GpuFan
+}
+
+internal sealed record AcerWmiSensorReadings(
+    int? CpuTemperatureC = null,
+    int? GpuTemperatureC = null,
+    int? CpuFanRpm = null,
+    int? GpuFanRpm = null);

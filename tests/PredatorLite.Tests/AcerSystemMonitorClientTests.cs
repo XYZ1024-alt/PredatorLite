@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using PredatorLite.Platform.Windows.Acer;
 
@@ -100,5 +101,42 @@ public sealed class AcerSystemMonitorClientTests
             """;
 
         Assert.Throws<InvalidDataException>(() => AcerSystemMonitorClient.ParseResponse(json));
+    }
+
+    [Fact]
+    public void PacketParserAcceptsPlainAndEncryptedUtf8WithoutStringConversion()
+    {
+        const string json = """
+            {
+              "result": 0,
+              "request": "GET_MONITOR_DATA",
+              "data": {
+                "CPU_TEMPERATURE": 72,
+                "GPU1_TEMPERATURE": 57
+              }
+            }
+            """;
+        byte[] key = Encoding.ASCII.GetBytes("A6052DC8A6E44210");
+
+        AssertPacketParses(AcerPacketCodec.Encode(24, json), aesKey: null);
+        AssertPacketParses(AcerPacketCodec.Encode(24, json, key), key);
+    }
+
+    private static void AssertPacketParses(byte[] packet, byte[]? aesKey)
+    {
+        bool complete = AcerSystemMonitorClient.TryParseResponse(
+            packet,
+            aesKey,
+            out AcerMonitorTelemetry? telemetry);
+        bool truncated = AcerSystemMonitorClient.TryParseResponse(
+            packet.AsMemory(0, packet.Length - 1),
+            aesKey,
+            out _);
+
+        Assert.True(complete);
+        Assert.NotNull(telemetry);
+        Assert.Equal(72, telemetry.CpuTemperatureC);
+        Assert.Equal(57, telemetry.GpuTemperatureC);
+        Assert.False(truncated);
     }
 }
