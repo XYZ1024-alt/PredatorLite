@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="image.png" alt="alt text">
+</p>
+
 # PredatorLite
 
 [![build](https://github.com/XYZ1024-alt/PredatorLite/actions/workflows/build.yml/badge.svg)](https://github.com/XYZ1024-alt/PredatorLite/actions/workflows/build.yml)
@@ -13,7 +17,9 @@ PredatorLite 是面向 Acer Predator 设备的独立、非官方 PredatorSense �
 
 其他机型或 BIOS 版本仍可查看诊断信息和只读遥测，但没有已验证 profile 时所有硬件写入都会被禁用。新增写入支持必须逐机型、逐 BIOS 提供独立协议证据和人工验证。
 
-当前最新目标版本为 `v1.0.2`（上一正式版本为 `v1.0.1`）。PredatorLite 是独立、非官方的 PredatorSense 替代方案，不代表 Acer 官方产品或授权。硬件控制存在固有风险；请确认当前设备存在匹配的已验证 profile，并阅读[硬件安全边界](docs/hardware-safety.md)。首次运行新发布版本时，Windows 可能显示 SmartScreen 信誉提示。
+如果你的机型或 BIOS 版本尚未得到支持，欢迎自行完成验证和测试后提交 Pull Request 添加新的硬件 profile。新增写入支持必须附上对应机型/BIOS 的独立协议证据、失败与恢复测试及人工验证记录，未经完整验证的 profile 不会被合并。
+
+PredatorLite 是独立、非官方的 PredatorSense 替代方案，不代表 Acer 官方产品或授权。硬件控制存在固有风险；请确认当前设备存在匹配的已验证 profile，并阅读[硬件安全边界](docs/hardware-safety.md)。首次运行新发布版本时，Windows 可能显示 SmartScreen 信誉提示。
 
 ## 功能
 
