@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Globalization;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -16,6 +17,7 @@ internal sealed class AcerSystemMonitorClient : IAsyncDisposable
     private readonly SemaphoreSlim _requestGate = new(1, 1);
     private readonly IAppLogger _logger;
     private readonly byte[]? _aesKey;
+    private readonly byte[] _requestPacket;
 
     private DateTimeOffset _retryAfter = DateTimeOffset.MinValue;
     private bool _failureLogged;
@@ -24,6 +26,10 @@ internal sealed class AcerSystemMonitorClient : IAsyncDisposable
     {
         _logger = logger;
         _aesKey = AcerServiceClient.ReadAesKey();
+        string json = JsonSerializer.Serialize(
+            new AcerMonitorRequest(AcerProtocol.GetMonitorData),
+            AcerJsonContext.Default.AcerMonitorRequest);
+        _requestPacket = AcerPacketCodec.Encode(AcerProtocol.MonitorPacket, json, _aesKey);
     }
 
     public async Task<bool> IsAvailableAsync(CancellationToken cancellationToken = default)
@@ -86,7 +92,17 @@ internal sealed class AcerSystemMonitorClient : IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(raw);
         using JsonDocument document = JsonDocument.Parse(raw);
-        JsonElement root = document.RootElement;
+        return ParseResponse(document.RootElement);
+    }
+
+    internal static AcerMonitorTelemetry ParseResponse(ReadOnlyMemory<byte> utf8Json)
+    {
+        using JsonDocument document = JsonDocument.Parse(utf8Json);
+        return ParseResponse(document.RootElement);
+    }
+
+    private static AcerMonitorTelemetry ParseResponse(JsonElement root)
+    {
         if (root.ValueKind != JsonValueKind.Object)
         {
             throw new InvalidDataException("Acer system monitor response root is not an object.");
@@ -134,11 +150,6 @@ internal sealed class AcerSystemMonitorClient : IAsyncDisposable
 
     private async Task<AcerMonitorTelemetry> SendCoreAsync(CancellationToken cancellationToken)
     {
-        string json = JsonSerializer.Serialize(
-            new AcerMonitorRequest(AcerProtocol.GetMonitorData),
-            AcerJsonContext.Default.AcerMonitorRequest);
-        byte[] packet = AcerPacketCodec.Encode(AcerProtocol.MonitorPacket, json, _aesKey);
-
         using TcpClient client = new();
         using CancellationTokenSource connectTimeout =
             CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -160,34 +171,46 @@ internal sealed class AcerSystemMonitorClient : IAsyncDisposable
 
         try
         {
-            await stream.WriteAsync(packet, requestTimeout.Token).ConfigureAwait(false);
+            await stream.WriteAsync(_requestPacket, requestTimeout.Token).ConfigureAwait(false);
 
-            byte[] buffer = new byte[MaxResponseBytes];
-            int total = 0;
-            while (total < buffer.Length)
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(MaxResponseBytes);
+            try
             {
-                int read = await stream.ReadAsync(
-                        buffer.AsMemory(total, buffer.Length - total),
-                        requestTimeout.Token)
-                    .ConfigureAwait(false);
-                if (read == 0)
+                int total = 0;
+                while (total < MaxResponseBytes)
                 {
-                    break;
+                    int read = await stream.ReadAsync(
+                            buffer.AsMemory(total, MaxResponseBytes - total),
+                            requestTimeout.Token)
+                        .ConfigureAwait(false);
+                    if (read == 0)
+                    {
+                        break;
+                    }
+
+                    total += read;
+                    if (TryParseResponse(
+                        buffer.AsMemory(0, total),
+                        _aesKey,
+                        out AcerMonitorTelemetry? telemetry))
+                    {
+                        return telemetry!;
+                    }
                 }
 
-                total += read;
-                if (TryDecodeResponse(buffer.AsSpan(0, total), out string? raw))
+                if (total == 0)
                 {
-                    return ParseResponse(raw!);
+                    throw new IOException(
+                        "Acer system monitor closed the connection without a response.");
                 }
-            }
 
-            if (total == 0)
+                throw new InvalidDataException(
+                    "Acer system monitor returned an incomplete or oversized response.");
+            }
+            finally
             {
-                throw new IOException("Acer system monitor closed the connection without a response.");
+                ArrayPool<byte>.Shared.Return(buffer);
             }
-
-            throw new InvalidDataException("Acer system monitor returned an incomplete or oversized response.");
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -195,19 +218,66 @@ internal sealed class AcerSystemMonitorClient : IAsyncDisposable
         }
     }
 
-    private bool TryDecodeResponse(ReadOnlySpan<byte> packet, out string? raw)
+    internal static bool TryParseResponse(
+        ReadOnlyMemory<byte> packet,
+        byte[]? aesKey,
+        out AcerMonitorTelemetry? telemetry)
     {
-        raw = null;
+        telemetry = null;
+        int payloadOffset = AcerPacketCodec.GetPayloadOffset(packet.Span);
+        ReadOnlyMemory<byte> payload = packet[payloadOffset..];
+        if (aesKey is null)
+        {
+            try
+            {
+                telemetry = ParseResponse(TrimTrailingZeros(payload));
+                return true;
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
+        }
+
+        byte[] plaintext = ArrayPool<byte>.Shared.Rent(payload.Length);
         try
         {
-            raw = AcerPacketCodec.Decode(packet, _aesKey);
-            using JsonDocument _ = JsonDocument.Parse(raw);
+            using Aes aes = Aes.Create();
+            aes.Key = aesKey;
+            if (!aes.TryDecryptEcb(
+                payload.Span,
+                plaintext,
+                PaddingMode.PKCS7,
+                out int plaintextLength))
+            {
+                return false;
+            }
+
+            ReadOnlyMemory<byte> utf8Json =
+                TrimTrailingZeros(plaintext.AsMemory(0, plaintextLength));
+            telemetry = ParseResponse(utf8Json);
             return true;
         }
         catch (Exception exception) when (exception is JsonException or CryptographicException)
         {
             return false;
         }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(plaintext);
+        }
+    }
+
+    private static ReadOnlyMemory<byte> TrimTrailingZeros(ReadOnlyMemory<byte> value)
+    {
+        ReadOnlySpan<byte> span = value.Span;
+        int length = span.Length;
+        while (length > 0 && span[length - 1] == 0)
+        {
+            length--;
+        }
+
+        return value[..length];
     }
 
     private static int ReadRequiredInt(JsonElement element, string propertyName)
