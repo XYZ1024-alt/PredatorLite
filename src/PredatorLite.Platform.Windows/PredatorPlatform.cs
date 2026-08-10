@@ -199,19 +199,6 @@ public sealed class PredatorPlatform : IPredatorPlatform
         Task<AcerMonitorTelemetry?> acerMonitorTask = initialTelemetry is not null
             ? Task.FromResult<AcerMonitorTelemetry?>(initialTelemetry)
             : _systemMonitor.ReadAsync(cancellationToken);
-        bool useWmiSensors = _capabilities?.AcerWmiAvailable == true;
-        Task<int?> cpuTemperatureTask = useWmiSensors
-            ? _wmi.ReadSensorAsync(AcerProtocol.CpuTemperatureSensor, cancellationToken)
-            : Task.FromResult<int?>(null);
-        Task<int?> gpuTemperatureTask = useWmiSensors
-            ? _wmi.ReadSensorAsync(AcerProtocol.GpuTemperatureSensor, cancellationToken)
-            : Task.FromResult<int?>(null);
-        Task<int?> cpuFanTask = useWmiSensors
-            ? _wmi.ReadSensorAsync(AcerProtocol.CpuFanRpmSensor, cancellationToken)
-            : Task.FromResult<int?>(null);
-        Task<int?> gpuFanTask = useWmiSensors
-            ? _wmi.ReadSensorAsync(AcerProtocol.GpuFanRpmSensor, cancellationToken)
-            : Task.FromResult<int?>(null);
         Task<ExtraTelemetry> extraTask = _extendedTelemetryEnabled && _hardwareMonitor is not null
             ? Task.Run(_hardwareMonitor.Read, cancellationToken)
             : Task.FromResult(new ExtraTelemetry());
@@ -222,16 +209,24 @@ public sealed class PredatorPlatform : IPredatorPlatform
         }
 
         AcerMonitorTelemetry? acerMonitor = await acerMonitorTask.ConfigureAwait(false);
+        AcerWmiSensorRequirements wmiRequirements =
+            _capabilities?.AcerWmiAvailable == true
+                ? GetRequiredWmiSensors(acerMonitor)
+                : AcerWmiSensorRequirements.None;
+        Task<AcerWmiSensorReadings> wmiTask = _wmi.ReadSensorsAsync(
+            wmiRequirements,
+            cancellationToken);
         Task<WindowsCpuTelemetry> windowsCpuTask =
             acerMonitor?.CpuLoadPercent is null || acerMonitor.CpuClockMhz is null
                 ? Task.Run(_windowsCpuTelemetry.Read, cancellationToken)
                 : Task.FromResult(new WindowsCpuTelemetry());
         ExtraTelemetry extra = await extraTask.ConfigureAwait(false);
+        AcerWmiSensorReadings wmi = await wmiTask.ConfigureAwait(false);
         AcerWmiTelemetry wmiTelemetry = new(
-            CpuTemperatureC: NormalizeTemperature(await cpuTemperatureTask.ConfigureAwait(false)),
-            GpuTemperatureC: NormalizeTemperature(await gpuTemperatureTask.ConfigureAwait(false)),
-            CpuFanRpm: NormalizeRpm(await cpuFanTask.ConfigureAwait(false)),
-            GpuFanRpm: NormalizeRpm(await gpuFanTask.ConfigureAwait(false)));
+            CpuTemperatureC: NormalizeTemperature(wmi.CpuTemperatureC),
+            GpuTemperatureC: NormalizeTemperature(wmi.GpuTemperatureC),
+            CpuFanRpm: NormalizeRpm(wmi.CpuFanRpm),
+            GpuFanRpm: NormalizeRpm(wmi.GpuFanRpm));
         HardwareSnapshot telemetry = TelemetryMerger.Merge(
             acerMonitor,
             wmiTelemetry,
@@ -1326,6 +1321,32 @@ public sealed class PredatorPlatform : IPredatorPlatform
         AcerResponse? Lighting,
         AcerResponse? Gpu,
         IReadOnlyDictionary<DeviceSettingId, DeviceSettingState> DeviceSettings);
+
+    internal static AcerWmiSensorRequirements GetRequiredWmiSensors(AcerMonitorTelemetry? telemetry)
+    {
+        AcerWmiSensorRequirements requirements = AcerWmiSensorRequirements.None;
+        if (telemetry?.CpuTemperatureC is null)
+        {
+            requirements |= AcerWmiSensorRequirements.CpuTemperature;
+        }
+
+        if (telemetry?.GpuTemperatureC is null)
+        {
+            requirements |= AcerWmiSensorRequirements.GpuTemperature;
+        }
+
+        if (telemetry?.CpuFanRpm is null)
+        {
+            requirements |= AcerWmiSensorRequirements.CpuFan;
+        }
+
+        if (telemetry?.GpuFanRpm is null)
+        {
+            requirements |= AcerWmiSensorRequirements.GpuFan;
+        }
+
+        return requirements;
+    }
 
     private static int? NormalizeTemperature(int? value) => value is > 0 and < 130 ? value : null;
 
