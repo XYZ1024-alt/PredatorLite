@@ -52,6 +52,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     private DateTimeOffset _lastFanWrite = DateTimeOffset.MinValue;
     private int _telemetryFailureCount;
     private int _systemResumePending;
+    private int _telemetryRefreshRequested;
+    private bool _isWindowVisible;
     private bool _modeKeyStarted;
     private bool _settingsLoaded;
     private bool _disposed;
@@ -166,6 +168,17 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         {
             _logger.Info("System resume detected; operating mode restore queued.");
         }
+    }
+
+    public void SetWindowVisible(bool visible)
+    {
+        if (_isWindowVisible == visible)
+        {
+            return;
+        }
+
+        _isWindowVisible = visible;
+        UpdateExtendedTelemetryState();
     }
 
     public string CpuLabel => _localization.Get("Label.Cpu");
@@ -1518,9 +1531,18 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     private async Task MonitorAsync(CancellationToken cancellationToken)
     {
-        using PeriodicTimer timer = new(TimeSpan.FromSeconds(2));
+        using PeriodicTimer timer = new(TelemetryPollingPolicy.ActiveInterval);
+        DateTimeOffset nextRead = DateTimeOffset.UtcNow.Add(GetTelemetryPollingInterval());
         while (await timer.WaitForNextTickAsync(cancellationToken))
         {
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            if (Interlocked.Exchange(ref _telemetryRefreshRequested, 0) == 0 &&
+                now < nextRead)
+            {
+                continue;
+            }
+
+            nextRead = now.Add(GetTelemetryPollingInterval());
             try
             {
                 HardwareSnapshot snapshot = await _platform.ReadSnapshotAsync(cancellationToken);
@@ -2079,9 +2101,19 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             ? $"{used.Value:F1} / {total.Value:F1}{suffix}"
             : "--";
 
-    private void UpdateExtendedTelemetryState() =>
+    private TimeSpan GetTelemetryPollingInterval() =>
+        TelemetryPollingPolicy.GetInterval(_isWindowVisible, ShowOsd, _customFanActive);
+
+    private void UpdateExtendedTelemetryState()
+    {
         _platform.SetExtendedTelemetryEnabled(
-            SelectedSection == AppSection.Monitor || ShowOsd || _customFanActive);
+            TelemetryPollingPolicy.ShouldEnableExtendedTelemetry(
+                _isWindowVisible,
+                SelectedSection == AppSection.Monitor,
+                ShowOsd,
+                _customFanActive));
+        Interlocked.Exchange(ref _telemetryRefreshRequested, 1);
+    }
 
     private void NotifyShellNoticeChanged()
     {

@@ -63,6 +63,7 @@ public sealed partial class MainWindow : Window, IDisposable
         _startHidden = startHidden;
         _exitRequested = exitRequested;
         _predatorKeySource = new PredatorKeySource(logger);
+        _viewModel.SetWindowVisible(!startHidden);
         InitializeComponent();
         Title = "PredatorLite";
         _motion = new UiMotionService(Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread());
@@ -132,6 +133,7 @@ public sealed partial class MainWindow : Window, IDisposable
         }
 
         PositionAtBottomRight(useInitialSize: false);
+        _viewModel.SetWindowVisible(true);
         this.Show();
         TrayIconView.SetWindowVisible(true);
         Activate();
@@ -144,6 +146,7 @@ public sealed partial class MainWindow : Window, IDisposable
     public void HideToTray()
     {
         _shell?.ResetCaptionButtonVisualStates();
+        _viewModel.SetWindowVisible(false);
         this.Hide(enableEfficiencyMode: true);
         TrayIconView.SetWindowVisible(false);
     }
