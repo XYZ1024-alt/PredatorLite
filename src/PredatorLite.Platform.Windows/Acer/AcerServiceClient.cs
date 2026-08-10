@@ -25,13 +25,18 @@ public sealed class AcerServiceClient : IAsyncDisposable
     }
 
     public Task<AcerResponse> QueryAsync(string function, CancellationToken cancellationToken = default) =>
-        SendAsync(AcerProtocol.QueryPacket, function, null, cancellationToken);
+        SendAsync(AcerProtocol.QueryPacket, function, null, logFailures: true, cancellationToken);
+
+    internal Task<AcerResponse> QueryQuietlyAsync(
+        string function,
+        CancellationToken cancellationToken = default) =>
+        SendAsync(AcerProtocol.QueryPacket, function, null, logFailures: false, cancellationToken);
 
     public Task<AcerResponse> SetAsync(
         string function,
         JsonObject parameters,
         CancellationToken cancellationToken = default) =>
-        SendAsync(AcerProtocol.SetPacket, function, parameters, cancellationToken);
+        SendAsync(AcerProtocol.SetPacket, function, parameters, logFailures: true, cancellationToken);
 
     public async Task<bool> IsAvailableAsync(CancellationToken cancellationToken = default)
     {
@@ -56,6 +61,7 @@ public sealed class AcerServiceClient : IAsyncDisposable
         uint packetId,
         string function,
         JsonObject? parameters,
+        bool logFailures,
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(function);
@@ -85,7 +91,11 @@ public sealed class AcerServiceClient : IAsyncDisposable
                 catch (Exception exception) when (exception is IOException or SocketException or JsonException or CryptographicException)
                 {
                     lastError = exception;
-                    _logger.LogError($"AcerService {function} attempt {attempt + 1} failed", exception);
+                    if (logFailures)
+                    {
+                        _logger.LogError($"AcerService {function} attempt {attempt + 1} failed", exception);
+                    }
+
                     if (attempt == 0)
                     {
                         await Task.Delay(100, cancellationToken).ConfigureAwait(false);

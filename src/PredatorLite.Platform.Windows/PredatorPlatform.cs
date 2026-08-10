@@ -12,6 +12,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
     private static readonly TimeSpan BackendRetryTimeout = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan BackendInitialDelay = TimeSpan.FromMilliseconds(250);
     private static readonly TimeSpan BackendMaximumDelay = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan ServiceStateRefreshInterval = TimeSpan.FromSeconds(10);
 
     private readonly AcerServiceClient _service;
     private readonly AcerSystemMonitorClient _systemMonitor;
@@ -21,6 +22,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
     private readonly SemaphoreSlim _operationGate = new(1, 1);
     private readonly SemaphoreSlim _probeGate = new(1, 1);
     private readonly WindowsCpuTelemetryReader _windowsCpuTelemetry;
+    private readonly object _serviceStateRefreshSync = new();
 
     private DeviceCapabilities? _capabilities;
     private PlatformStartupState? _startupState;
@@ -31,10 +33,14 @@ public sealed class PredatorPlatform : IPredatorPlatform
     private GpuMuxMode? _gpuMuxMode;
     private FanMode? _fanMode;
     private bool _fanWriteOwned;
-    private DateTimeOffset _lastServiceStateRead = DateTimeOffset.MinValue;
+    private DateTimeOffset _nextServiceStateRefresh = DateTimeOffset.MinValue;
+    private Task? _serviceStateRefreshTask;
+    private int _serviceStateRefreshFailureCount;
+    private bool _serviceStateRefreshFailureLogged;
     private HardwareMonitorReader? _hardwareMonitor;
     private bool _extendedTelemetryEnabled;
     private bool _fullProbeCompleted;
+    private bool _disposed;
 
     public PredatorPlatform(
         IAppLogger logger,
@@ -203,10 +209,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
             ? Task.Run(_hardwareMonitor.Read, cancellationToken)
             : Task.FromResult(new ExtraTelemetry());
 
-        if (DateTimeOffset.UtcNow - _lastServiceStateRead > TimeSpan.FromSeconds(10))
-        {
-            await RefreshServiceStateAsync(cancellationToken).ConfigureAwait(false);
-        }
+        ScheduleServiceStateRefresh(cancellationToken);
 
         AcerMonitorTelemetry? acerMonitor = await acerMonitorTask.ConfigureAwait(false);
         AcerWmiSensorRequirements wmiRequirements =
@@ -816,6 +819,24 @@ public sealed class PredatorPlatform : IPredatorPlatform
 
     public async ValueTask DisposeAsync()
     {
+        Task? serviceStateRefreshTask;
+        lock (_serviceStateRefreshSync)
+        {
+            _disposed = true;
+            serviceStateRefreshTask = _serviceStateRefreshTask;
+        }
+
+        if (serviceStateRefreshTask is not null)
+        {
+            try
+            {
+                await serviceStateRefreshTask.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
         try
         {
             if (_fanWriteOwned && _fanMode is FanMode.Max or FanMode.Custom)
@@ -990,7 +1011,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
             }
         }
 
-        _lastServiceStateRead = DateTimeOffset.UtcNow;
+        ResetServiceStateRefreshSchedule();
         return new ServiceProbeResult(serviceAvailable, fan, lighting, gpu, settings);
     }
 
@@ -1072,36 +1093,110 @@ public sealed class PredatorPlatform : IPredatorPlatform
         }
     }
 
+    private void ScheduleServiceStateRefresh(CancellationToken cancellationToken)
+    {
+        if (_capabilities?.AcerServiceAvailable != true)
+        {
+            return;
+        }
+
+        lock (_serviceStateRefreshSync)
+        {
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            if (_disposed ||
+                now < _nextServiceStateRefresh ||
+                _serviceStateRefreshTask is { IsCompleted: false })
+            {
+                return;
+            }
+
+            _nextServiceStateRefresh = now.Add(ServiceStateRefreshInterval);
+            _serviceStateRefreshTask = RefreshServiceStateAsync(cancellationToken);
+        }
+    }
+
     private async Task RefreshServiceStateAsync(CancellationToken cancellationToken)
     {
         try
         {
-            AcerResponse operating = await _service.QueryAsync(AcerProtocol.OperatingMode, cancellationToken)
+            AcerResponse operating = await _service.QueryQuietlyAsync(
+                    AcerProtocol.OperatingMode,
+                    cancellationToken)
                 .ConfigureAwait(false);
             if (AcerControlStateParser.TryReadOperatingMode(operating, out OperatingMode operatingMode))
             {
                 SetVerifiedOperatingMode(operatingMode);
             }
 
-            AcerResponse fan = await _service.QueryAsync(AcerProtocol.FanControl, cancellationToken).ConfigureAwait(false);
+            AcerResponse fan = await _service.QueryQuietlyAsync(AcerProtocol.FanControl, cancellationToken)
+                .ConfigureAwait(false);
             if (AcerControlStateParser.TryReadFanMode(fan, out FanMode fanMode))
             {
                 _fanMode = fanMode;
             }
 
-            AcerResponse gpu = await _service.QueryAsync(AcerProtocol.GpuMode, cancellationToken).ConfigureAwait(false);
+            AcerResponse gpu = await _service.QueryQuietlyAsync(AcerProtocol.GpuMode, cancellationToken)
+                .ConfigureAwait(false);
             if (AcerControlStateParser.TryReadGpuMuxMode(gpu, out GpuMuxMode gpuMode))
             {
                 _gpuMuxMode = gpuMode;
             }
 
-            _lastServiceStateRead = DateTimeOffset.UtcNow;
+            bool logRecovery;
+            lock (_serviceStateRefreshSync)
+            {
+                logRecovery = _serviceStateRefreshFailureLogged;
+                _serviceStateRefreshFailureCount = 0;
+                _serviceStateRefreshFailureLogged = false;
+                _nextServiceStateRefresh = DateTimeOffset.UtcNow.Add(ServiceStateRefreshInterval);
+            }
+
+            if (logRecovery)
+            {
+                _logger.Info("AcerService state refresh recovered.");
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
         }
         catch (Exception exception)
         {
-            _logger.LogError("AcerService state refresh failed", exception);
+            bool logFailure;
+            int failureCount;
+            lock (_serviceStateRefreshSync)
+            {
+                failureCount = ++_serviceStateRefreshFailureCount;
+                logFailure = !_serviceStateRefreshFailureLogged;
+                _serviceStateRefreshFailureLogged = true;
+                _nextServiceStateRefresh = DateTimeOffset.UtcNow.Add(
+                    GetServiceStateRefreshBackoff(failureCount));
+            }
+
+            if (logFailure)
+            {
+                _logger.LogError("AcerService state refresh failed; retries are backed off", exception);
+            }
         }
     }
+
+    private void ResetServiceStateRefreshSchedule()
+    {
+        lock (_serviceStateRefreshSync)
+        {
+            _serviceStateRefreshFailureCount = 0;
+            _serviceStateRefreshFailureLogged = false;
+            _nextServiceStateRefresh = DateTimeOffset.UtcNow.Add(ServiceStateRefreshInterval);
+        }
+    }
+
+    internal static TimeSpan GetServiceStateRefreshBackoff(int consecutiveFailures) =>
+        consecutiveFailures switch
+        {
+            <= 1 => TimeSpan.FromSeconds(10),
+            2 => TimeSpan.FromSeconds(30),
+            3 => TimeSpan.FromMinutes(2),
+            _ => TimeSpan.FromMinutes(5)
+        };
 
     private async Task<Dictionary<DeviceSettingId, DeviceSettingState>> QueryDeviceSettingsCoreAsync(
         bool serviceAvailable,
