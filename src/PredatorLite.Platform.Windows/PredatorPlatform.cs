@@ -13,6 +13,8 @@ public sealed class PredatorPlatform : IPredatorPlatform
     private static readonly TimeSpan BackendInitialDelay = TimeSpan.FromMilliseconds(250);
     private static readonly TimeSpan BackendMaximumDelay = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan ServiceStateRefreshInterval = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan HardwareMonitorReadTimeout = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan HardwareMonitorShutdownTimeout = TimeSpan.FromSeconds(2);
 
     private readonly AcerServiceClient _service;
     private readonly AcerSystemMonitorClient _systemMonitor;
@@ -23,6 +25,8 @@ public sealed class PredatorPlatform : IPredatorPlatform
     private readonly SemaphoreSlim _probeGate = new(1, 1);
     private readonly WindowsCpuTelemetryReader _windowsCpuTelemetry;
     private readonly object _serviceStateRefreshSync = new();
+    private readonly object _hardwareMonitorSync = new();
+    private readonly List<Task> _hardwareMonitorCleanupTasks = [];
 
     private DeviceCapabilities? _capabilities;
     private PlatformStartupState? _startupState;
@@ -37,10 +41,10 @@ public sealed class PredatorPlatform : IPredatorPlatform
     private Task? _serviceStateRefreshTask;
     private int _serviceStateRefreshFailureCount;
     private bool _serviceStateRefreshFailureLogged;
-    private HardwareMonitorReader? _hardwareMonitor;
+    private HardwareMonitorSession? _hardwareMonitor;
     private bool _extendedTelemetryEnabled;
     private bool _fullProbeCompleted;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     public PredatorPlatform(
         IAppLogger logger,
@@ -205,9 +209,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
         Task<AcerMonitorTelemetry?> acerMonitorTask = initialTelemetry is not null
             ? Task.FromResult<AcerMonitorTelemetry?>(initialTelemetry)
             : _systemMonitor.ReadAsync(cancellationToken);
-        Task<ExtraTelemetry> extraTask = _extendedTelemetryEnabled && _hardwareMonitor is not null
-            ? Task.Run(_hardwareMonitor.Read, cancellationToken)
-            : Task.FromResult(new ExtraTelemetry());
+        Task<ExtraTelemetry> extraTask = ReadExtendedTelemetryAsync(cancellationToken);
 
         ScheduleServiceStateRefresh(cancellationToken);
 
@@ -250,20 +252,55 @@ public sealed class PredatorPlatform : IPredatorPlatform
 
     public void SetExtendedTelemetryEnabled(bool enabled)
     {
-        if (_extendedTelemetryEnabled == enabled)
+        HardwareMonitorSession? staleSession = null;
+        lock (_hardwareMonitorSync)
         {
-            return;
+            if (_disposed || _extendedTelemetryEnabled == enabled)
+            {
+                return;
+            }
+
+            _extendedTelemetryEnabled = enabled;
+            if (enabled)
+            {
+                _hardwareMonitor = new HardwareMonitorSession(
+                    new HardwareMonitorReader(_logger),
+                    _logger,
+                    HardwareMonitorReadTimeout);
+            }
+            else
+            {
+                staleSession = _hardwareMonitor;
+                _hardwareMonitor = null;
+            }
         }
 
-        _extendedTelemetryEnabled = enabled;
-        if (enabled)
+        if (staleSession is not null)
         {
-            _hardwareMonitor = new HardwareMonitorReader(_logger);
+            QueueHardwareMonitorCleanup(staleSession);
         }
-        else
+    }
+
+    private Task<ExtraTelemetry> ReadExtendedTelemetryAsync(
+        CancellationToken cancellationToken)
+    {
+        HardwareMonitorSession? session;
+        lock (_hardwareMonitorSync)
         {
-            _hardwareMonitor?.Dispose();
-            _hardwareMonitor = null;
+            session = _hardwareMonitor;
+        }
+
+        return session?.ReadAsync(cancellationToken) ??
+            Task.FromResult(new ExtraTelemetry());
+    }
+
+    private void QueueHardwareMonitorCleanup(HardwareMonitorSession session)
+    {
+        Task cleanupTask = session.DisposeAsync();
+        lock (_hardwareMonitorSync)
+        {
+            _hardwareMonitorCleanupTasks.RemoveAll(task => task.IsCompleted);
+            _hardwareMonitorCleanupTasks.Add(cleanupTask);
         }
     }
 
@@ -837,6 +874,40 @@ public sealed class PredatorPlatform : IPredatorPlatform
             }
         }
 
+        HardwareMonitorSession? staleSession;
+        lock (_hardwareMonitorSync)
+        {
+            _extendedTelemetryEnabled = false;
+            staleSession = _hardwareMonitor;
+            _hardwareMonitor = null;
+        }
+
+        if (staleSession is not null)
+        {
+            QueueHardwareMonitorCleanup(staleSession);
+        }
+
+        Task[] hardwareMonitorCleanupTasks;
+        lock (_hardwareMonitorSync)
+        {
+            hardwareMonitorCleanupTasks = _hardwareMonitorCleanupTasks.ToArray();
+        }
+
+        if (hardwareMonitorCleanupTasks.Length > 0)
+        {
+            try
+            {
+                await Task.WhenAll(hardwareMonitorCleanupTasks)
+                    .WaitAsync(HardwareMonitorShutdownTimeout)
+                    .ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+                _logger.LogError(
+                    "LibreHardwareMonitor cleanup exceeded the shutdown timeout.");
+            }
+        }
+
         try
         {
             if (_fanWriteOwned && _fanMode is FanMode.Max or FanMode.Custom)
@@ -848,7 +919,6 @@ public sealed class PredatorPlatform : IPredatorPlatform
         {
         }
 
-        _hardwareMonitor?.Dispose();
         await _systemMonitor.DisposeAsync().ConfigureAwait(false);
         await _service.DisposeAsync().ConfigureAwait(false);
         _probeGate.Dispose();

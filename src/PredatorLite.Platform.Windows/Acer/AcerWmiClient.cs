@@ -4,6 +4,7 @@ using System.Management;
 using System.Runtime.InteropServices;
 using PredatorLite.Core.Abstractions;
 using PredatorLite.Core.Models;
+using PredatorLite.Platform.Windows.SystemIntegration;
 
 namespace PredatorLite.Platform.Windows.Acer;
 
@@ -155,7 +156,10 @@ public sealed class AcerWmiClient
                     input["uFunctionMask"] = (byte)1;
                     input["uFunctionStatus"] = (byte)(limitTo80Percent ? 1 : 0);
                     input["uReservedIn"] = new byte[] { 0, 0, 0, 0, 0 };
-                    using ManagementBaseObject? _ = battery.InvokeMethod(AcerProtocol.SetBatteryHealth, input, null);
+                    using ManagementBaseObject? _ = battery.InvokeMethod(
+                        AcerProtocol.SetBatteryHealth,
+                        input,
+                        WmiOperationOptions.CreateInvokeMethodOptions());
                     return true;
                 }
                 catch (Exception exception)
@@ -183,7 +187,10 @@ public sealed class AcerWmiClient
                     input["uBatteryNo"] = (byte)1;
                     input["uFunctionQuery"] = (byte)1;
                     input["uReserved"] = new byte[] { 0, 0 };
-                    using ManagementBaseObject? output = battery.InvokeMethod(AcerProtocol.GetBatteryHealth, input, null);
+                    using ManagementBaseObject? output = battery.InvokeMethod(
+                        AcerProtocol.GetBatteryHealth,
+                        input,
+                        WmiOperationOptions.CreateInvokeMethodOptions());
                     if (output?["uFunctionStatus"] is byte[] bytes && bytes.Length > 0)
                     {
                         return bytes[0] == 1;
@@ -263,6 +270,7 @@ public sealed class AcerWmiClient
         using ManagementObjectSearcher searcher = new(
             AcerProtocol.WmiNamespace,
             $"SELECT * FROM {className}");
+        WmiOperationOptions.Configure(searcher);
         using ManagementObjectCollection collection = searcher.Get();
         return collection.Cast<ManagementObject>().FirstOrDefault();
     }
@@ -303,7 +311,10 @@ public sealed class AcerWmiClient
         }
 
         input[inputProperty.Name] = ConvertForCimType(inputValue, inputProperty.Type);
-        using ManagementBaseObject? output = gaming.InvokeMethod(method, input, null);
+        using ManagementBaseObject? output = gaming.InvokeMethod(
+            method,
+            input,
+            WmiOperationOptions.CreateInvokeMethodOptions());
         PropertyData? outputProperty = output?.Properties.Cast<PropertyData>()
             .FirstOrDefault(property =>
                 property.Name != "ReturnValue" &&
@@ -355,7 +366,10 @@ public sealed class AcerWmiClient
                 }
 
                 input[inputProperty.Name] = ConvertForCimType(inputValue, inputProperty.Type);
-                using ManagementBaseObject? output = apge.InvokeMethod(method, input, null);
+                using ManagementBaseObject? output = apge.InvokeMethod(
+                    method,
+                    input,
+                    WmiOperationOptions.CreateInvokeMethodOptions());
                 PropertyData? outputProperty = output?.Properties.Cast<PropertyData>()
                     .FirstOrDefault(property => property.Name != "ReturnValue");
                 return outputProperty?.Value is null

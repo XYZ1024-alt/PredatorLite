@@ -22,6 +22,7 @@ internal static class SystemIdentityReader
         try
         {
             using ManagementObjectSearcher searcher = new($"SELECT {propertyName} FROM {className}");
+            WmiOperationOptions.Configure(searcher);
             using ManagementObjectCollection collection = searcher.Get();
             return collection.Cast<ManagementObject>().FirstOrDefault()?[propertyName]?.ToString();
         }

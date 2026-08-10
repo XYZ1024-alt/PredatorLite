@@ -3,7 +3,12 @@ using PredatorLite.Core.Abstractions;
 
 namespace PredatorLite.Platform.Windows.SystemIntegration;
 
-internal sealed class HardwareMonitorReader : IDisposable
+internal interface IHardwareMonitorReader : IDisposable
+{
+    ExtraTelemetry Read();
+}
+
+internal sealed class HardwareMonitorReader : IHardwareMonitorReader
 {
     private readonly object _sync = new();
     private readonly IAppLogger _logger;

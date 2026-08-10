@@ -29,6 +29,7 @@ internal static class ServiceInspector
         {
             using ManagementObjectSearcher searcher = new(
                 "SELECT Name, DisplayName, State, StartMode FROM Win32_Service");
+            WmiOperationOptions.Configure(searcher);
             using ManagementObjectCollection collection = searcher.Get();
             Dictionary<string, ManagementObject> byName = collection
                 .Cast<ManagementObject>()
