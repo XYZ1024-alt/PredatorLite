@@ -1,6 +1,9 @@
-param(
+﻿param(
     [Parameter(Mandatory)]
     [int]$AppPid,
+
+    [ValidateSet("GitHub", "Store")]
+    [string]$DistributionChannel = "GitHub",
 
     [string]$OutputDirectory = "artifacts\ui"
 )
@@ -512,12 +515,36 @@ Test-Ui "Settings controls are reachable" {
     Assert-WinAppSucceeded "Waiting for language settings"
     winapp ui wait-for "Settings.Version" -a $AppPid --value $expectedApplicationVersion -t 3000
     Assert-WinAppSucceeded "Checking the application version"
-    winapp ui wait-for "Settings.CheckForUpdates" -a $AppPid -t 3000
-    Assert-WinAppSucceeded "Waiting for the update check action"
-    winapp ui wait-for "Settings.CheckForUpdates" -a $AppPid -p IsEnabled --value "True" -t 3000
-    Assert-WinAppSucceeded "Checking that updates can be requested"
-    winapp ui wait-for "Settings.ViewReleaseNotes" -a $AppPid --gone -t 1000
-    Assert-WinAppSucceeded "Checking that release notes stay hidden before an update is found"
+    if ($DistributionChannel -eq "Store") {
+        winapp ui wait-for "Settings.CheckForUpdates" -a $AppPid --gone -t 1000
+        Assert-WinAppSucceeded "Checking that Store builds omit the update check action"
+        winapp ui wait-for "Settings.ViewReleaseNotes" -a $AppPid --gone -t 1000
+        Assert-WinAppSucceeded "Checking that Store builds omit release notes"
+        winapp ui wait-for "Settings.DisableConflicts" -a $AppPid --gone -t 1000
+        Assert-WinAppSucceeded "Checking that Store builds omit conflict disabling"
+        winapp ui wait-for "Settings.RestoreServices" -a $AppPid --gone -t 1000
+        Assert-WinAppSucceeded "Checking that Store builds omit service restoration"
+        $updateHelpText = winapp ui get-property "Settings.Update" -a $AppPid -p HelpText --json 2>$null |
+            ConvertFrom-Json -ErrorAction Stop
+        Assert-WinAppSucceeded "Reading the Store update description"
+        if ("$($updateHelpText.properties.HelpText)" -notin @(
+                "Updates are delivered automatically through Microsoft Store.",
+                "更新由 Microsoft Store 自动提供。")) {
+            throw "Store update description was not exposed through UI Automation."
+        }
+    }
+    else {
+        winapp ui wait-for "Settings.CheckForUpdates" -a $AppPid -t 3000
+        Assert-WinAppSucceeded "Waiting for the update check action"
+        winapp ui wait-for "Settings.CheckForUpdates" -a $AppPid -p IsEnabled --value "True" -t 3000
+        Assert-WinAppSucceeded "Checking that updates can be requested"
+        winapp ui wait-for "Settings.ViewReleaseNotes" -a $AppPid --gone -t 1000
+        Assert-WinAppSucceeded "Checking that release notes stay hidden before an update is found"
+        winapp ui wait-for "Settings.DisableConflicts" -a $AppPid -t 3000
+        Assert-WinAppSucceeded "Waiting for conflict disabling"
+        winapp ui wait-for "Settings.RestoreServices" -a $AppPid -t 3000
+        Assert-WinAppSucceeded "Waiting for service restoration"
+    }
     winapp ui wait-for "Settings.OpenGitHub" -a $AppPid -t 3000
     Assert-WinAppSucceeded "Waiting for the GitHub project action"
     winapp ui wait-for "Settings.Services" -a $AppPid -t 3000
@@ -537,17 +564,20 @@ Test-Ui "Generic device switches are absent" {
 Test-Ui "Settings action buttons are equal and ordered" {
     winapp ui scroll-into-view "Settings.ExportDiagnostics" -w $mainHwnd
     Assert-WinAppSucceeded "Scrolling to Settings actions"
-    $restoreBounds = Get-UiBounds "Settings.RestoreServices"
-    $disableBounds = Get-UiBounds "Settings.DisableConflicts"
     $logsBounds = Get-UiBounds "Settings.OpenLogs"
     $exportBounds = Get-UiBounds "Settings.ExportDiagnostics"
-    $buttons = @($restoreBounds, $disableBounds, $logsBounds, $exportBounds)
+    $buttons = @($logsBounds, $exportBounds)
+    if ($DistributionChannel -ne "Store") {
+        $restoreBounds = Get-UiBounds "Settings.RestoreServices"
+        $disableBounds = Get-UiBounds "Settings.DisableConflicts"
+        $buttons += @($restoreBounds, $disableBounds)
+    }
     $widths = @($buttons | Select-Object -ExpandProperty Width -Unique)
     $heights = @($buttons | Select-Object -ExpandProperty Height -Unique)
     if ($widths.Count -ne 1 -or $heights.Count -ne 1) {
         throw "Settings action buttons must have identical dimensions."
     }
-    if ($restoreBounds.X -ge $disableBounds.X) {
+    if ($DistributionChannel -ne "Store" -and $restoreBounds.X -ge $disableBounds.X) {
         throw "Restore services must appear left of Disable conflicts."
     }
     if ($logsBounds.X -ge $exportBounds.X) {

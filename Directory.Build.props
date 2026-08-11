@@ -4,6 +4,7 @@
     <PredatorLiteWindowsTargetFramework>net10.0-windows$(PredatorLiteWindowsVersion)</PredatorLiteWindowsTargetFramework>
     <PredatorLiteRuntimeIdentifier>win-x64</PredatorLiteRuntimeIdentifier>
     <PredatorLitePlatformTarget>x64</PredatorLitePlatformTarget>
+    <MicrosoftWindowsAppSDKVersion>2.3.1</MicrosoftWindowsAppSDKVersion>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -13,7 +14,7 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
-    <Version>1.0.3</Version>
+    <Version>1.1.0</Version>
     <Authors>PredatorLite contributors</Authors>
     <Company>PredatorLite contributors</Company>
     <Copyright>Copyright (c) 2026 PredatorLite contributors</Copyright>

@@ -64,8 +64,6 @@ public sealed record DeviceCapabilities
         new Dictionary<DeviceSettingId, DeviceSettingState>();
 
     public bool CanWriteHardware =>
-        IsValidatedTarget &&
-        !string.IsNullOrWhiteSpace(TargetProfileId) &&
         WriteBlockReason == HardwareWriteBlockReason.None &&
         (AcerServiceAvailable || AcerWmiAvailable);
 }

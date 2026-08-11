@@ -126,13 +126,14 @@
                             Width="20"
                             Height="20"
                             IsActive="{x:Bind ViewModel.IsUpdateOperationRunning, Mode=OneWay}"
-                            Visibility="{x:Bind ViewModel.IsUpdateOperationRunning, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            Visibility="{x:Bind ViewModel.IsUpdateProgressVisible, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" />
                         <Button
                             AutomationProperties.AutomationId="Settings.CheckForUpdates"
                             Command="{x:Bind ViewModel.CheckForUpdatesCommand}"
                             Content="{StaticResource Action.CheckForUpdates}"
                             IsEnabled="{x:Bind ViewModel.IsUpdateOperationRunning, Mode=OneWay, Converter={StaticResource InverseBooleanConverter}}"
-                            Style="{StaticResource SecondaryButtonStyle}" />
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Visibility="{x:Bind ViewModel.IsSelfUpdateAvailable, Mode=OneTime, Converter={StaticResource BooleanToVisibilityConverter}}" />
                         <HyperlinkButton
                             VerticalAlignment="Center"
                             AutomationProperties.AutomationId="Settings.ViewReleaseNotes"
@@ -205,7 +206,8 @@
                 <controls:SettingsCard
                     MinHeight="56"
                     Description="{StaticResource Description.ServiceActions}"
-                    Header="{StaticResource Section.Services}">
+                    Header="{StaticResource Section.Services}"
+                    Visibility="{x:Bind ViewModel.IsServiceManagementAvailable, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <Grid Width="328" ColumnSpacing="8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />

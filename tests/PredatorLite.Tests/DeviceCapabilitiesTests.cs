@@ -5,13 +5,13 @@ namespace PredatorLite.Tests;
 public sealed class DeviceCapabilitiesTests
 {
     [Theory]
-    [InlineData(false, HardwareWriteBlockReason.UnsupportedTargetProfile, true, true, false)]
-    [InlineData(true, HardwareWriteBlockReason.ControlBackendUnavailable, false, false, false)]
-    [InlineData(true, HardwareWriteBlockReason.None, true, false, true)]
-    [InlineData(true, HardwareWriteBlockReason.None, false, true, true)]
-    [InlineData(true, HardwareWriteBlockReason.UnsupportedTargetProfile, true, true, false)]
-    public void CanWriteHardwareRequiresValidationNoBlockReasonAndAPlatformTransport(
-        bool validated,
+    [InlineData(HardwareWriteBlockReason.None, true, false, true)]
+    [InlineData(HardwareWriteBlockReason.None, false, true, true)]
+    [InlineData(HardwareWriteBlockReason.None, true, true, true)]
+    [InlineData(HardwareWriteBlockReason.None, false, false, false)]
+    [InlineData(HardwareWriteBlockReason.ControlBackendUnavailable, true, false, false)]
+    [InlineData(HardwareWriteBlockReason.UnsupportedTargetProfile, true, true, false)]
+    public void CanWriteHardwareRequiresNoBlockReasonAndAPlatformTransport(
         HardwareWriteBlockReason blockReason,
         bool service,
         bool wmi,
@@ -19,9 +19,9 @@ public sealed class DeviceCapabilitiesTests
     {
         DeviceCapabilities capabilities = new()
         {
-            Device = new DeviceIdentity("Acer", "Predator PHN16-71", "V1.20", "Windows 11"),
-            TargetProfileId = validated ? "test-profile" : null,
-            IsValidatedTarget = validated,
+            Device = new DeviceIdentity("Lenovo", "Unknown Predator", "V1.00", "Windows 11"),
+            TargetProfileId = null,
+            IsValidatedTarget = false,
             WriteBlockReason = blockReason,
             AcerServiceAvailable = service,
             AcerWmiAvailable = wmi
@@ -31,17 +31,18 @@ public sealed class DeviceCapabilitiesTests
     }
 
     [Fact]
-    public void MissingTargetProfileIdCannotAuthorizeWrites()
+    public void UnvalidatedTargetWithBackendCanWrite()
     {
         DeviceCapabilities capabilities = new()
         {
-            Device = new DeviceIdentity("Acer", "Predator PHN16-71", "V1.20", "Windows 11"),
-            IsValidatedTarget = true,
+            Device = new DeviceIdentity("Lenovo", "Unknown Predator", "V1.00", "Windows 11"),
+            TargetProfileId = null,
+            IsValidatedTarget = false,
             WriteBlockReason = HardwareWriteBlockReason.None,
             AcerServiceAvailable = true
         };
 
-        Assert.False(capabilities.CanWriteHardware);
+        Assert.True(capabilities.CanWriteHardware);
     }
 
     [Fact]

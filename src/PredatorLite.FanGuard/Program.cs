@@ -20,13 +20,6 @@ internal static class Program
         }
 
         using FileAppLogger logger = new();
-        if (!HardwareTargetProfileCatalog.TryResolveCurrent(out HardwareTargetProfile? profile) ||
-            profile is null ||
-            !profile.AuthorizedControls.HasFlag(HardwareControlCapabilities.FanControl))
-        {
-            logger.LogError("FanGuard found no authorized hardware profile for fan recovery.");
-            return 4;
-        }
 
         await using AcerServiceClient service = new(logger);
         AcerWmiClient wmi = new(logger);

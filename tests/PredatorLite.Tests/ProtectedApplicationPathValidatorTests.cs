@@ -26,6 +26,8 @@ public sealed class ProtectedApplicationPathValidatorTests
     [InlineData(@"C:\Program Files (x86)\PredatorLite")]
     [InlineData(@"C:\Program Files (x86)\PredatorLite\")]
     [InlineData(@"C:\Windows\System32\PredatorLite")]
+    [InlineData(@"C:\Program Files\WindowsApps\PredatorLite_1.0.3.0_x64__publisher\")]
+    [InlineData(@"C:\Program Files\WindowsApps\PredatorLite_1.1.0.0_x64__publisher\")]
     public void ProgramFilesAndWindowsAreProtected(string directory) =>
         Assert.True(IsProtected(directory));
 

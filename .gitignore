@@ -23,8 +23,11 @@
 *.snupkg
 *.appx
 *.appxbundle
+*.appxupload
+*.appxsym
 *.msix
 *.msixbundle
+*.msixupload
 *.cer
 *.pfx
 *.p12

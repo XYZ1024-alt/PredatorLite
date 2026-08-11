@@ -6,6 +6,7 @@ namespace PredatorLite.Platform.Windows;
 public static class HardwareTargetProfileCatalog
 {
     public const string Phn1671V120ProfileId = "acer-predator-phn16-71-v1.20";
+    public const string GenericProfileId = "acer-generic-unverified";
 
     private static readonly IReadOnlyList<HardwareTargetProfile> Profiles =
     [
@@ -78,4 +79,50 @@ public static class HardwareTargetProfileCatalog
 
     public static bool TryResolveCurrent(out HardwareTargetProfile? profile) =>
         TryResolve(SystemIdentityReader.Read(), out profile);
+
+    public static HardwareTargetProfile GenericProfile { get; } = new(
+        GenericProfileId,
+        [],
+        "*",
+        "*",
+        [
+            new HardwareControlProfile(
+                HardwareControlCapabilities.OperatingMode,
+                HardwareTransportKind.AcerService,
+                HardwareTransportKind.AcerWmi,
+                RequiresReadBack: true),
+            new HardwareControlProfile(
+                HardwareControlCapabilities.FanControl,
+                HardwareTransportKind.AcerService,
+                HardwareTransportKind.AcerWmi,
+                RequiresReadBack: true,
+                RequiresFanGuard: true),
+            new HardwareControlProfile(
+                HardwareControlCapabilities.GpuMux,
+                HardwareTransportKind.AcerService,
+                null,
+                RequiresReadBack: true,
+                RequiresReboot: true),
+            new HardwareControlProfile(
+                HardwareControlCapabilities.BatteryHealth,
+                HardwareTransportKind.AcerWmi,
+                null,
+                RequiresReadBack: true),
+            new HardwareControlProfile(
+                HardwareControlCapabilities.Lighting,
+                HardwareTransportKind.AcerService,
+                null,
+                RequiresReadBack: false),
+            new HardwareControlProfile(
+                HardwareControlCapabilities.DeviceSettings,
+                HardwareTransportKind.AcerService,
+                HardwareTransportKind.AcerWmi,
+                RequiresReadBack: true),
+            new HardwareControlProfile(
+                HardwareControlCapabilities.Display,
+                HardwareTransportKind.WindowsDisplay,
+                null,
+                RequiresReadBack: true)
+        ],
+        new HashSet<DeviceSettingId>());
 }

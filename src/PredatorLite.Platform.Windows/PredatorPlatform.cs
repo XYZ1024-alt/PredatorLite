@@ -92,7 +92,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
             }
 
             bool validated = HasTargetProfile(identity);
-            if (validated && !serviceAvailable && !wmiAvailable)
+            if (!serviceAvailable && !wmiAvailable)
             {
                 serviceMode = await RetryStartupServiceModeAsync(stopwatch, cancellationToken)
                     .ConfigureAwait(false);
@@ -156,7 +156,6 @@ public sealed class PredatorPlatform : IPredatorPlatform
             DeviceIdentity identity = startup.Capabilities.Device;
             HardwareTargetProfile? profile = ResolveTargetProfile(identity);
             HardwareWriteBlockReason writeBlockReason = GetWriteBlockReason(
-                identity,
                 serviceAvailable,
                 wmiAvailable);
 
@@ -164,7 +163,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
             {
                 Device = identity,
                 TargetProfileId = profile?.Id,
-                IsValidatedTarget = profile is not null,
+                IsValidatedTarget = HardwareTargetProfileCatalog.TryResolve(identity, out _),
                 AuthorizedControls = profile?.AuthorizedControls ?? HardwareControlCapabilities.None,
                 WriteBlockReason = writeBlockReason,
                 CompatibilityMessage = GetCompatibilityMessage(identity, writeBlockReason),
@@ -1091,14 +1090,13 @@ public sealed class PredatorPlatform : IPredatorPlatform
     {
         HardwareTargetProfile? profile = ResolveTargetProfile(identity);
         HardwareWriteBlockReason writeBlockReason = GetWriteBlockReason(
-            identity,
             serviceAvailable,
             wmiAvailable);
         return new DeviceCapabilities
         {
             Device = identity,
             TargetProfileId = profile?.Id,
-            IsValidatedTarget = profile is not null,
+            IsValidatedTarget = HardwareTargetProfileCatalog.TryResolve(identity, out _),
             AuthorizedControls = profile?.AuthorizedControls ?? HardwareControlCapabilities.None,
             WriteBlockReason = writeBlockReason,
             CompatibilityMessage = GetCompatibilityMessage(identity, writeBlockReason),
@@ -1110,15 +1108,9 @@ public sealed class PredatorPlatform : IPredatorPlatform
     }
 
     internal static HardwareWriteBlockReason GetWriteBlockReason(
-        DeviceIdentity identity,
         bool serviceAvailable,
         bool wmiAvailable)
     {
-        if (!HardwareTargetProfileCatalog.TryResolve(identity, out _))
-        {
-            return HardwareWriteBlockReason.UnsupportedTargetProfile;
-        }
-
         return serviceAvailable || wmiAvailable
             ? HardwareWriteBlockReason.None
             : HardwareWriteBlockReason.ControlBackendUnavailable;
@@ -1127,7 +1119,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
     private static HardwareTargetProfile? ResolveTargetProfile(DeviceIdentity identity) =>
         HardwareTargetProfileCatalog.TryResolve(identity, out HardwareTargetProfile? profile)
             ? profile
-            : null;
+            : HardwareTargetProfileCatalog.GenericProfile;
 
     private static bool HasControl(
         HardwareTargetProfile? profile,
@@ -1142,9 +1134,7 @@ public sealed class PredatorPlatform : IPredatorPlatform
         HardwareWriteBlockReason writeBlockReason) => writeBlockReason switch
         {
             HardwareWriteBlockReason.None =>
-                $"{identity.Model} BIOS {identity.BiosVersion} has a validated hardware profile.",
-            HardwareWriteBlockReason.UnsupportedTargetProfile =>
-                $"No validated hardware profile exists for {identity.Model} BIOS {identity.BiosVersion}; diagnostics remain available.",
+                $"Hardware control is available for {identity.Model} BIOS {identity.BiosVersion}.",
             HardwareWriteBlockReason.ControlBackendUnavailable =>
                 "No supported Acer control backend is available; hardware writes are disabled.",
             HardwareWriteBlockReason.ControlNotAuthorized =>

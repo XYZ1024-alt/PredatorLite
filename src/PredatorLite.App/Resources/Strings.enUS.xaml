@@ -45,6 +45,7 @@
     <sys:String x:Key="Description.ShowOsd">Show a compact performance overlay near the top of the desktop.</sys:String>
     <sys:String x:Key="Description.GlobalHotkeys">Allow global window access and operating mode cycling.</sys:String>
     <sys:String x:Key="Description.CheckForUpdates">Check the latest stable release on GitHub.</sys:String>
+    <sys:String x:Key="Description.StoreUpdates">Updates are delivered automatically through Microsoft Store.</sys:String>
     <sys:String x:Key="Description.GitHub">View the source code, issues, and releases on GitHub.</sys:String>
     <sys:String x:Key="Section.OperatingMode">Operating mode</sys:String>
     <sys:String x:Key="Section.Fan">Fan control</sys:String>
@@ -88,7 +89,7 @@
     <sys:String x:Key="FanCurveValidation.SpeedOutOfRange">{0} point {1}: speed must be between {2}% and {3}%.</sys:String>
     <sys:String x:Key="FanCurveValidation.SpeedDecreases">{0} point {1}: speed cannot decrease.</sys:String>
     <sys:String x:Key="FanCurveValidation.InvalidSafetyEndpoint">{0} safety endpoint must be {1}°C at 100%.</sys:String>
-    <sys:String x:Key="Compatibility.None">{0} BIOS {1} is validated for hardware control.</sys:String>
+    <sys:String x:Key="Compatibility.None">Hardware control is available for {0} BIOS {1}.</sys:String>
     <sys:String x:Key="Compatibility.UnsupportedTargetProfile">No validated hardware profile exists for {0} / BIOS {1}. Diagnostics remain available.</sys:String>
     <sys:String x:Key="Compatibility.ControlBackendUnavailable">No supported Acer control backend is available. Hardware controls are read-only.</sys:String>
     <sys:String x:Key="Compatibility.ControlNotAuthorized">This control is not authorized by the current hardware profile.</sys:String>

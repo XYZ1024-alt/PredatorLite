@@ -31,7 +31,7 @@ concurrency:
 jobs:
   release:
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -41,6 +41,10 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
+
+      - uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3
+        with:
+          msbuild-architecture: x64
 
       - name: Test release version policy
         shell: pwsh
@@ -219,6 +223,32 @@ jobs:
             }
           }
           Write-Host "Validated release assets for v$env:RELEASE_VERSION."
+
+      - name: Build and validate Store upload
+        if: steps.release_state.outputs.should_publish == 'true' && steps.release_state.outputs.channel == 'stable'
+        shell: pwsh
+        env:
+          BASE_VERSION: ${{ steps.release_state.outputs.base_version }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          .\build\build-store-package.ps1 `
+            -Configuration Release `
+            -Version $env:BASE_VERSION `
+            -Mode StoreUpload
+          .\build\test-store-package.ps1 `
+            -PackagePath "publish\store\PredatorLite-Store-$env:BASE_VERSION-win-x64.msixupload" `
+            -ExpectedVersion "$env:BASE_VERSION.0"
+
+      - name: Upload Store candidate
+        if: steps.release_state.outputs.should_publish == 'true' && steps.release_state.outputs.channel == 'stable'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: PredatorLite-Store-${{ steps.release_state.outputs.base_version }}-win-x64
+          path: |
+            publish/store/PredatorLite-Store-${{ steps.release_state.outputs.base_version }}-win-x64.msixupload
+            publish/store/PredatorLite-Store-${{ steps.release_state.outputs.base_version }}-win-x64.msixupload.sha256
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Write release notes
         if: steps.release_state.outputs.should_publish == 'true'

@@ -4,9 +4,10 @@ PredatorLite is an independent, unofficial PredatorSense alternative. The reposi
 
 ## Profile evidence boundary
 
-Hardware writes are enabled only through an explicit profile in the platform catalog. A profile matches exact manufacturer aliases, model and BIOS values after trimming and case-insensitive comparison. A Predator family name, a matching service, or a similar protocol value never authorizes a new target automatically.
+Hardware writes open after a successful AcerService, Acer WMI or Windows display capability probe on the current device; the catalog's reference profile is not a write gate. A profile matches exact manufacturer aliases, model and BIOS values after trimming and case-insensitive comparison. A Predator family name, a matching service, or a similar protocol value never authorizes a control on its own: the live backend probe must succeed.
 
 Each writable profile must retain or reference a redacted evidence record containing:
+Each reference profile must retain or reference a redacted evidence record containing:
 
 - exact manufacturer, model, BIOS, Windows build and architecture;
 - validation date and hardware test owner;
@@ -17,6 +18,7 @@ Each writable profile must retain or reference a redacted evidence record contai
 - reviewer and redaction notes.
 
 The current writable profile is `acer-predator-phn16-71-v1.20`, validated against an Acer Predator PHN16-71 with BIOS V1.20. New mappings require capture evidence, failure testing, read-back verification and recovery coverage. A target with incomplete evidence may be listed for read-only diagnostics but must not be added as a writable profile.
+The current reference profile is `acer-predator-phn16-71-v1.20`, validated against an Acer Predator PHN16-71 with BIOS V1.20. New reference mappings require capture evidence, failure testing, read-back verification and recovery coverage. A target with incomplete evidence is not recorded as a reference profile; devices outside the catalog still work through the generic profile and the same backend probe.
 
 ## Retained protocol facts
 
