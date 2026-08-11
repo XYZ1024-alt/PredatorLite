@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Condition="'$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '15.0'">
+    <VisualStudioVersion>15.0</VisualStudioVersion>
+  </PropertyGroup>
+
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <WapProjPath Condition="'$(WapProjPath)' == ''">$(MSBuildExtensionsPath)\Microsoft\DesktopBridge\</WapProjPath>
+  </PropertyGroup>
+
+  <Import Project="$(WapProjPath)\Microsoft.DesktopBridge.props" />
+
+  <PropertyGroup>
+    <ProjectGuid>{c5d14bfd-361e-48e2-9af0-b11f9513cad5}</ProjectGuid>
+    <TargetPlatformVersion>10.0.26100.0</TargetPlatformVersion>
+    <TargetPlatformMinVersion>10.0.26100.0</TargetPlatformMinVersion>
+    <DefaultLanguage>en-US</DefaultLanguage>
+    <EntryPointProjectUniqueName>..\PredatorLite.App\PredatorLite.App.csproj</EntryPointProjectUniqueName>
+    <GenerateAppInstallerFile>false</GenerateAppInstallerFile>
+    <AppxAutoIncrementPackageRevision>false</AppxAutoIncrementPackageRevision>
+    <AppxBundle>Never</AppxBundle>
+    <AppxBundlePlatforms>x64</AppxBundlePlatforms>
+    <GenerateTestArtifacts>true</GenerateTestArtifacts>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+    <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
+    <!-- WAP restores referenced desktop dependencies against its synthetic UAP target. -->
+    <NoWarn>$(NoWarn);NU1701</NoWarn>
+    <StorePackageManifestPath Condition="'$(StorePackageManifestPath)' == ''">Package.appxmanifest</StorePackageManifestPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="$(MicrosoftWindowsAppSDKVersion)">
+      <IncludeAssets>build</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <AppxManifest Include="$(StorePackageManifestPath)">
+      <SubType>Designer</SubType>
+    </AppxManifest>
+    <None Include="Package.StoreAssociation.xml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\LargeTile.png" />
+    <Content Include="Assets\SmallTile.png" />
+    <Content Include="Assets\SplashScreen.png" />
+    <Content Include="Assets\Square44x44Logo.png" />
+    <Content Include="Assets\Square150x150Logo.png" />
+    <Content Include="Assets\StoreLogo.png" />
+    <Content Include="Assets\Wide310x150Logo.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PredatorLite.App\PredatorLite.App.csproj"
+                      SkipGetTargetFrameworkProperties="true" />
+  </ItemGroup>
+
+  <Import Project="$(WapProjPath)\Microsoft.DesktopBridge.targets" />
+
+  <Target Name="FlattenPredatorLiteAppPackagePayload"
+          AfterTargets="_ExpandProjectReferences">
+    <ItemGroup>
+      <_FilteredNonWapProjProjectOutput
+        Update="@(_FilteredNonWapProjProjectOutput)"
+        Condition="'%(_FilteredNonWapProjProjectOutput.SourceProject)' == 'PredatorLite.App'">
+        <SourceProject />
+      </_FilteredNonWapProjProjectOutput>
+    </ItemGroup>
+  </Target>
+</Project>

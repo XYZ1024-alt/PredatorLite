@@ -4,7 +4,11 @@
     <ProjectReference Include="..\PredatorLite.Core\PredatorLite.Core.csproj" />
     <ProjectReference Include="..\PredatorLite.Platform.Windows\PredatorLite.Platform.Windows.csproj" />
     <ProjectReference Include="..\PredatorLite.FanGuard\PredatorLite.FanGuard.csproj" ReferenceOutputAssembly="false" Private="false" />
-    <ProjectReference Include="..\PredatorLite.ElevatedHelper\PredatorLite.ElevatedHelper.csproj" ReferenceOutputAssembly="false" Private="false" />
+    <ProjectReference
+      Include="..\PredatorLite.ElevatedHelper\PredatorLite.ElevatedHelper.csproj"
+      ReferenceOutputAssembly="false"
+      Private="false"
+      Condition="'$(DistributionChannel)' != 'Store'" />
   </ItemGroup>
 
   <ItemGroup>
@@ -36,6 +40,13 @@
     <Description>Independent, unofficial PredatorSense alternative for Acer Predator devices</Description>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(DistributionChannel)' == 'Store'">
+    <DefineConstants>$(DefineConstants);STORE_DISTRIBUTION</DefineConstants>
+    <SelfContained>true</SelfContained>
+    <PublishTrimmed>false</PublishTrimmed>
+    <PublishSingleFile>false</PublishSingleFile>
+  </PropertyGroup>
+
   <ItemGroup>
     <Manifest Include="$(ApplicationManifest)" />
     <Content Include="Assets\PredatorLiteFluent.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
@@ -51,9 +62,46 @@
           Condition="'$(SkipCompanionBuildCopy)' != 'true'">
     <ItemGroup>
       <CompanionFile Include="$(MSBuildProjectDirectory)\..\PredatorLite.FanGuard\bin\$(Configuration)\$(PredatorLiteWindowsTargetFramework)\$(RuntimeIdentifier)\PredatorLite.FanGuard.*" />
-      <CompanionFile Include="$(MSBuildProjectDirectory)\..\PredatorLite.ElevatedHelper\bin\$(Configuration)\$(PredatorLiteWindowsTargetFramework)\$(RuntimeIdentifier)\PredatorLite.ElevatedHelper.*" />
+      <CompanionFile
+        Include="$(MSBuildProjectDirectory)\..\PredatorLite.ElevatedHelper\bin\$(Configuration)\$(PredatorLiteWindowsTargetFramework)\$(RuntimeIdentifier)\PredatorLite.ElevatedHelper.*"
+        Condition="'$(DistributionChannel)' != 'Store'" />
+      <StoreExcludedHelperFile
+        Include="$(OutDir)PredatorLite.ElevatedHelper.*"
+        Condition="'$(DistributionChannel)' == 'Store'" />
     </ItemGroup>
     <Copy SourceFiles="@(CompanionFile)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+    <Delete Files="@(StoreExcludedHelperFile)" />
+  </Target>
+
+  <Target Name="IncludeStoreCompanionFilesInPublish"
+          AfterTargets="ComputeResolvedFilesToPublishList"
+          Condition="'$(DistributionChannel)' == 'Store' and
+                     '$(StoreCompanionFilesAdded)' != 'true'">
+    <PropertyGroup>
+      <StoreCompanionFilesAdded>true</StoreCompanionFilesAdded>
+    </PropertyGroup>
+    <ItemGroup>
+      <ResolvedFileToPublish
+        Include="$(MSBuildProjectDirectory)\..\PredatorLite.FanGuard\bin\$(Configuration)\$(PredatorLiteWindowsTargetFramework)\$(RuntimeIdentifier)\PredatorLite.FanGuard.exe">
+        <RelativePath>PredatorLite.FanGuard.exe</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+      <ResolvedFileToPublish
+        Include="$(MSBuildProjectDirectory)\..\PredatorLite.FanGuard\bin\$(Configuration)\$(PredatorLiteWindowsTargetFramework)\$(RuntimeIdentifier)\PredatorLite.FanGuard.dll">
+        <RelativePath>PredatorLite.FanGuard.dll</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+      <ResolvedFileToPublish
+        Include="$(MSBuildProjectDirectory)\..\PredatorLite.FanGuard\bin\$(Configuration)\$(PredatorLiteWindowsTargetFramework)\$(RuntimeIdentifier)\PredatorLite.FanGuard.deps.json">
+        <RelativePath>PredatorLite.FanGuard.deps.json</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+      <ResolvedFileToPublish
+        Include="$(MSBuildProjectDirectory)\..\PredatorLite.FanGuard\bin\$(Configuration)\$(PredatorLiteWindowsTargetFramework)\$(RuntimeIdentifier)\PredatorLite.FanGuard.runtimeconfig.json">
+        <RelativePath>PredatorLite.FanGuard.runtimeconfig.json</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+    </ItemGroup>
   </Target>
 
   <ItemGroup>
@@ -98,7 +146,9 @@
 
   <Target Name="CopyWinUiResourcesToPublish" AfterTargets="Publish">
     <ItemGroup>
-      <WinUiPublishFile Include="$(OutDir)**\*.xbf" Exclude="$(OutDir)AppX\**\*" />
+      <WinUiPublishFile
+        Include="$(OutDir)**\*.xbf"
+        Exclude="$(OutDir)AppX\**\*;$(PublishDir)**\*" />
     </ItemGroup>
     <MakeDir Directories="@(WinUiPublishFile->'$(PublishDir)%(RecursiveDir)')" />
     <Copy SourceFiles="@(WinUiPublishFile)"

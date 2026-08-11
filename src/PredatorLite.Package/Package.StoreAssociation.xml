@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<StoreAssociation xmlns="http://schemas.microsoft.com/appx/2010/storeassociation">
+  <Publisher>CN=AD743FEC-8EA7-47AF-A7E4-DB022A7071DA</Publisher>
+  <PublisherDisplayName>XYZ1024</PublisherDisplayName>
+  <DeveloperAccountType>AAD</DeveloperAccountType>
+  <GeneratePackageHash>http://www.w3.org/2001/04/xmlenc#sha256</GeneratePackageHash>
+  <SupportedLocales>
+    <Language Code="en-us" InMinimumRequirementSet="true" />
+    <Language Code="zh-cn" InMinimumRequirementSet="true" />
+  </SupportedLocales>
+  <ProductReservedInfo>
+    <MainPackageIdentityName>XYZ1024.PredatorLite_qs69q4d43t9q8</MainPackageIdentityName>
+    <ReservedNames>
+      <ReservedName>PredatorLite</ReservedName>
+    </ReservedNames>
+  </ProductReservedInfo>
+  <AccountPackageIdentityNames>
+    <MainPackageIdentityName>XYZ1024.PredatorLite_qs69q4d43t9q8</MainPackageIdentityName>
+  </AccountPackageIdentityNames>
+  <PackageInfoList LandingUrl="https://partner.microsoft.com/dashboard/products/9PBFRHTRXL2Q/overview" />
+</StoreAssociation>

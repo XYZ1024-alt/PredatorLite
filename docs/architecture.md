@@ -85,8 +85,10 @@ Logs retain seven days and redact the current user profile path. Directory creat
 
 ## Application updates
 
-Update checks are manual and use GitHub's `releases/latest` endpoint, which is restricted to the latest published non-draft, non-prerelease release. The response must contain exactly one stable x64 Setup asset and its matching `.sha256` sidecar under the configured PredatorLite repository. Asset URLs must remain HTTPS GitHub release URLs, installer size is bounded, and any GitHub asset digest must match the sidecar.
+GitHub-distributed builds provide a manual update check through GitHub's `releases/latest` endpoint, which is restricted to the latest published non-draft, non-prerelease release. The response must contain exactly one stable x64 Setup asset and its matching `.sha256` sidecar under the configured PredatorLite repository. Asset URLs must remain HTTPS GitHub release URLs, installer size is bounded, and any GitHub asset digest must match the sidecar.
 
 After explicit user confirmation, the installer is downloaded to `%LocalAppData%\PredatorLite\Updates` through a uniquely named partial file. PredatorLite verifies the declared byte count and SHA-256 before atomically promoting the file and invoking it through the Windows shell. A failed or cancelled download deletes the partial file and never starts Setup. The main process remains `asInvoker`; the Inno Setup executable owns its existing administrator prompt, application shutdown, and in-place upgrade behavior.
+
+Microsoft Store builds compile out the GitHub update service and installer workflow. Their Settings page shows Microsoft Store as the update source and exposes no check, progress, or release-notes controls. Store updates are owned by the platform.
 
 Startup and deployment measurements, the ReadyToRun decision, regression thresholds, and Native AOT audit blockers are documented in [`performance.md`](performance.md).

@@ -65,6 +65,17 @@ PredatorLite 复用 Acer 官方驱动和服务提供的接口，不附带或替�
 
 部分 Acer WMI 方法可能被当前驱动 ACL 拒绝。此时 PredatorLite 保持普通用户权限，不会为轮询遥测请求管理员权限；WMI 专属的 CPU 温度、风扇转速、充电上限或键盘灯超时会显示为不可用。自定义风扇遇到缺失温度时按 95°C 处理并使用 100% 转速，不会静默使用低转速。
 
+## 分发渠道
+
+PredatorLite 提供两个相互替代的分发渠道：
+
+- **GitHub** 发布 Beta、RC 与 Stable 的便携 ZIP 和 Inno Setup EXE。GitHub Stable 版本保留应用内手动检查更新和经过校验的 Setup 下载。
+- **Microsoft Store** 只发布 Stable MSIX。Store 版本移除应用内检查更新、更新日志操作、安装器下载与需要提权的冲突服务管理，由 Microsoft Store 自动提供更新；Max 与 Custom 风扇安全仍保留包内 FanGuard。
+
+每次 Stable 工作流都从同一个 `Directory.Build.props` 版本和同一个源码提交生成两个渠道的产物。Store 认证最长可能需要三个工作日，因此对应的 GitHub Release 与 Store 上架无需在同一分钟公开。两个渠道不支持同时运行，也不保证设置能够迁移或共享。
+
+请参阅[隐私声明](PRIVACY.md)与 [Microsoft Store 提交指南](docs/store-submission.md)。
+
 ## 构建
 
 需要 Windows 11 24H2（build 26100+）原生 x64 和 `global.json` 固定的 .NET SDK 10.0.302。所有 Windows 项目统一面向 `net10.0-windows10.0.26100.0`，界面使用稳定版 Microsoft Windows App SDK 2.3.1：
@@ -148,6 +159,7 @@ src/PredatorLite.Core             模型、接口、设置与风扇曲线安全�
 src/PredatorLite.Platform.Windows AcerService、WMI 与 Windows 只读监控
 src/PredatorLite.FanGuard         风扇故障恢复看门狗
 src/PredatorLite.ElevatedHelper   固定白名单的服务管理辅助程序
+src/PredatorLite.Package          Microsoft Store WAP/MSIX 打包项目
 tests/PredatorLite.Tests          协议、曲线、设置与能力边界测试
 benchmarks/PredatorLite.Benchmarks 包编解码、曲线与遥测微基准
 ```
@@ -162,7 +174,7 @@ PredatorLite 不是 Acer 官方产品，也不隶属于 Acer。Acer、Predator �
 
 ## 贡献与安全
 
-提交代码前请阅读[贡献指南](CONTRIBUTING.md)。安全问题请按[安全策略](SECURITY.md)私下报告，不要在公开 Issue 中披露漏洞、机器密钥或未经脱敏的诊断信息。
+提交代码前请阅读[贡献指南](CONTRIBUTING.md)。安全问题请按[安全策略](SECURITY.md)私下报告，不要在公开 Issue 中披露漏洞、机器密钥或未经脱敏的诊断信息。数据处理方式见[隐私声明](PRIVACY.md)。
 
 ## License
 

@@ -65,6 +65,17 @@ The app never disables the required components above. The settings page can only
 
 Some Acer WMI methods may be rejected by the current driver ACL. PredatorLite then keeps standard user privileges and never requests elevation for telemetry polling; WMI-only CPU temperature, fan speed, charge limit, or keyboard backlight timeout are shown as unavailable. When a custom fan curve encounters missing temperatures, it treats them as 95°C and uses 100% speed rather than silently falling back to a low speed.
 
+## Distribution
+
+PredatorLite has two alternative distribution channels:
+
+- **GitHub** publishes Beta, RC, and Stable portable ZIP and Inno Setup EXE assets. Stable GitHub builds retain the manual in-app update check and verified Setup download.
+- **Microsoft Store** publishes Stable MSIX packages only. Store builds remove the in-app update check, release-notes action, installer downloader, and elevated conflicting-service management; Microsoft Store supplies updates automatically. FanGuard remains packaged for Max and Custom fan safety.
+
+Each Stable workflow builds both channels from the same `Directory.Build.props` version and source commit. Store certification can take up to three business days, so the matching GitHub Release and Store listing do not need to become public at the same minute. The channels are not designed to run simultaneously, and settings are not guaranteed to migrate or be shared between them.
+
+See the [privacy policy](PRIVACY.md) and [Microsoft Store submission guide](docs/store-submission.md).
+
 ## Building
 
 Requires native x64 Windows 11 24H2 (build 26100+) and the .NET SDK 10.0.302 pinned by `global.json`. All Windows projects target `net10.0-windows10.0.26100.0`, and the UI uses stable Microsoft Windows App SDK 2.3.1:
@@ -148,6 +159,7 @@ src/PredatorLite.Core             Models, interfaces, settings, and fan-curve sa
 src/PredatorLite.Platform.Windows AcerService, WMI, and Windows read-only monitoring
 src/PredatorLite.FanGuard         Fan failure-recovery watchdog
 src/PredatorLite.ElevatedHelper   Fixed-allowlist service management helper
+src/PredatorLite.Package          Microsoft Store WAP/MSIX packaging project
 tests/PredatorLite.Tests          Protocol, curve, settings, and capability-boundary tests
 benchmarks/PredatorLite.Benchmarks Packet codec, curve, and telemetry microbenchmarks
 ```
@@ -162,7 +174,7 @@ The full pre-release checklist lives in the [manual testing](docs/manual-testing
 
 ## Contributing & Security
 
-Please read the [contribution guide](CONTRIBUTING.md) before submitting code. Report security issues privately per the [security policy](SECURITY.md); do not disclose vulnerabilities, machine keys, or unredacted diagnostics in public issues.
+Please read the [contribution guide](CONTRIBUTING.md) before submitting code. Report security issues privately per the [security policy](SECURITY.md); do not disclose vulnerabilities, machine keys, or unredacted diagnostics in public issues. Data handling is documented in the [privacy policy](PRIVACY.md).
 
 ## License
 

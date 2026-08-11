@@ -28,7 +28,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     private readonly FanGuardClient _fanGuard;
     private readonly LocalizationService _localization;
     private readonly IUserInteraction _interaction;
-    private readonly IApplicationUpdateService _updateService;
+    private readonly IStartupRegistration _startupRegistration;
+    private readonly IApplicationUpdateService? _updateService;
     private readonly Version _applicationVersion;
     private readonly IUiDispatcher _uiDispatcher;
     private readonly SemaphoreSlim _hardwareGate = new(1, 1);
@@ -66,7 +67,9 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         FanGuardClient fanGuard,
         LocalizationService localization,
         IUserInteraction interaction,
-        IApplicationUpdateService updateService,
+        IStartupRegistration startupRegistration,
+        IApplicationUpdateService? updateService,
+        bool serviceManagementAvailable,
         Version applicationVersion,
         IUiDispatcher uiDispatcher)
     {
@@ -77,11 +80,16 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         _fanGuard = fanGuard;
         _localization = localization;
         _interaction = interaction;
+        _startupRegistration = startupRegistration;
         _updateService = updateService;
+        IsServiceManagementAvailable = serviceManagementAvailable;
         _applicationVersion = applicationVersion;
         _uiDispatcher = uiDispatcher;
         StatusMessage = "PredatorLite";
-        UpdateStatusText = localization.Get("Description.CheckForUpdates");
+        UpdateStatusText = localization.Get(
+            updateService is null
+                ? "Description.StoreUpdates"
+                : "Description.CheckForUpdates");
     }
 
     public ObservableCollection<FanCurvePointViewModel> CpuFanPoints { get; } = [];
@@ -194,8 +202,14 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     public string ApplicationVersion => _applicationVersion.ToString(3);
 
+    public bool IsSelfUpdateAvailable => _updateService is not null;
+
+    public bool IsServiceManagementAvailable { get; }
+
     [ObservableProperty]
     public partial bool IsUpdateOperationRunning { get; set; }
+
+    public bool IsUpdateProgressVisible => IsSelfUpdateAvailable && IsUpdateOperationRunning;
 
     [ObservableProperty]
     public partial string UpdateStatusText { get; set; }
@@ -203,7 +217,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     [ObservableProperty]
     public partial Uri? UpdateReleaseNotesUri { get; set; }
 
-    public bool IsUpdateReleaseNotesAvailable => UpdateReleaseNotesUri is not null;
+    public bool IsUpdateReleaseNotesAvailable =>
+        IsSelfUpdateAvailable && UpdateReleaseNotesUri is not null;
 
     [ObservableProperty]
     public partial string DeviceModel { get; set; } = "--";
@@ -434,7 +449,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
                 _settings.LastAcMode = StartupOperatingModePolicy.NormalizeSavedMode(_settings.LastAcMode);
                 _localization.SetLanguage(_settings.Language);
                 CurrentLanguage = _localization.CurrentLanguage;
-                ApplySettingsToView();
+                await ApplySettingsToViewAsync(startupLifetime.Token);
                 StatusMessage = _localization.Get("Status.Probing");
 
                 startupResult = await startupTask;
@@ -1091,7 +1106,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     private async Task SetRunAtStartupAsync(bool enabled)
     {
         RunAtStartup = enabled;
-        if (!StartupManager.SetEnabled(enabled))
+        if (!await _startupRegistration.SetEnabledAsync(enabled, _lifetime.Token))
         {
             RunAtStartup = !enabled;
             PublishError(_localization.Get("Status.StartupFailed"));
@@ -1128,6 +1143,11 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     [RelayCommand]
     private async Task DisableConflictingServicesAsync()
     {
+        if (!IsServiceManagementAvailable)
+        {
+            return;
+        }
+
         if (!await _interaction.ConfirmAsync(
                 _localization.Get("Confirm.DisableServices"),
                 _localization.Get("App.Name"),
@@ -1157,6 +1177,11 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     [RelayCommand]
     private async Task RestoreConflictingServicesAsync()
     {
+        if (!IsServiceManagementAvailable)
+        {
+            return;
+        }
+
         IsBusy = true;
         try
         {
@@ -1226,6 +1251,12 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
     [RelayCommand]
     private async Task CheckForUpdatesAsync()
     {
+        IApplicationUpdateService? updateService = _updateService;
+        if (updateService is null)
+        {
+            return;
+        }
+
         IsUpdateOperationRunning = true;
         UpdateReleaseNotesUri = null;
         bool downloading = false;
@@ -1233,7 +1264,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         try
         {
             UpdateStatusText = _localization.Get("Status.CheckingForUpdates");
-            ApplicationUpdateCheckResult result = await _updateService.CheckAsync(
+            ApplicationUpdateCheckResult result = await updateService.CheckAsync(
                 _applicationVersion,
                 _lifetime.Token);
             if (result.Update is not ApplicationUpdate update)
@@ -1279,7 +1310,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
                         percent);
                 }
             });
-            string installerPath = await _updateService.DownloadInstallerAsync(
+            string installerPath = await updateService.DownloadInstallerAsync(
                 update,
                 progress,
                 _lifetime.Token);
@@ -1312,6 +1343,9 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     partial void OnUpdateReleaseNotesUriChanged(Uri? value) =>
         OnPropertyChanged(nameof(IsUpdateReleaseNotesAvailable));
+
+    partial void OnIsUpdateOperationRunningChanged(bool value) =>
+        OnPropertyChanged(nameof(IsUpdateProgressVisible));
 
     public async ValueTask DisposeAsync()
     {
@@ -1382,7 +1416,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         await _fanGuard.DisposeAsync().ConfigureAwait(false);
         await _platform.DisposeAsync().ConfigureAwait(false);
         _settingsStore.Dispose();
-        _updateService.Dispose();
+        _updateService?.Dispose();
         _interaction.Dispose();
         _hardwareGate.Dispose();
         _lifetime.Dispose();
@@ -1410,9 +1444,9 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     private readonly record struct TimedResult<T>(T Value, long ElapsedMilliseconds);
 
-    private void ApplySettingsToView()
+    private async Task ApplySettingsToViewAsync(CancellationToken cancellationToken)
     {
-        RunAtStartup = StartupManager.IsEnabled();
+        RunAtStartup = await _startupRegistration.IsEnabledAsync(cancellationToken);
         StartMinimized = _settings.StartMinimized;
         AutoEcoOnBattery = _settings.AutoEcoOnBattery;
         AutoRefreshRate = _settings.AutoRefreshRate;
@@ -1850,7 +1884,10 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(TelemetryStateText));
         if (!IsUpdateOperationRunning)
         {
-            UpdateStatusText = _localization.Get("Description.CheckForUpdates");
+            UpdateStatusText = _localization.Get(
+                IsSelfUpdateAvailable
+                    ? "Description.CheckForUpdates"
+                    : "Description.StoreUpdates");
         }
         NotifyShellNoticeChanged();
     }

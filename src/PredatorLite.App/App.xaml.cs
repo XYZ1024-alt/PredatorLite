@@ -3,6 +3,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using PredatorLite.App.Services;
 using PredatorLite.App.ViewModels;
+using PredatorLite.Core.Abstractions;
 using PredatorLite.Core.Services;
 using PredatorLite.Platform.Windows;
 using PredatorLite.Platform.Windows.SystemIntegration;
@@ -63,7 +64,15 @@ public partial class App : Application
                 assemblyVersion.Minor,
                 Math.Max(assemblyVersion.Build, 0),
                 Math.Max(assemblyVersion.Revision, 0));
-            GitHubApplicationUpdateService updateService = new(
+            IApplicationUpdateService? updateService;
+            IStartupRegistration startupRegistration;
+            bool serviceManagementAvailable;
+#if STORE_DISTRIBUTION
+            updateService = null;
+            startupRegistration = new PackagedStartupRegistration(_logger);
+            serviceManagementAvailable = false;
+#else
+            updateService = new GitHubApplicationUpdateService(
                 new Uri(
                     "https://api.github.com/repos/XYZ1024-alt/PredatorLite/releases/latest",
                     UriKind.Absolute),
@@ -74,6 +83,9 @@ public partial class App : Application
                     "PredatorLite",
                     "Updates"),
                 applicationVersion.ToString(3));
+            startupRegistration = new RegistryStartupRegistration(_logger);
+            serviceManagementAvailable = true;
+#endif
             FanGuardClient fanGuard = new(_logger);
             _viewModel = new MainViewModel(
                 new PredatorPlatform(_logger, fanGuard),
@@ -83,13 +95,17 @@ public partial class App : Application
                 fanGuard,
                 localization,
                 interaction,
+                startupRegistration,
                 updateService,
+                serviceManagementAvailable,
                 applicationVersion,
                 new WinUiDispatcher(dispatcher, _logger));
 
             string[] commandLineArguments = Environment.GetCommandLineArgs();
-            bool startHidden = commandLineArguments.Skip(1).Any(argument =>
-                string.Equals(argument, "--background", StringComparison.OrdinalIgnoreCase));
+            bool startHidden =
+                Program.IsStartupTaskActivation ||
+                commandLineArguments.Skip(1).Any(argument =>
+                    string.Equals(argument, "--background", StringComparison.OrdinalIgnoreCase));
             bool startupTrayOnly = commandLineArguments.Skip(1).Any(argument =>
                 string.Equals(argument, "--startup-tray-only", StringComparison.OrdinalIgnoreCase));
             window = new MainWindow(

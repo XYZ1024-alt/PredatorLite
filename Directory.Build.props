@@ -4,6 +4,7 @@
     <PredatorLiteWindowsTargetFramework>net10.0-windows$(PredatorLiteWindowsVersion)</PredatorLiteWindowsTargetFramework>
     <PredatorLiteRuntimeIdentifier>win-x64</PredatorLiteRuntimeIdentifier>
     <PredatorLitePlatformTarget>x64</PredatorLitePlatformTarget>
+    <MicrosoftWindowsAppSDKVersion>2.3.1</MicrosoftWindowsAppSDKVersion>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>

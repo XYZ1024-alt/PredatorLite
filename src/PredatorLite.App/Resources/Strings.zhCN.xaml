@@ -45,6 +45,7 @@
     <sys:String x:Key="Description.ShowOsd">在桌面顶部显示紧凑性能浮窗。</sys:String>
     <sys:String x:Key="Description.GlobalHotkeys">允许全局显示窗口与循环切换模式。</sys:String>
     <sys:String x:Key="Description.CheckForUpdates">检查 GitHub 上最新的正式版本。</sys:String>
+    <sys:String x:Key="Description.StoreUpdates">更新由 Microsoft Store 自动提供。</sys:String>
     <sys:String x:Key="Description.GitHub">在 GitHub 上查看源代码、问题与版本发布。</sys:String>
     <sys:String x:Key="Section.OperatingMode">运行模式</sys:String>
     <sys:String x:Key="Section.Fan">风扇控制</sys:String>

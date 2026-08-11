@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
@@ -17,6 +18,8 @@ internal static class Program
     private static DispatcherQueue? _dispatcherQueue;
     private static bool _activationPending;
 
+    internal static bool IsStartupTaskActivation { get; private set; }
+
     [STAThread]
     private static int Main(string[] args)
     {
@@ -24,8 +27,19 @@ internal static class Program
         {
             StartupTelemetry.Start(args);
             WinRT.ComWrappersSupport.InitializeComWrappers();
-            if (RedirectToPrimaryInstance(GetInstanceKey(args)))
+            AppActivationArguments activation = AppInstance.GetCurrent().GetActivatedEventArgs();
+            IsStartupTaskActivation = activation.Kind == ExtendedActivationKind.StartupTask;
+            if (RedirectToPrimaryInstance(GetInstanceKey(args), activation))
             {
+                return 0;
+            }
+
+            if (HasConflictingDistributionProcess())
+            {
+                NativeMethods.ShowError(
+                    IntPtr.Zero,
+                    "Another PredatorLite installation is already running. Close it before opening this version.",
+                    "PredatorLite");
                 return 0;
             }
 
@@ -57,9 +71,10 @@ internal static class Program
         }
     }
 
-    private static bool RedirectToPrimaryInstance(string instanceKey)
+    private static bool RedirectToPrimaryInstance(
+        string instanceKey,
+        AppActivationArguments activation)
     {
-        AppActivationArguments activation = AppInstance.GetCurrent().GetActivatedEventArgs();
         AppInstance instance = AppInstance.FindOrRegisterForKey(instanceKey);
         if (instance.IsCurrent)
         {
@@ -125,6 +140,11 @@ internal static class Program
 
     private static void OnActivated(object? sender, AppActivationArguments args)
     {
+        if (args.Kind == ExtendedActivationKind.StartupTask)
+        {
+            return;
+        }
+
         DispatcherQueue? dispatcher;
         lock (ActivationSync)
         {
@@ -153,6 +173,46 @@ internal static class Program
         }
 
         app.ShowForRedirectedActivation();
+    }
+
+    private static bool HasConflictingDistributionProcess()
+    {
+        Process[] processes;
+        try
+        {
+            processes = Process.GetProcessesByName("PredatorLite");
+        }
+        catch
+        {
+            return true;
+        }
+
+        try
+        {
+            foreach (Process process in processes)
+            {
+                try
+                {
+                    if (process.Id != Environment.ProcessId)
+                    {
+                        return true;
+                    }
+                }
+                catch
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        finally
+        {
+            foreach (Process process in processes)
+            {
+                process.Dispose();
+            }
+        }
     }
 
     [DllImport("ole32.dll")]
