@@ -16,6 +16,8 @@ namespace PredatorLite.App;
     Justification = "WinUI owns the Application lifetime; ExitAsync releases all owned resources.")]
 public partial class App : Application
 {
+    private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(10);
+
     private FileAppLogger? _logger;
     private MainViewModel? _viewModel;
     private MainWindow? _mainWindow;
@@ -192,8 +194,16 @@ public partial class App : Application
         {
             if (_viewModel is not null)
             {
-                await _viewModel.DisposeAsync();
+                await _viewModel.DisposeAsync()
+                    .AsTask()
+                    .WaitAsync(ShutdownTimeout);
             }
+        }
+        catch (TimeoutException exception)
+        {
+            _logger?.LogError(
+                "Application shutdown exceeded the timeout; continuing forced exit.",
+                exception);
         }
         catch (Exception exception)
         {

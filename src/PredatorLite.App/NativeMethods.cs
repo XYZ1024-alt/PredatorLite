@@ -11,6 +11,8 @@ internal static partial class NativeMethods
     internal const long WsExNoActivate = 0x08000000L;
     internal const int SwHide = 0;
     internal const int SwShowNoActivate = 4;
+    internal const uint WmQueryEndSession = 0x0011;
+    internal const uint WmEndSession = 0x0016;
     internal const uint WmGetMinMaxInfo = 0x0024;
     internal const uint WmPowerBroadcast = 0x0218;
     internal const int PbtApmResumeAutomatic = 0x0012;
