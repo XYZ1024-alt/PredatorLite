@@ -259,6 +259,31 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private void OnWindowMessage(object? sender, NativeWindowMessageEventArgs e)
     {
+        if (e.Message == NativeMethods.WmQueryEndSession)
+        {
+            // Restart Manager (Inno Setup CloseApplications) and Windows
+            // session shutdown ask the top-level window whether the process
+            // may close. Accept the request and start the same shutdown path
+            // the tray "Exit" command uses; without this, the process stays
+            // alive and the installer reports that the app cannot be closed.
+            _logger.Info("End-session query received; shutting down.");
+            _ = _exitRequested(0);
+            e.Handled = true;
+            e.Result = (IntPtr)1; // TRUE: the process agrees to close.
+            return;
+        }
+
+        if (e.Message == NativeMethods.WmEndSession && e.WParam != IntPtr.Zero)
+        {
+            // The session is actually ending (wParam is TRUE). Restart the
+            // shutdown path if the query was not observed; ExitAsync is
+            // idempotent via its own guard.
+            _logger.Info("Session ending; shutting down.");
+            _ = _exitRequested(0);
+            e.Handled = true;
+            return;
+        }
+
         if (e.Message == NativeMethods.WmPowerBroadcast &&
             e.WParam.ToInt64() == NativeMethods.PbtApmResumeAutomatic)
         {
