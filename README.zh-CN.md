@@ -12,18 +12,17 @@
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 PredatorLite 是面向 Acer Predator 设备的独立、非官方 PredatorSense 替代方案。它使用普通用户权限提供性能、散热、灯光、显卡路由、电池与遥测控制，并通过显式硬件 profile 管理写入能力。
+PredatorLite 是面向 Acer Predator 设备的独立、非官方 PredatorSense 替代方案。它使用普通用户权限提供性能、散热、灯光、显卡路由、电池与遥测控制。
 
-当前硬件写入 profile 仅验证到：
+应用已完整测试于：
 
 - Acer Predator PHN16-71
 - BIOS V1.20
 - Windows 11 24H2（build 26100+）x64
 
-其他机型或 BIOS 版本仍可查看诊断信息和只读遥测，但没有已验证 profile 时所有硬件写入都会被禁用。新增写入支持必须逐机型、逐 BIOS 提供独立协议证据和人工验证。
+其他 Acer Predator 机型与 BIOS 版本同样可用。由于不同机型或 BIOS 版本的 Acer 服务接口可能存在细微差异，个别功能在未经测试的硬件上可能表现不一致。如遇到意外情况，欢迎提交 issue 并附上机型、BIOS 版本与诊断导出，以便排查。
 
-如果你的机型或 BIOS 版本尚未得到支持，欢迎自行完成验证和测试后提交 Pull Request 添加新的硬件 profile。新增写入支持必须附上对应机型/BIOS 的独立协议证据、失败与恢复测试及人工验证记录，未经完整验证的 profile 不会被合并。
-
-PredatorLite 是独立、非官方的 PredatorSense 替代方案，不代表 Acer 官方产品或授权。硬件控制存在固有风险；请确认当前设备存在匹配的已验证 profile，并阅读[硬件安全边界](docs/hardware-safety.md)。首次运行新发布版本时，Windows 可能显示 SmartScreen 信誉提示。
+PredatorLite 是独立、非官方的 PredatorSense 替代方案，不代表 Acer 官方产品或授权。硬件控制存在一定风险，使用前请阅读[硬件安全边界](docs/hardware-safety.md)。首次运行新发布版本时，Windows 可能显示 SmartScreen 信誉提示。
 
 ## 功能
 
@@ -45,6 +44,7 @@ PredatorLite 不提供用户超频、电压调节、功耗墙修改、MSR/NVAPI 
 - 每次主实例启动只自动恢复最后保存的运行模式；风扇、灯光、显卡路由及其他硬件设置不会重放。
 - 每次写入都来自明确的用户操作、用户主动启用的供电状态自动化，或上述运行模式启动恢复。
 - 写入仅在匹配显式硬件 profile、对应控制项已授权且后端能力探测成功后开放；未知机型或 BIOS 保持只读。
+- 写入仅在对应后端能力探测成功后开放；未经测试的机型或 BIOS 版本可能在个别控制项上存在细微差异。
 - 端点支持查询时执行结果回读；多步操作失败时不会把部分成功伪报为完整成功。
 - GPU 路由只有 `Hybrid = 2` 和 `Discrete = 1`，没有 iGPU-only 或禁用 Windows 显卡设备的路径。
 - 全速或自定义风扇启用前必须启动独立 FanGuard。主程序失联 5 秒或异常退出时，FanGuard 会恢复 EC 自动风扇。
@@ -110,17 +110,17 @@ dotnet run --project src\PredatorLite.App\PredatorLite.App.csproj
 本地生成 Stable、RC 或 Beta 发布资产：
 
 ```powershell
-.\build\prepare-release.ps1 -Version 1.0.2 -Channel Stable
-.\build\prepare-release.ps1 -Version 1.0.2 -Channel RC -Iteration 1
-.\build\prepare-release.ps1 -Version 1.0.2 -Channel Beta -Iteration 1
+.\build\prepare-release.ps1 -Version 1.1.0 -Channel Stable
+.\build\prepare-release.ps1 -Version 1.1.0 -Channel RC -Iteration 1
+.\build\prepare-release.ps1 -Version 1.1.0 -Channel Beta -Iteration 1
 ```
 
 脚本会生成对应版本的四个资产到 `publish\release`。以 RC 1 为例：
 
-- `PredatorLite-1.0.2-rc.1-win-x64-portable.zip`
-- `PredatorLite-1.0.2-rc.1-win-x64-portable.zip.sha256`
-- `PredatorLite-Setup-1.0.2-rc.1-win-x64.exe`
-- `PredatorLite-Setup-1.0.2-rc.1-win-x64.exe.sha256`
+- `PredatorLite-1.1.0-rc.1-win-x64-portable.zip`
+- `PredatorLite-1.1.0-rc.1-win-x64-portable.zip.sha256`
+- `PredatorLite-Setup-1.1.0-rc.1-win-x64.exe`
+- `PredatorLite-Setup-1.1.0-rc.1-win-x64.exe.sha256`
 
 发布资产使用 framework-dependent ReadyToRun 便携目录和普通用户安装器。目标机器需要 .NET 10 Runtime x64、Windows App Runtime 2.3 x64，以及 Windows 11 24H2（build 26100+）原生 x64。首次运行新发布版本时，Windows 可能显示 SmartScreen 信誉提示；发布前后都应使用对应 `.sha256` 文件校验资产。
 
@@ -130,7 +130,7 @@ Inno Setup 本地安装测试包：
 .\build\build-installer.ps1 -SkipSigning
 ```
 
-输出为 `artifacts\installer\unsigned\PredatorLite-Setup-1.0.2-win-x64-unsigned.exe`。内部测试载荷和测试包位于忽略的 `artifacts`，不会读写 `publish`；该路径只用于 signing-gates，不作为发布入口。公开仓库的 Actions artifact 不能作为内部分发渠道，因此 `build` 工作流只验证构建和 RC 安装器，不上传可下载产物。
+输出为 `artifacts\installer\unsigned\PredatorLite-Setup-1.1.0-win-x64-unsigned.exe`。内部测试载荷和测试包位于忽略的 `artifacts`，不会读写 `publish`；该路径只用于 signing-gates，不作为发布入口。公开仓库的 Actions artifact 不能作为内部分发渠道，因此 `build` 工作流只验证构建和 RC 安装器，不上传可下载产物。
 
 `.github\workflows\release.yml` 仅支持从 Actions 页面手动运行，并要求选择通道：
 

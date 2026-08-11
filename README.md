@@ -12,18 +12,17 @@
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 PredatorLite is an independent, unofficial PredatorSense alternative for Acer Predator devices. It provides performance, thermals, lighting, GPU routing, battery, and telemetry control with standard user privileges, and gates hardware writes behind explicit hardware profiles.
+PredatorLite is an independent, unofficial PredatorSense alternative for Acer Predator devices. It provides performance, thermals, lighting, GPU routing, battery, and telemetry control with standard user privileges.
 
-The current hardware-write profile is validated only on:
+The app is fully tested on:
 
 - Acer Predator PHN16-71
 - BIOS V1.20
 - Windows 11 24H2 (build 26100+) x64
 
-Other models or BIOS versions can still view diagnostics and read-only telemetry, but all hardware writes are disabled without a validated profile. New write support requires per-model, per-BIOS independent protocol evidence and manual validation.
+Other Acer Predator models and BIOS versions are supported too. Because the Acer service interfaces can differ slightly between models and BIOS versions, a specific feature may behave inconsistently on hardware that has not been tested yet. If you hit anything unexpected, open an issue with your model, BIOS version, and a diagnostic export so it can be looked into.
 
-If your model or BIOS version is not yet supported, you are welcome to complete the validation and testing yourself and submit a Pull Request adding a new hardware profile. New write support must include independent protocol evidence for the corresponding model/BIOS, failure and recovery tests, and manual validation records; profiles without full validation will not be merged.
-
-PredatorLite is an independent, unofficial PredatorSense alternative and does not represent an official Acer product or endorsement. Hardware control carries inherent risk; confirm that a matching validated profile exists for your device and read the [hardware safety boundaries](docs/hardware-safety.md). On first run of a new release, Windows may show a SmartScreen reputation prompt.
+PredatorLite is an independent, unofficial PredatorSense alternative and does not represent an official Acer product or endorsement. Hardware control carries some inherent risk, so review the [hardware safety boundaries](docs/hardware-safety.md) before use. On first run of a new release, Windows may show a SmartScreen reputation prompt.
 
 ## Features
 
@@ -44,7 +43,7 @@ PredatorLite does not provide user overclocking, voltage adjustment, power-limit
 
 - Only the last saved operating mode is automatically restored at each main-instance startup; fan, lighting, GPU routing, and other hardware settings are never replayed.
 - Every write originates from an explicit user action, power-state automation the user explicitly enabled, or the operating-mode startup restore above.
-- Writes open only after a matching explicit hardware profile, authorization for the corresponding control, and a successful backend capability probe; unknown models or BIOS versions stay read-only.
+- Writes open only after a successful backend capability probe; a model or BIOS version that has not been tested may expose slight differences in individual controls.
 - Result read-back is performed where endpoints support querying; a failed multi-step operation is never misreported as fully successful when only partially so.
 - GPU routing supports only `Hybrid = 2` and `Discrete = 1`; there is no iGPU-only path and no path that disables Windows display adapters.
 - Enabling Full Speed or custom fan mode requires launching the independent FanGuard first. If the main app loses contact for 5 seconds or exits abnormally, FanGuard restores EC automatic fan control.
@@ -110,17 +109,17 @@ The publish directory must be kept intact — copying only `PredatorLite.exe` is
 Build Stable, RC, or Beta release assets locally:
 
 ```powershell
-.\build\prepare-release.ps1 -Version 1.0.2 -Channel Stable
-.\build\prepare-release.ps1 -Version 1.0.2 -Channel RC -Iteration 1
-.\build\prepare-release.ps1 -Version 1.0.2 -Channel Beta -Iteration 1
+.\build\prepare-release.ps1 -Version 1.1.0 -Channel Stable
+.\build\prepare-release.ps1 -Version 1.1.0 -Channel RC -Iteration 1
+.\build\prepare-release.ps1 -Version 1.1.0 -Channel Beta -Iteration 1
 ```
 
 The script produces four assets for the given version in `publish\release`. For RC 1:
 
-- `PredatorLite-1.0.2-rc.1-win-x64-portable.zip`
-- `PredatorLite-1.0.2-rc.1-win-x64-portable.zip.sha256`
-- `PredatorLite-Setup-1.0.2-rc.1-win-x64.exe`
-- `PredatorLite-Setup-1.0.2-rc.1-win-x64.exe.sha256`
+- `PredatorLite-1.1.0-rc.1-win-x64-portable.zip`
+- `PredatorLite-1.1.0-rc.1-win-x64-portable.zip.sha256`
+- `PredatorLite-Setup-1.1.0-rc.1-win-x64.exe`
+- `PredatorLite-Setup-1.1.0-rc.1-win-x64.exe.sha256`
 
 Release assets use the framework-dependent ReadyToRun portable directory and a standard-user installer. Target machines need .NET 10 Runtime x64, Windows App Runtime 2.3 x64, and native x64 Windows 11 24H2 (build 26100+). Windows may show a SmartScreen reputation prompt on first run of a new release; verify assets with the corresponding `.sha256` file both before and after release.
 
@@ -130,7 +129,7 @@ Inno Setup local installer test package:
 .\build\build-installer.ps1 -SkipSigning
 ```
 
-Output: `artifacts\installer\unsigned\PredatorLite-Setup-1.0.2-win-x64-unsigned.exe`. Internal test payloads and packages live in the ignored `artifacts` directory and never read or write `publish`; that path is used only by signing gates and is not a release entry point. Public-repository Actions artifacts cannot serve as an internal distribution channel, so the `build` workflow only verifies the build and the RC installer without uploading downloadable artifacts.
+Output: `artifacts\installer\unsigned\PredatorLite-Setup-1.1.0-win-x64-unsigned.exe`. Internal test payloads and packages live in the ignored `artifacts` directory and never read or write `publish`; that path is used only by signing gates and is not a release entry point. Public-repository Actions artifacts cannot serve as an internal distribution channel, so the `build` workflow only verifies the build and the RC installer without uploading downloadable artifacts.
 
 `.github\workflows\release.yml` runs only manually from the Actions page and requires choosing a channel:
 

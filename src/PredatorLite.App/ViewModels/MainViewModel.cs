@@ -490,7 +490,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             else if (!_capabilities.CanWriteHardware)
             {
                 _startupRestoreAwaitingBackend =
-                    _capabilities.IsValidatedTarget &&
                     _capabilities.WriteBlockReason == HardwareWriteBlockReason.ControlBackendUnavailable;
                 modeOutcome = $"skipped-{_capabilities.WriteBlockReason}";
             }
@@ -1523,8 +1522,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
             RefreshRates.Add(rate);
         }
 
-        DisplayControlAvailable = capabilities.IsValidatedTarget &&
-            capabilities.AuthorizedControls.HasFlag(HardwareControlCapabilities.Display) &&
+        DisplayControlAvailable = capabilities.AuthorizedControls.HasFlag(HardwareControlCapabilities.Display) &&
             RefreshRates.Count > 0;
     }
 

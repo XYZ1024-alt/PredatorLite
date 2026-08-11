@@ -54,4 +54,42 @@ public sealed class HardwareTargetProfileTests
         Assert.Contains(DeviceSettingId.PanelDynamicRefresh, profile.UnsupportedDeviceSettings);
         Assert.Contains(DeviceSettingId.SoundMode, profile.UnsupportedDeviceSettings);
     }
+
+    [Fact]
+    public void GenericProfileAuthorizesTheFullControlSurface()
+    {
+        HardwareTargetProfile profile = HardwareTargetProfileCatalog.GenericProfile;
+
+        Assert.Equal(HardwareTargetProfileCatalog.GenericProfileId, profile.Id);
+        Assert.Empty(profile.ManufacturerAliases);
+        Assert.True(profile.AuthorizedControls.HasFlag(HardwareControlCapabilities.OperatingMode));
+        Assert.True(profile.AuthorizedControls.HasFlag(HardwareControlCapabilities.FanControl));
+        Assert.True(profile.AuthorizedControls.HasFlag(HardwareControlCapabilities.GpuMux));
+        Assert.True(profile.AuthorizedControls.HasFlag(HardwareControlCapabilities.BatteryHealth));
+        Assert.True(profile.AuthorizedControls.HasFlag(HardwareControlCapabilities.Lighting));
+        Assert.True(profile.AuthorizedControls.HasFlag(HardwareControlCapabilities.DeviceSettings));
+        Assert.True(profile.AuthorizedControls.HasFlag(HardwareControlCapabilities.Display));
+        HardwareControlProfile fanProfile = Assert.Single(
+            profile.ControlProfiles,
+            control => control.Control == HardwareControlCapabilities.FanControl);
+        Assert.Equal(HardwareTransportKind.AcerService, fanProfile.PrimaryTransport);
+        Assert.Equal(HardwareTransportKind.AcerWmi, fanProfile.FallbackTransport);
+        Assert.True(fanProfile.RequiresReadBack);
+        Assert.True(fanProfile.RequiresFanGuard);
+        HardwareControlProfile gpuProfile = Assert.Single(
+            profile.ControlProfiles,
+            control => control.Control == HardwareControlCapabilities.GpuMux);
+        Assert.True(gpuProfile.RequiresReboot);
+        Assert.Empty(profile.UnsupportedDeviceSettings);
+    }
+
+    [Fact]
+    public void ResolverNeverMatchesTheGenericProfile()
+    {
+        DeviceIdentity identity = new("Acer", "Predator PHN16-71", "V1.20", "Windows 11");
+
+        Assert.True(HardwareTargetProfileCatalog.TryResolve(identity, out HardwareTargetProfile? profile));
+        Assert.NotNull(profile);
+        Assert.NotEqual(HardwareTargetProfileCatalog.GenericProfileId, profile.Id);
+    }
 }

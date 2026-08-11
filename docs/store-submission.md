@@ -155,25 +155,25 @@ Stable upload candidate:
 ```powershell
 .\build\build-store-package.ps1 `
   -Configuration Release `
-  -Version 1.0.3 `
+  -Version 1.1.0 `
   -Mode StoreUpload
 
 .\build\test-store-package.ps1 `
-  -PackagePath publish\store\PredatorLite-Store-1.0.3-win-x64.msixupload `
-  -ExpectedVersion 1.0.3.0
+  -PackagePath publish\store\PredatorLite-Store-1.1.0-win-x64.msixupload `
+  -ExpectedVersion 1.1.0.0
 ```
 
 The result is:
 
-- `publish\store\PredatorLite-Store-1.0.3-win-x64.msixupload`;
-- `publish\store\PredatorLite-Store-1.0.3-win-x64.msixupload.sha256`.
+- `publish\store\PredatorLite-Store-1.1.0-win-x64.msixupload`;
+- `publish\store\PredatorLite-Store-1.1.0-win-x64.msixupload.sha256`.
 
 Sideload package for disposable-machine validation:
 
 ```powershell
 .\build\build-store-package.ps1 `
   -Configuration Release `
-  -Version 1.0.3 `
+  -Version 1.1.0 `
   -Mode Sideload `
   -CertificatePath C:\secure\PredatorLite-Test.pfx `
   -CertificatePassword $certificatePassword

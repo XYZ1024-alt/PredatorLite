@@ -89,7 +89,7 @@
     <sys:String x:Key="FanCurveValidation.SpeedOutOfRange">{0} 第 {1} 点：转速必须在 {2}% 到 {3}% 之间。</sys:String>
     <sys:String x:Key="FanCurveValidation.SpeedDecreases">{0} 第 {1} 点：转速不能降低。</sys:String>
     <sys:String x:Key="FanCurveValidation.InvalidSafetyEndpoint">{0} 安全端点必须为 {1}°C、100%。</sys:String>
-    <sys:String x:Key="Compatibility.None">{0} BIOS {1} 已通过硬件控制验证。</sys:String>
+    <sys:String x:Key="Compatibility.None">已为 {0} BIOS {1} 启用硬件控制。</sys:String>
     <sys:String x:Key="Compatibility.UnsupportedTargetProfile">当前机型 {0} / BIOS {1} 尚无已验证的硬件 profile，仍可使用诊断功能。</sys:String>
     <sys:String x:Key="Compatibility.ControlBackendUnavailable">未检测到受支持的 Acer 控制后端，硬件控制保持只读。</sys:String>
     <sys:String x:Key="Compatibility.ControlNotAuthorized">当前硬件 profile 未授权此控制项。</sys:String>

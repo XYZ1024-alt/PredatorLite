@@ -6,7 +6,7 @@
 
 Project: **PredatorLite**
 
-PredatorLite is a v1.0.2 ordinary-user Windows control utility and independent, unofficial alternative to PredatorSense for Acer Predator devices. Hardware writes are authorized only by explicit model/BIOS profiles. The current writable profile is `Predator PHN16-71`, BIOS `V1.20`, on Windows 11 24H2 (build 26100+) x64. Other models and BIOS versions may expose diagnostics and read-only telemetry, but must remain unable to write hardware state.
+PredatorLite is a v1.1.0 ordinary-user Windows control utility and independent, unofficial alternative to PredatorSense for Acer Predator devices. Hardware writes are authorized by a live backend capability probe; the reference profile is `Predator PHN16-71`, BIOS `V1.20`, on Windows 11 24H2 (build 26100+) x64, and every other identity falls back to the generic profile with the same control surface.
 
 Stack: C# on .NET 10 SDK `10.0.302`; WinUI 3 with Microsoft Windows App SDK `2.3.1`; CommunityToolkit.Mvvm; xUnit; BenchmarkDotNet; PowerShell release tooling; Inno Setup 6.
 
@@ -45,9 +45,9 @@ Run commands from the repository root in PowerShell. Development requires Window
 | Run UI automation | `.\build\ui-tests.ps1 -AppPid <PID>` |
 | Publish ReadyToRun | `.\build\publish.ps1` |
 | Publish IL comparison | `.\build\publish.ps1 -OutputPath publish\win-x64-il -ReadyToRun:$false` |
-| Build Stable release package | `.\build\prepare-release.ps1 -Version 1.0.2 -Channel Stable` |
-| Build RC release package | `.\build\prepare-release.ps1 -Version 1.0.2 -Channel RC -Iteration 1` |
-| Build Beta release package | `.\build\prepare-release.ps1 -Version 1.0.2 -Channel Beta -Iteration 1` |
+| Build Stable release package | `.\build\prepare-release.ps1 -Version 1.1.0 -Channel Stable` |
+| Build RC release package | `.\build\prepare-release.ps1 -Version 1.1.0 -Channel RC -Iteration 1` |
+| Build Beta release package | `.\build\prepare-release.ps1 -Version 1.1.0 -Channel Beta -Iteration 1` |
 | Build installer test package | `.\build\build-installer.ps1 -SkipSigning` |
 | Test release version policy | `.\build\test-release-version.ps1` |
 | Test signing integration | `.\build\test-installer-signing.ps1` |
@@ -81,7 +81,8 @@ CI runs restore, dependency audit, Release build, format verification, tests, Be
 Read `docs/hardware-safety.md` and `docs/protocol-provenance.md` before changing any hardware-facing path.
 
 - Never authorize a new profile based only on a matching marketing name. Each model/BIOS profile needs independent protocol evidence, explicit mapping/capability gates, read-back where supported, failure tests, recovery coverage, and hardware/BIOS manual validation.
-- Every hardware action must pass the identity/backend capability gate, remain serialized, issue only bounded commands, verify resulting state when possible, and preserve the previous visible/persisted state on failure.
+- A reference profile needs independent protocol evidence, explicit mapping/capability gates, read-back where supported, failure tests, recovery coverage, and hardware/BIOS manual validation. Devices outside the catalog work through the generic profile, so the write gate is the live backend probe, not a catalog match.
+- Every hardware action must pass the backend capability gate, remain serialized, issue only bounded commands, verify resulting state when possible, and preserve the previous visible/persisted state on failure.
 - Startup may restore only the saved operating mode, or Eco through the explicit battery automation. It must never replay fan, lighting, GPU routing, charge-limit, or device settings. A freshly observed matching mode must not send an Acer write.
 - Max and Custom fan modes require a successful current-user FanGuard pipe handshake and an active platform lease before the write. Preserve the five-second recovery timeout and Platform's ownership rule: shutdown restores Auto only when this process successfully established Max/Custom.
 - Fan curves must have increasing temperatures, non-decreasing speeds, bounded speed, and a final `95 C / 100%` point for both channels. Missing temperatures in Custom mode are treated as `95 C` and force 100%.
@@ -95,8 +96,10 @@ Read `docs/hardware-safety.md` and `docs/protocol-provenance.md` before changing
 - Add focused tests for every changed safety invariant, protocol encoding/parser path, capability gate, persistence rule, startup policy, and companion allowlist/recovery behavior.
 - There is no numeric coverage threshold, but CI must pass. The test project does not cover App/ViewModel/XAML behavior directly, so UI changes also need successful XAML compilation, `build\ui-tests.ps1`, applicable manual checks, and screenshots.
 - Run the app and UI checks as an ordinary user. Hardware-write tests are permitted only on a matching writable profile; other systems must be tested for read-only behavior.
+- Run the app and UI checks as an ordinary user. Hardware-write tests are permitted on any profile; write tests on unverified hardware must be validated by the test owner on the actual device.
 - Follow `docs/manual-testing.md` for visible WinUI, tray/OSD, accessibility, localization, single-instance, installer, and hardware checks.
 - Follow `docs/performance.md` for benchmark/startup evidence. Tray startup measurement is non-writing; `Critical` and `Deferred` require `-AllowHardwareInitialization`, a closed app, and the current writable profile machine.
+- Follow `docs/performance.md` for benchmark/startup evidence. Tray startup measurement is non-writing; `Critical` and `Deferred` require `-AllowHardwareInitialization`, a closed app, and the reference profile machine.
 
 ## RELEASE NOTES
 
