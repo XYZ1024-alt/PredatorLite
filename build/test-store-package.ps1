@@ -335,6 +335,30 @@ try {
         }
     }
 
+    $requiredWinUiResourceFiles = @(
+        "PredatorLite.pri",
+        "App.xbf",
+        "MainWindow.xbf",
+        "OsdWindow.xbf",
+        "Resources\Strings.enUS.xbf",
+        "Resources\Strings.zhCN.xbf",
+        "Resources\Theme.xbf",
+        "Views\CoolingPage.xbf",
+        "Views\HomePage.xbf",
+        "Views\LightingPage.xbf",
+        "Views\MainShell.xbf",
+        "Views\MonitorPage.xbf",
+        "Views\OsdContent.xbf",
+        "Views\SettingsPage.xbf",
+        "Views\TrayIconView.xbf"
+    )
+    foreach ($requiredResourceFile in $requiredWinUiResourceFiles) {
+        if (-not (Test-Path -LiteralPath (
+                    Join-Path $unpackDirectory $requiredResourceFile) -PathType Leaf)) {
+            throw "Package is missing WinUI resource $requiredResourceFile."
+        }
+    }
+
     $helperFiles = @(
         Get-ChildItem -LiteralPath $unpackDirectory -Recurse -File |
             Where-Object {

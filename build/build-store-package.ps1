@@ -204,6 +204,7 @@ try {
         "/p:Platform=x64",
         "/p:RuntimeIdentifier=win-x64",
         "/p:DistributionChannel=Store",
+        "/p:WindowsAppSdkBootstrapInitialize=false",
         "/p:SelfContained=true",
         "/p:WindowsAppSDKSelfContained=false",
         "/p:PublishTrimmed=false",
