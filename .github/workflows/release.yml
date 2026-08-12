@@ -342,14 +342,6 @@ jobs:
           ) -join [Environment]::NewLine
 
           $staticFooter = @(
-            "## Supported hardware profile",
-            "",
-            "- Acer Predator PHN16-71",
-            "- BIOS V1.20",
-            "- Windows 11 24H2 (build 26100+) x64",
-            "",
-            "Other models and BIOS versions remain limited to diagnostics and read-only telemetry.",
-            "",
             "## Requirements",
             "",
             "- .NET 10 Runtime x64",
