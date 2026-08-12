@@ -42,6 +42,7 @@
 
   <PropertyGroup Condition="'$(DistributionChannel)' == 'Store'">
     <DefineConstants>$(DefineConstants);STORE_DISTRIBUTION</DefineConstants>
+    <WindowsAppSdkBootstrapInitialize>false</WindowsAppSdkBootstrapInitialize>
     <SelfContained>true</SelfContained>
     <PublishTrimmed>false</PublishTrimmed>
     <PublishSingleFile>false</PublishSingleFile>
@@ -141,6 +142,28 @@
       <_ResolvedCopyLocalBuildAssets Remove="@(_ResolvedCopyLocalBuildAssets)"
                                      Condition="'%(_ResolvedCopyLocalBuildAssets.NuGetPackageId)' == 'Microsoft.Windows.AI.MachineLearning' and
                                                 '%(_ResolvedCopyLocalBuildAssets.AssetType)' == 'native'" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="AddWinUiResourcesToPublish"
+          BeforeTargets="ComputeFilesToPublish"
+          Condition="'$(DistributionChannel)' == 'Store' and
+                     '$(WinUiResourcesAddedToPublish)' != 'true'">
+    <PropertyGroup>
+      <WinUiResourcesAddedToPublish>true</WinUiResourcesAddedToPublish>
+    </PropertyGroup>
+    <ItemGroup>
+      <WinUiPublishFile
+        Include="$(OutDir)**\*.xbf"
+        Exclude="$(OutDir)AppX\**\*;$(PublishDir)**\*" />
+      <ResolvedFileToPublish Include="@(WinUiPublishFile)">
+        <RelativePath>%(WinUiPublishFile.RecursiveDir)%(WinUiPublishFile.Filename)%(WinUiPublishFile.Extension)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+      <ResolvedFileToPublish Include="$(OutDir)PredatorLite.pri">
+        <RelativePath>PredatorLite.pri</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
     </ItemGroup>
   </Target>
 
