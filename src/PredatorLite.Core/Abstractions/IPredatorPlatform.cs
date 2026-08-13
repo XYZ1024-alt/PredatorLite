@@ -53,6 +53,9 @@ public interface IPredatorPlatform : IAsyncDisposable
 
     Task<IReadOnlyList<ManagedServiceInfo>> GetManagedServicesAsync(
         CancellationToken cancellationToken = default);
+
+    Task<ControlInterfaceDiagnostics> GetControlInterfaceDiagnosticsAsync(
+        CancellationToken cancellationToken = default);
 }
 
 public interface IFanGuardWriteLease : IAsyncDisposable

@@ -45,6 +45,7 @@
     <sys:String x:Key="Description.ShowOsd">Show a compact performance overlay near the top of the desktop.</sys:String>
     <sys:String x:Key="Description.GlobalHotkeys">Allow global window access and operating mode cycling.</sys:String>
     <sys:String x:Key="Description.CheckForUpdates">Check the latest stable release on GitHub.</sys:String>
+    <sys:String x:Key="Description.DiagnosticVersion">This diagnostic build includes additional read-only control-interface diagnostics.</sys:String>
     <sys:String x:Key="Description.StoreUpdates">Updates are delivered automatically through Microsoft Store.</sys:String>
     <sys:String x:Key="Description.GitHub">View the source code, issues, and releases on GitHub.</sys:String>
     <sys:String x:Key="Section.OperatingMode">Operating mode</sys:String>
@@ -140,6 +141,7 @@
     <sys:String x:Key="Label.FanGuard">Fan guard</sys:String>
     <sys:String x:Key="Label.Language">Language</sys:String>
     <sys:String x:Key="Label.Version">Current version</sys:String>
+    <sys:String x:Key="Label.DiagnosticVersion">Diagnostic version</sys:String>
     <sys:String x:Key="Label.ApplicationUpdates">Software updates</sys:String>
     <sys:String x:Key="Label.GitHub">GitHub project</sys:String>
     <sys:String x:Key="Label.RunAtStartup">Run at startup</sys:String>

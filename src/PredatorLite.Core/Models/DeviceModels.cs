@@ -132,3 +132,50 @@ public sealed record ManagedServiceInfo(
     string StartMode,
     bool IsRequired,
     bool IsManagedConflict);
+
+public sealed record ControlInterfaceDiagnostics(
+    int SchemaVersion,
+    DateTimeOffset CollectedUtc,
+    RegistryValueMetadata XSenseAesKey,
+    IReadOnlyList<string> CollectionFailures,
+    IReadOnlyList<VendorProcessDiagnostics> Processes,
+    IReadOnlyList<VendorServiceDiagnostics> Services,
+    IReadOnlyList<LoopbackEndpointDiagnostics> Endpoints);
+
+public sealed record RegistryValueMetadata(
+    bool Exists,
+    string? Kind,
+    int? CharacterLength);
+
+public sealed record VendorProcessDiagnostics(
+    int ProcessId,
+    string Name,
+    string? ExecutableName,
+    string? ProductName,
+    string? ProductVersion,
+    string? FileVersion,
+    string? CompanyName,
+    IReadOnlyList<string> ServiceNames);
+
+public sealed record VendorServiceDiagnostics(
+    string Name,
+    string DisplayName,
+    string Status,
+    string StartMode,
+    int? ProcessId,
+    string? ExecutableName,
+    string? ProductName,
+    string? ProductVersion,
+    string? FileVersion,
+    string? CompanyName);
+
+public sealed record LoopbackEndpointDiagnostics(
+    string Protocol,
+    string LocalAddress,
+    int LocalPort,
+    string? RemoteAddress,
+    int? RemotePort,
+    string? State,
+    int ProcessId,
+    string? ProcessName,
+    IReadOnlyList<string> ServiceNames);

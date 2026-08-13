@@ -852,6 +852,12 @@ public sealed class PredatorPlatform : IPredatorPlatform
         CancellationToken cancellationToken = default) =>
         Task.Run<IReadOnlyList<ManagedServiceInfo>>(ServiceInspector.Read, cancellationToken);
 
+    public Task<ControlInterfaceDiagnostics> GetControlInterfaceDiagnosticsAsync(
+        CancellationToken cancellationToken = default) =>
+        Task.Run(
+            () => ControlInterfaceDiagnosticsCollector.Read(cancellationToken),
+            cancellationToken);
+
     public async ValueTask DisposeAsync()
     {
         Task? serviceStateRefreshTask;

@@ -110,37 +110,15 @@
                 </controls:SettingsCard>
                 <controls:SettingsCard
                     AutomationProperties.AutomationId="Settings.Update"
-                    AutomationProperties.HelpText="{x:Bind ViewModel.UpdateStatusText, Mode=OneWay}"
-                    Description="{x:Bind ViewModel.UpdateStatusText, Mode=OneWay}"
+                    AutomationProperties.HelpText="{StaticResource Description.DiagnosticVersion}"
+                    Description="{StaticResource Description.DiagnosticVersion}"
                     MinHeight="48"
                     Header="{StaticResource Label.Version}">
-                    <StackPanel
-                        Orientation="Horizontal"
-                        Spacing="12">
-                        <TextBlock
-                            VerticalAlignment="Center"
-                            AutomationProperties.AutomationId="Settings.Version"
-                            Style="{StaticResource BodyTextBlockStyle}"
-                            Text="{x:Bind ViewModel.ApplicationVersion, Mode=OneTime}" />
-                        <ProgressRing
-                            Width="20"
-                            Height="20"
-                            IsActive="{x:Bind ViewModel.IsUpdateOperationRunning, Mode=OneWay}"
-                            Visibility="{x:Bind ViewModel.IsUpdateProgressVisible, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                        <Button
-                            AutomationProperties.AutomationId="Settings.CheckForUpdates"
-                            Command="{x:Bind ViewModel.CheckForUpdatesCommand}"
-                            Content="{StaticResource Action.CheckForUpdates}"
-                            IsEnabled="{x:Bind ViewModel.IsUpdateOperationRunning, Mode=OneWay, Converter={StaticResource InverseBooleanConverter}}"
-                            Style="{StaticResource SecondaryButtonStyle}"
-                            Visibility="{x:Bind ViewModel.IsSelfUpdateAvailable, Mode=OneTime, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                        <HyperlinkButton
-                            VerticalAlignment="Center"
-                            AutomationProperties.AutomationId="Settings.ViewReleaseNotes"
-                            Content="{StaticResource Action.ViewReleaseNotes}"
-                            NavigateUri="{x:Bind ViewModel.UpdateReleaseNotesUri, Mode=OneWay}"
-                            Visibility="{x:Bind ViewModel.IsUpdateReleaseNotesAvailable, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                    </StackPanel>
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        AutomationProperties.AutomationId="Settings.Version"
+                        Style="{StaticResource BodyTextBlockStyle}"
+                        Text="{x:Bind ViewModel.ApplicationDisplayVersion, Mode=OneWay}" />
                 </controls:SettingsCard>
                 <controls:SettingsCard
                     MinHeight="48"

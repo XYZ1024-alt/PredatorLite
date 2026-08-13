@@ -10,6 +10,7 @@ namespace PredatorLite.App.Services;
 [JsonSerializable(typeof(HardwareSnapshot))]
 [JsonSerializable(typeof(IReadOnlyDictionary<DeviceSettingId, DeviceSettingState>))]
 [JsonSerializable(typeof(IReadOnlyList<ManagedServiceInfo>))]
+[JsonSerializable(typeof(ControlInterfaceDiagnostics))]
 [JsonSerializable(typeof(AppSettings))]
 [JsonSerializable(typeof(ApplicationDiagnostics))]
 internal sealed partial class DiagnosticsJsonContext : JsonSerializerContext

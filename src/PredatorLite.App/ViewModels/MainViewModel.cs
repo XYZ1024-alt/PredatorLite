@@ -202,6 +202,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     public string ApplicationVersion => _applicationVersion.ToString(3);
 
+    public string ApplicationDisplayVersion => _localization.Get("Label.DiagnosticVersion");
+
     public bool IsSelfUpdateAvailable => _updateService is not null;
 
     public bool IsServiceManagementAvailable { get; }
@@ -1221,12 +1223,15 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         IsBusy = true;
         try
         {
+            ControlInterfaceDiagnostics controlInterfaces =
+                await _platform.GetControlInterfaceDiagnosticsAsync(_lifetime.Token);
             await DiagnosticsExporter.ExportAsync(
                 path,
                 _capabilities,
                 _snapshot,
                 _deviceSettingStates,
                 ManagedServices.ToArray(),
+                controlInterfaces,
                 _settings,
                 _logger.LogDirectory,
                 _lifetime.Token);
@@ -1877,9 +1882,9 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         ValidateFanCurve();
         OnPropertyChanged(nameof(LightingColorAutomationName));
         OnPropertyChanged(nameof(CpuLabel));
-        OnPropertyChanged(nameof(GpuLabel));
         OnPropertyChanged(nameof(CpuFanLabel));
         OnPropertyChanged(nameof(TelemetryStateText));
+        OnPropertyChanged(nameof(ApplicationDisplayVersion));
         if (!IsUpdateOperationRunning)
         {
             UpdateStatusText = _localization.Get(

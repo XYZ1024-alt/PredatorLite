@@ -14,10 +14,6 @@ $fail = 0
 $results = @()
 $homeLightingEffectValue = $null
 $lightingZoneOneValue = $null
-$versionProperties = [xml](Get-Content (Join-Path $PSScriptRoot "..\Directory.Build.props"))
-$expectedApplicationVersion = [string](
-    $versionProperties.Project.PropertyGroup.Version |
-        Select-Object -First 1)
 
 if (-not (Get-Command winapp -ErrorAction SilentlyContinue)) {
     throw "winapp is required. Run /winui-setup, then retry this script."
@@ -513,33 +509,31 @@ Test-Ui "Settings controls are reachable" {
     Assert-WinAppSucceeded "Opening Settings"
     winapp ui wait-for "Settings.Language" -a $AppPid -t 3000
     Assert-WinAppSucceeded "Waiting for language settings"
-    winapp ui wait-for "Settings.Version" -a $AppPid --value $expectedApplicationVersion -t 3000
-    Assert-WinAppSucceeded "Checking the application version"
+    $versionLabel = winapp ui get-property "Settings.Version" -a $AppPid -p Name --json 2>$null |
+        ConvertFrom-Json -ErrorAction Stop
+    Assert-WinAppSucceeded "Reading the diagnostic version label"
+    if ("$($versionLabel.properties.Name)" -notin @("Diagnostic version", "诊断版本")) {
+        throw "Settings did not expose the localized diagnostic version label."
+    }
+    winapp ui wait-for "Settings.CheckForUpdates" -a $AppPid --gone -t 1000
+    Assert-WinAppSucceeded "Checking that diagnostic builds omit the update check action"
+    winapp ui wait-for "Settings.ViewReleaseNotes" -a $AppPid --gone -t 1000
+    Assert-WinAppSucceeded "Checking that diagnostic builds omit release notes"
+    $versionHelpText = winapp ui get-property "Settings.Update" -a $AppPid -p HelpText --json 2>$null |
+        ConvertFrom-Json -ErrorAction Stop
+    Assert-WinAppSucceeded "Reading the diagnostic version description"
+    if ("$($versionHelpText.properties.HelpText)" -notin @(
+            "This diagnostic build includes additional read-only control-interface diagnostics.",
+            "此诊断版本包含额外的只读控制接口诊断功能。")) {
+        throw "The diagnostic version description was not exposed through UI Automation."
+    }
     if ($DistributionChannel -eq "Store") {
-        winapp ui wait-for "Settings.CheckForUpdates" -a $AppPid --gone -t 1000
-        Assert-WinAppSucceeded "Checking that Store builds omit the update check action"
-        winapp ui wait-for "Settings.ViewReleaseNotes" -a $AppPid --gone -t 1000
-        Assert-WinAppSucceeded "Checking that Store builds omit release notes"
         winapp ui wait-for "Settings.DisableConflicts" -a $AppPid --gone -t 1000
         Assert-WinAppSucceeded "Checking that Store builds omit conflict disabling"
         winapp ui wait-for "Settings.RestoreServices" -a $AppPid --gone -t 1000
         Assert-WinAppSucceeded "Checking that Store builds omit service restoration"
-        $updateHelpText = winapp ui get-property "Settings.Update" -a $AppPid -p HelpText --json 2>$null |
-            ConvertFrom-Json -ErrorAction Stop
-        Assert-WinAppSucceeded "Reading the Store update description"
-        if ("$($updateHelpText.properties.HelpText)" -notin @(
-                "Updates are delivered automatically through Microsoft Store.",
-                "更新由 Microsoft Store 自动提供。")) {
-            throw "Store update description was not exposed through UI Automation."
-        }
     }
     else {
-        winapp ui wait-for "Settings.CheckForUpdates" -a $AppPid -t 3000
-        Assert-WinAppSucceeded "Waiting for the update check action"
-        winapp ui wait-for "Settings.CheckForUpdates" -a $AppPid -p IsEnabled --value "True" -t 3000
-        Assert-WinAppSucceeded "Checking that updates can be requested"
-        winapp ui wait-for "Settings.ViewReleaseNotes" -a $AppPid --gone -t 1000
-        Assert-WinAppSucceeded "Checking that release notes stay hidden before an update is found"
         winapp ui wait-for "Settings.DisableConflicts" -a $AppPid -t 3000
         Assert-WinAppSucceeded "Waiting for conflict disabling"
         winapp ui wait-for "Settings.RestoreServices" -a $AppPid -t 3000

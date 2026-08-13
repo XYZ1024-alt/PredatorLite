@@ -15,6 +15,7 @@ public static class DiagnosticsExporter
         HardwareSnapshot snapshot,
         IReadOnlyDictionary<DeviceSettingId, DeviceSettingState> deviceSettings,
         IReadOnlyList<ManagedServiceInfo> services,
+        ControlInterfaceDiagnostics controlInterfaces,
         AppSettings settings,
         string logDirectory,
         CancellationToken cancellationToken = default)
@@ -31,6 +32,11 @@ public static class DiagnosticsExporter
         await WriteJsonAsync(archive, "snapshot.json", snapshot, cancellationToken).ConfigureAwait(false);
         await WriteJsonAsync(archive, "device-settings.json", deviceSettings, cancellationToken).ConfigureAwait(false);
         await WriteJsonAsync(archive, "services.json", services, cancellationToken).ConfigureAwait(false);
+        await WriteJsonAsync(
+            archive,
+            "control-interfaces.json",
+            controlInterfaces,
+            cancellationToken).ConfigureAwait(false);
         await WriteJsonAsync(archive, "settings.json", settings, cancellationToken).ConfigureAwait(false);
         Assembly assembly = typeof(DiagnosticsExporter).Assembly;
         string? applicationVersion =
