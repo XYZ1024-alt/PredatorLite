@@ -138,7 +138,7 @@ Inno Setup 本地安装测试包：
 - `rc`：必须填写 `iteration` 并勾选 `confirm_public`；创建所有人可见的 GitHub Pre-release。
 - `stable`：不得填写 `iteration`，必须勾选 `confirm_public`；创建正式 GitHub Release。
 
-工作流只接受 `main`，同一完整版本已存在时不会覆盖。Beta 适合维护者内部测试；如果测试人员不应获得公开仓库 push 权限，应改用独立私有仓库或私有存储分发 Beta。
+RC 和 Stable 只接受 `main`。Beta 可从非 `main` 分支运行，用于分发对应分支的诊断版本，但仍是仅维护者可见的 Draft Pre-release。工作流不会覆盖同一完整版本，因此每个分支诊断版本都必须使用新的 Beta iteration。如果测试人员不应获得公开仓库 push 权限，应改用独立私有仓库或私有存储分发。
 
 完整的临时证书签名、安装、卸载与时间戳集成测试不阻塞日常构建。发布前必须在本地运行 `build\test-installer-signing.ps1`；需要检查 GitHub 托管环境时，可从 Actions 页面手动运行 `installer signing gates` 工作流。该手动工作流不上传 artifact，也不能创建或修改 GitHub Release；其 `-test-signed` 产物只存在于临时 runner，并在测试结束时删除。
 

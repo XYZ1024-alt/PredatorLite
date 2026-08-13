@@ -60,10 +60,6 @@ jobs:
           CONFIRM_PUBLIC: ${{ inputs.confirm_public }}
         run: |
           $ErrorActionPreference = "Stop"
-          if ($env:GITHUB_REF -ne "refs/heads/main") {
-            throw "The release workflow must run from the main branch."
-          }
-
           . (Join-Path $PWD "build\release-output.ps1")
           [xml]$buildProperties = Get-Content -LiteralPath "Directory.Build.props"
           $baseVersion = [string]($buildProperties.Project.PropertyGroup.Version | Select-Object -First 1)
@@ -80,6 +76,12 @@ jobs:
           }
           if ($release.IsDraft -and $confirmPublic) {
             throw "Beta releases must not request public confirmation."
+          }
+          $isMainBranch = $env:GITHUB_REF.Equals(
+            "refs/heads/main",
+            [System.StringComparison]::OrdinalIgnoreCase)
+          if (-not $isMainBranch -and -not $release.IsDraft) {
+            throw "RC and Stable releases must run from the main branch. Non-main branches may create Beta drafts only."
           }
 
           $tag = "v$($release.ReleaseVersion)"

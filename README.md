@@ -137,7 +137,7 @@ Output: `artifacts\installer\unsigned\PredatorLite-Setup-1.1.0-win-x64-unsigned.
 - `rc`: `iteration` is required and `confirm_public` must be checked; creates a public GitHub Pre-release.
 - `stable`: `iteration` must be empty and `confirm_public` must be checked; creates a regular GitHub Release.
 
-The workflow only accepts `main` and never overwrites an existing complete version. Beta is for maintainer-internal testing; if testers should not get push access to the public repository, distribute Beta through a separate private repository or private storage.
+RC and Stable releases only accept `main`. Beta may run from a non-main branch to distribute a branch-specific diagnostic build, but remains a maintainer-only Draft Pre-release. The workflow never overwrites an existing complete version, so every branch diagnostic build needs a new Beta iteration. If testers should not get push access to the public repository, use a separate private repository or private storage instead.
 
 Full temporary-certificate signing, install, uninstall, and timestamp integration tests do not block everyday builds. Run `build\test-installer-signing.ps1` locally before release; to check on a GitHub-hosted environment, run the `installer signing gates` workflow manually from the Actions page. That manual workflow uploads no artifacts and cannot create or modify GitHub Releases; its `-test-signed` output exists only on the temporary runner and is deleted when the test finishes.
 
