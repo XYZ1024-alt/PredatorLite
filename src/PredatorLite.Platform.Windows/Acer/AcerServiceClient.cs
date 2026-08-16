@@ -8,7 +8,7 @@ using PredatorLite.Core.Abstractions;
 
 namespace PredatorLite.Platform.Windows.Acer;
 
-public sealed class AcerServiceClient : IAsyncDisposable
+public class AcerServiceClient : IAsyncDisposable
 {
     private const int MaxResponseBytes = 64 * 1024;
     private static readonly TimeSpan ConnectTimeout = TimeSpan.FromMilliseconds(800);
@@ -17,11 +17,17 @@ public sealed class AcerServiceClient : IAsyncDisposable
     private readonly SemaphoreSlim _commandGate = new(1, 1);
     private readonly IAppLogger _logger;
     private readonly byte[]? _aesKey;
+    private bool _plaintextFallback;
 
     public AcerServiceClient(IAppLogger logger)
+        : this(logger, ReadAesKey())
+    {
+    }
+
+    internal AcerServiceClient(IAppLogger logger, byte[]? aesKey)
     {
         _logger = logger;
-        _aesKey = ReadAesKey();
+        _aesKey = aesKey;
     }
 
     public Task<AcerResponse> QueryAsync(string function, CancellationToken cancellationToken = default) =>
@@ -54,6 +60,7 @@ public sealed class AcerServiceClient : IAsyncDisposable
     public ValueTask DisposeAsync()
     {
         _commandGate.Dispose();
+        GC.SuppressFinalize(this);
         return ValueTask.CompletedTask;
     }
 
@@ -73,10 +80,12 @@ public sealed class AcerServiceClient : IAsyncDisposable
             {
                 try
                 {
+                    byte[]? effectiveKey = _plaintextFallback ? null : _aesKey;
                     AcerResponse response = await SendCoreAsync(
                         packetId,
                         function,
                         parameters,
+                        effectiveKey,
                         cancellationToken).ConfigureAwait(false);
 
                     if (!string.IsNullOrWhiteSpace(response.Request) &&
@@ -84,6 +93,46 @@ public sealed class AcerServiceClient : IAsyncDisposable
                     {
                         throw new InvalidDataException(
                             $"AcerService response belonged to {response.Request}, expected {function}.");
+                    }
+
+                    if (!_plaintextFallback && _aesKey is not null && !response.IsSuccess)
+                    {
+                        _logger.Info(
+                            $"AcerService {function} rejected (result={response.Result}) with AES; " +
+                            "retrying the request in plaintext.");
+                        AcerResponse plaintext = await SendCoreAsync(
+                            packetId,
+                            function,
+                            parameters,
+                            null,
+                            cancellationToken).ConfigureAwait(false);
+                        if (!string.IsNullOrWhiteSpace(plaintext.Request) &&
+                            !string.Equals(plaintext.Request, function, StringComparison.OrdinalIgnoreCase))
+                        {
+                            throw new InvalidDataException(
+                                $"AcerService plaintext response belonged to {plaintext.Request}, " +
+                                $"expected {function}.");
+                        }
+
+                        if (plaintext.IsSuccess)
+                        {
+                            _logger.Info(
+                                "Plaintext retry succeeded; falling back to plaintext for this session.");
+                            _plaintextFallback = true;
+                            return plaintext;
+                        }
+
+                        _logger.Info(
+                            $"Plaintext retry also rejected (result={plaintext.Result}); " +
+                            "keeping the configured transport mode.");
+                        return plaintext;
+                    }
+
+                    if (logFailures && !response.IsSuccess)
+                    {
+                        _logger.Info(
+                            $"AcerService {function} rejected with result={response.Result}: " +
+                            SummarizeResponse(response));
                     }
 
                     return response;
@@ -111,10 +160,11 @@ public sealed class AcerServiceClient : IAsyncDisposable
         }
     }
 
-    private async Task<AcerResponse> SendCoreAsync(
+    internal virtual async Task<AcerResponse> SendCoreAsync(
         uint packetId,
         string function,
         JsonObject? parameters,
+        byte[]? aesKey,
         CancellationToken cancellationToken)
     {
         JsonObject request = new() { ["Function"] = function };
@@ -123,7 +173,7 @@ public sealed class AcerServiceClient : IAsyncDisposable
             request["Parameter"] = parameters.DeepClone();
         }
 
-        byte[] packet = AcerPacketCodec.Encode(packetId, request.ToJsonString(), _aesKey);
+        byte[] packet = AcerPacketCodec.Encode(packetId, request.ToJsonString(), aesKey);
         using TcpClient client = new();
         using CancellationTokenSource connectTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         connectTimeout.CancelAfter(ConnectTimeout);
@@ -183,6 +233,15 @@ public sealed class AcerServiceClient : IAsyncDisposable
         {
             return false;
         }
+    }
+
+    private static string SummarizeResponse(AcerResponse response)
+    {
+        const int maxLength = 160;
+        string raw = response.Raw.ReplaceLineEndings(" ").Trim();
+        return raw.Length <= maxLength
+            ? raw
+            : raw[..maxLength] + "...";
     }
 
     private static int ReadInt(JsonElement element, string name, int fallback)

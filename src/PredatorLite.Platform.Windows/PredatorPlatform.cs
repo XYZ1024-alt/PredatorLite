@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net.NetworkInformation;
 using System.Text.Json.Nodes;
 using PredatorLite.Core.Abstractions;
 using PredatorLite.Core.Models;
@@ -115,11 +116,38 @@ public sealed class PredatorPlatform : IPredatorPlatform
             _logger.Info(
                 $"Startup control probe completed in {stopwatch.ElapsedMilliseconds} ms: " +
                 $"AcerService={serviceAvailable}, WMI={wmiAvailable}, validated={validated}.");
+            if (!serviceAvailable && !wmiAvailable)
+            {
+                bool controlPortListening = IsPortListening(AcerProtocol.CommandPort);
+                _logger.Info(
+                    "Startup control probe: no Acer control backend responded. " +
+                    $"Port {AcerProtocol.CommandPort} is {(controlPortListening ? "LISTENING" : "NOT listening")}. " +
+                    (controlPortListening
+                        ? "A service accepted the port but rejected or ignored every request; " +
+                          "the Acer Agent Service version may speak a different protocol. " +
+                          "Rejection responses and connection errors are logged above."
+                        : "Install or start the Acer Agent Service (AASSvc / AcerAgentService) " +
+                          "that owns the control port; rejection responses and connection errors are logged above."));
+            }
             return _startupState;
         }
         finally
         {
             _probeGate.Release();
+        }
+    }
+
+    internal static bool IsPortListening(int port)
+    {
+        try
+        {
+            IPGlobalProperties properties = IPGlobalProperties.GetIPGlobalProperties();
+            return properties.GetActiveTcpListeners()
+                .Any(endpoint => endpoint.Port == port);
+        }
+        catch
+        {
+            return false;
         }
     }
 

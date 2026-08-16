@@ -10,7 +10,8 @@ internal static class ServiceInspector
         "AcerServiceSvc",
         "AcerLightingService",
         "AcerQAAgentSvis",
-        "ASMSvc"
+        "ASMSvc",
+        "AASSvc"
     };
 
     private static readonly HashSet<string> ManagedConflicts = new(StringComparer.OrdinalIgnoreCase)

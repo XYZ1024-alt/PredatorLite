@@ -1,5 +1,6 @@
 /.pi-subagents/
 /PreySense/
+/predatorsense/
 **/bin/
 **/obj/
 /publish/
