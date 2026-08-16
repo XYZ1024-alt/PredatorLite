@@ -140,6 +140,7 @@
     <sys:String x:Key="Label.FanGuard">Fan guard</sys:String>
     <sys:String x:Key="Label.Language">Language</sys:String>
     <sys:String x:Key="Label.Version">Current version</sys:String>
+    <sys:String x:Key="Label.DiagnosticBuild">Diagnostic build</sys:String>
     <sys:String x:Key="Label.ApplicationUpdates">Software updates</sys:String>
     <sys:String x:Key="Label.GitHub">GitHub project</sys:String>
     <sys:String x:Key="Label.RunAtStartup">Run at startup</sys:String>

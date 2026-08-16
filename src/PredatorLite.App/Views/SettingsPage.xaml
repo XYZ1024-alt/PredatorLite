@@ -121,7 +121,7 @@
                             VerticalAlignment="Center"
                             AutomationProperties.AutomationId="Settings.Version"
                             Style="{StaticResource BodyTextBlockStyle}"
-                            Text="{x:Bind ViewModel.ApplicationVersion, Mode=OneTime}" />
+                            Text="{x:Bind ViewModel.ApplicationVersionDisplay, Mode=OneWay}" />
                         <ProgressRing
                             Width="20"
                             Height="20"

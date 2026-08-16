@@ -140,6 +140,7 @@
     <sys:String x:Key="Label.FanGuard">风扇守护</sys:String>
     <sys:String x:Key="Label.Language">语言</sys:String>
     <sys:String x:Key="Label.Version">当前版本</sys:String>
+    <sys:String x:Key="Label.DiagnosticBuild">诊断版</sys:String>
     <sys:String x:Key="Label.ApplicationUpdates">软件更新</sys:String>
     <sys:String x:Key="Label.GitHub">GitHub 项目</sys:String>
     <sys:String x:Key="Label.RunAtStartup">开机启动</sys:String>

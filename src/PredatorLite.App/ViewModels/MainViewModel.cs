@@ -202,6 +202,9 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     public string ApplicationVersion => _applicationVersion.ToString(3);
 
+    public string ApplicationVersionDisplay =>
+        $"{_applicationVersion.ToString(3)} ({_localization.Get("Label.DiagnosticBuild")})";
+
     public bool IsSelfUpdateAvailable => _updateService is not null;
 
     public bool IsServiceManagementAvailable { get; }
@@ -1880,6 +1883,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(GpuLabel));
         OnPropertyChanged(nameof(CpuFanLabel));
         OnPropertyChanged(nameof(TelemetryStateText));
+        OnPropertyChanged(nameof(ApplicationVersionDisplay));
         if (!IsUpdateOperationRunning)
         {
             UpdateStatusText = _localization.Get(
