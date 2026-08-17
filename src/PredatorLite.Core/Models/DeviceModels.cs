@@ -131,4 +131,6 @@ public sealed record ManagedServiceInfo(
     string Status,
     string StartMode,
     bool IsRequired,
-    bool IsManagedConflict);
+    bool IsManagedConflict,
+    string? FileVersion = null,
+    string? PathName = null);

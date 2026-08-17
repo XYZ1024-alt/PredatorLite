@@ -20,6 +20,22 @@ public sealed class ServiceInspectorTests
     }
 
     [Fact]
+    public void RunningServicesExposeFileVersionAndPath()
+    {
+        IReadOnlyList<ManagedServiceInfo> services = ServiceInspector.Read();
+
+        ManagedServiceInfo? agent = services.FirstOrDefault(service =>
+            string.Equals(service.Name, "AASSvc", StringComparison.OrdinalIgnoreCase));
+        if (agent is null || agent.Status != "Running")
+        {
+            return; // Environment without the Acer Agent Service cannot verify this.
+        }
+
+        Assert.False(string.IsNullOrWhiteSpace(agent.PathName));
+        Assert.False(string.IsNullOrWhiteSpace(agent.FileVersion));
+    }
+
+    [Fact]
     public void ReadIncludesLegacyPredatorServiceNameAsConflict()
     {
         IReadOnlyList<ManagedServiceInfo> services = ServiceInspector.Read();

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Management;
 using PredatorLite.Core.Models;
 
@@ -29,7 +30,7 @@ internal static class ServiceInspector
         try
         {
             using ManagementObjectSearcher searcher = new(
-                "SELECT Name, DisplayName, State, StartMode FROM Win32_Service");
+                "SELECT Name, DisplayName, State, StartMode, PathName FROM Win32_Service");
             WmiOperationOptions.Configure(searcher);
             using ManagementObjectCollection collection = searcher.Get();
             Dictionary<string, ManagementObject> byName = collection
@@ -43,13 +44,17 @@ internal static class ServiceInspector
             {
                 if (byName.TryGetValue(name, out ManagementObject? service))
                 {
+                    string? pathName = service["PathName"]?.ToString();
+                    string? fileVersion = ResolveFileVersion(pathName);
                     services.Add(new ManagedServiceInfo(
                         name,
                         service["DisplayName"]?.ToString() ?? name,
                         service["State"]?.ToString() ?? "Unknown",
                         service["StartMode"]?.ToString() ?? "Unknown",
                         Required.Contains(name),
-                        ManagedConflicts.Contains(name)));
+                        ManagedConflicts.Contains(name),
+                        fileVersion,
+                        pathName));
                 }
                 else
                 {
@@ -69,5 +74,30 @@ internal static class ServiceInspector
         }
 
         return services;
+    }
+
+    private static string? ResolveFileVersion(string? pathName)
+    {
+        if (string.IsNullOrWhiteSpace(pathName))
+        {
+            return null;
+        }
+
+        string path = pathName.Trim('"');
+        if (path.Contains(' ', StringComparison.Ordinal) && !path.StartsWith('"'))
+        {
+            path = path[..path.IndexOf(' ', StringComparison.Ordinal)];
+        }
+
+        try
+        {
+            return File.Exists(path)
+                ? FileVersionInfo.GetVersionInfo(path).FileVersion
+                : null;
+        }
+        catch
+        {
+            return null;
+        }
     }
 }
